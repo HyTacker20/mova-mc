@@ -9,9 +9,7 @@ only toggles ``display``, with zero DOM manipulation after startup.
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,7 +17,10 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from ...application.pipeline import PipelineResult
 
 from loguru import logger
 from textual import events
@@ -32,21 +33,16 @@ from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Label
 
-from ...application.pipeline import (
-    PipelineResult,
-    build_context,
-    run_pipeline_async,
-)
 from ...core.config_loader import find_config_file, load_config
-from ...core.mod_scanner import ModInfo, ModScanner, modinfo_to_domain_mod
+from ...core.mod_scanner import ModInfo, ModScanner
 from ...core.settings import Settings
 from ...domain.stats import OverallStats
-from ...logging_config import add_callback_sink
 from ...utils.cancellation import cancel_token
 from ...utils.progress import ProgressReporter
 from .formatting import estimate_eta_seconds
 from .i18n import get_locale_from_app, step_labels, t
 from .key_bindings import layout_binding
+from .pipeline_runner import PipelineRunner
 from .steps import StepBack, StepCancel, StepComplete
 from .steps.advanced import AdvancedStep
 from .steps.mods import ModsStep
@@ -307,11 +303,11 @@ class WizardScreen(Screen):
 
     current_index: int = -1
     _current_step: Widget | None = None
-    _log_sink_id: int | None = None
     _step_cache: dict[int, Widget]
     _card: StepCard | None = None
     _stepper: Stepper | None = None
     _pipeline_running: bool = False
+    _runner: PipelineRunner | None = None
 
     # ── Pipeline messages ─────────────────────────────────────────
 
@@ -675,14 +671,14 @@ class WizardScreen(Screen):
     # ── Pipeline worker ───────────────────────────────────────────
 
     def _start_pipeline(self) -> None:
-        """Start translation pipeline on a worker thread."""
+        """Start translation pipeline via PipelineRunner."""
         cancel_token.clear()
         self._show_step(5)
         wiz = self.app.wizard_state  # type: ignore[attr-defined]
         if wiz.settings.output_mode == "replace":
             wiz.settings.translation_path = wiz.settings.mods_path
 
-        # Show/hide QA panel (vertical split — full width each)
+        # Show/hide QA panel
         try:
             step = self.query_one(TranslateRunStep)
             step.query_one("#qa-panel").display = wiz.settings.qa_judge
@@ -690,7 +686,6 @@ class WizardScreen(Screen):
             pass
 
         selected = wiz.selected_mod_infos
-
         if not selected:
             locale = get_locale_from_app(self.app)
             with contextlib.suppress(Exception):
@@ -701,77 +696,48 @@ class WizardScreen(Screen):
 
         self._pipeline_running = True
         self._pipeline_start = time.monotonic()
-        wiz.progress_reporter = ProgressReporter()
-        wiz.progress_reporter.subscribe(self._on_progress_event)
 
-        # Route INFO+ log messages to the TUI's RichLog (non-blocking, thread-safe)
-        def _log_to_tui(msg: str) -> None:
-            stripped = msg.strip()
-            if stripped.startswith("Inline QA"):
-                return
-            line = f"[dim]{stripped}[/]"
-            with contextlib.suppress(Exception):
-                if threading.get_ident() == self.app._thread_id:
-                    self._append_pipeline_log(line)
-                else:
-                    self.post_message(self.PipelineLogLine(line))
+        # ── Callbacks bridge runner → UI (thread-safe via post_message) ──
+        def _on_progress(event: str, data: dict[str, Any]) -> None:
+            if threading.get_ident() == self.app._thread_id:
+                self._apply_progress_event(event, **data)
+            else:
+                self.post_message(self.PipelineProgress(event, data))
 
-        self._log_sink_id = add_callback_sink(
-            _log_to_tui,
-            level="INFO",
+        def _on_log(line: str) -> None:
+            if threading.get_ident() == self.app._thread_id:
+                self._append_pipeline_log(line)
+            else:
+                self.post_message(self.PipelineLogLine(line))
+
+        def _on_done(stats: OverallStats) -> None:
+            from ...application.pipeline import PipelineResult
+
+            wiz.pipeline_result = PipelineResult(stats=stats, mods=[], workspace_path=Path())
+            self.post_message(self.PipelineDone(stats))
+
+        def _on_error(error: str) -> None:
+            self.post_message(self.PipelineError(error))
+
+        self._runner = PipelineRunner(
+            wiz.settings,
+            selected,
+            on_progress=_on_progress,
+            on_log=_on_log,
+            on_done=_on_done,
+            on_error=_on_error,
+            is_debug=getattr(self.app, "_debug", False),
         )
+        self._runner.start()
+        wiz.progress_reporter = self._runner.reporter
 
         self.run_worker(
-            self._run_pipeline_worker,  # type: ignore[arg-type]
+            self._runner.run,  # type: ignore[arg-type]
             name="pipeline",
             group="default",
             thread=False,
             exit_on_error=False,
         )
-
-    async def _run_pipeline_worker(self) -> None:
-        """Run translation pipeline asynchronously."""
-        wiz = self.app.wizard_state  # type: ignore[attr-defined]
-        selected = wiz.selected_mod_infos
-        settings = wiz.settings
-        settings.debug = getattr(self.app, "_debug", False)
-        reporter = wiz.progress_reporter
-
-        if reporter is None:
-            return
-
-        ctx = None
-        try:
-            mods = [modinfo_to_domain_mod(m) for m in selected]
-            ctx = build_context(settings, reporter, model=settings.model)
-            result = await run_pipeline_async(ctx, mods)
-            wiz.pipeline_result = result
-            self.post_message(self.PipelineDone(result.stats))
-        except asyncio.CancelledError:
-            logger.info("Pipeline cancelled by system shutdown")
-            self.post_message(self.PipelineError("Cancelled"))
-            raise
-        except KeyboardInterrupt:
-            logger.info("Pipeline cancelled by user")
-            self.post_message(self.PipelineError("Cancelled"))
-        except Exception:
-            logger.exception("Pipeline failed")
-            self.post_message(self.PipelineError("Pipeline failed — see logs"))
-        finally:
-            if ctx is not None and ctx.workspace.exists():
-                shutil.rmtree(str(ctx.workspace), ignore_errors=True)
-
-    def _on_progress_event(self, event: str, **kw: Any) -> None:
-        """Bridge pipeline events → UI updates (non-blocking, thread-safe).
-
-        Uses post_message from worker threads — NOT call_from_thread, which
-        blocks the caller on future.result() and deadlocks with asyncio.to_thread.
-        """
-        with contextlib.suppress(Exception):
-            if threading.get_ident() == self.app._thread_id:
-                self._apply_progress_event(event, **kw)
-            else:
-                self.post_message(self.PipelineProgress(event, dict(kw)))
 
     def _apply_progress_event(self, event: str, **kw: Any) -> None:
         """Apply a progress event to TranslateRunStep (main thread only)."""
@@ -943,11 +909,9 @@ class WizardScreen(Screen):
         request_shutdown(0)
 
     def _close_log_sink(self) -> None:
-        """Remove the loguru → TUI sink."""
-        if self._log_sink_id is not None:
-            with contextlib.suppress(ValueError):
-                logger.remove(self._log_sink_id)
-            self._log_sink_id = None
+        """Remove the loguru → TUI sink (delegates to runner)."""
+        if hasattr(self, "_runner") and self._runner is not None:
+            self._runner.stop()
 
     def _append_pipeline_log(self, line: str) -> None:
         with contextlib.suppress(Exception):
@@ -1007,6 +971,8 @@ class WizardScreen(Screen):
         """Cancel pipeline workers and detach log sink when wizard closes."""
         cancel_token.set()
         self._close_log_sink()
+        if hasattr(self, "_runner") and self._runner is not None:
+            self._runner.stop()
         with contextlib.suppress(Exception):
             self.app.workers.cancel_group("default")  # type: ignore[call-arg, arg-type]
 
