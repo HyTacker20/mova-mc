@@ -1,0 +1,20 @@
+[importlinter]
+root_package = app
+
+[importlinter:contract:1]
+name = domain must not import infrastructure
+type = forbidden
+source_modules = app.domain
+forbidden_modules = app.infrastructure
+
+[importlinter:contract:2]
+name = domain must not import application
+type = forbidden
+source_modules = app.domain
+forbidden_modules = app.application
+
+[importlinter:contract:3]
+name = application must not import interfaces
+type = forbidden
+source_modules = app.application
+forbidden_modules = app.interfaces

@@ -1,0 +1,63 @@
+schema: spec-driven
+
+# Project context — shown to AI when creating artifacts
+context: |
+  Tech stack: Python 3.10+, uv (package manager), Textual (TUI), Rich (CLI output)
+  Project: MovaMC — unpacks JAR files, translates language files
+    (JSON/LANG/MCFUNCTION) via Google Translate or AI providers (OpenAI, Anthropic,
+    Gemini, Ollama, OpenAI-compatible), and repacks into translated JARs.
+  Architecture: hexagonal (ports & adapters) with strict layer isolation:
+    domain/ — pure domain models, zero I/O
+    application/ — pipeline orchestration through ports
+    infrastructure/ — concrete I/O, API calls, persistence
+    interfaces/ — CLI and TUI user-facing interfaces
+  Interfaces: two entry points — TUI (`uv run mova app`) and CLI
+    (`uv run mova cli`). TUI uses Textual with 5-step wizard flow:
+    welcome → paths → providers → mods → advanced → summary.
+  Translation flow: unpack → discover → parse → translate → validate → write → repack
+  Testing: pytest with coverage, ruff for linting, mypy for type checking,
+    import-linter for layer isolation. `uv run pytest` to run tests.
+  Conventions: loguru for logging (NOT print), full type annotations (X | None),
+    ruff-sorted imports (I rule), relative imports within package,
+    exception: broad try-except-pass allowed for optional features,
+    language codes: BCP-47 style (en_US, uk_UA, etc.)
+  Providers: google (default via deep-translator), openai (OpenAI SDK),
+    anthropic (LiteLLM), gemini (LiteLLM), ollama (LiteLLM),
+    openaicompatible (generic OpenAI-compatible API)
+  API keys are stored in .env file (loaded via python-dotenv), never in
+    movamc.toml. Config file stores only non-secret settings.
+  Model selection: TRANSLATION_MODEL env var or --model flag.
+    Default: gpt-4o-mini for OpenAI, claude-sonnet-4 for Anthropic, etc.
+  Language registry: data/languages.json — single source of truth for all
+    supported languages. CLI and TUI use it for dropdowns/validation.
+  Glossary support: per-language term files under data/glossary/{code}.json
+    for injecting Minecraft terminology into AI prompts.
+  Caching: SQLite-backed, version-aware (includes prompt version + glossary
+    hash in cache key). Bypass with --no-cache flag.
+  QA pipeline: optional LLM judge stage scores translations 1-5 and
+    retranslates low-scoring entries with targeted feedback.
+  Placeholders: supports %s, %d, %1$s (positional), § colour codes,
+    {name}, and {{placeholder}} patterns. Validated post-translation.
+  File formats: JSON with comments (//, /* */), Minecraft LANG (key=value),
+    MCFUNCTION (data modify storage patterns).
+
+# Per-artifact rules
+rules:
+  proposal:
+    - Keep proposals under 300 words
+    - Always include "Motivation", "Proposed Changes", and "Open Questions" sections
+    - Link to relevant spec requirements where applicable
+  design:
+    - Focus on architecture and data flow, not implementation details
+    - Include ASCII diagrams for complex flows (max 60 chars wide for rendering)
+    - Reference affected layers (domain/application/infrastructure/interfaces)
+    - Note backward compatibility implications
+  tasks:
+    - Break tasks into chunks of max 30 minutes
+    - Each task must be independently testable
+    - Always include a testing step (unit, integration, or both)
+    - "Prefix task titles with layer: [domain], [infra], [interface], [cli], [tui]"
+  specs:
+    - Use Gherkin-style Scenarios (GIVEN/WHEN/THEN)
+    - Each requirement must be testable
+    - Group by capability (e.g., translation, caching, providers, TUI)
