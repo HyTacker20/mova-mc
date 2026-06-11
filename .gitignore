@@ -57,3 +57,4 @@ backend/static/*
 !backend/static/.gitkeep
 .claude/
 .opencode/
+.impeccable/
