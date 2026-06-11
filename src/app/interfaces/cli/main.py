@@ -53,6 +53,7 @@ def main() -> None:
                 host=getattr(args, "host", "127.0.0.1"),
                 port=getattr(args, "port", 8000),
                 dev=getattr(args, "dev", False),
+                debug=getattr(args, "debug", False),
                 no_browser=getattr(args, "no_browser", False),
             )
         else:

@@ -73,6 +73,7 @@ def main(
     port: int = 8000,
     *,
     dev: bool = False,
+    debug: bool = False,
     no_browser: bool = False,
 ) -> None:
     try:
@@ -83,7 +84,11 @@ def main(
 
     import webbrowser
 
+    from app.logging_config import is_logging_configured, setup_logging
     from backend.app import create_app
+
+    if not is_logging_configured():
+        setup_logging(console_level="DEBUG" if (dev or debug) else "INFO")
 
     if not _is_port_available(host, port):
         print(f"\nERROR: Port {port} is already in use.", file=sys.stderr)

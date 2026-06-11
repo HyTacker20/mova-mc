@@ -65,6 +65,10 @@ def create_app(*, dev: bool = False) -> FastAPI:
 
     @app.on_event("startup")
     async def _startup() -> None:
+        from app.logging_config import is_logging_configured, setup_logging
+
+        if not is_logging_configured():
+            setup_logging(console_level="INFO")
         attach_log_sink()
 
     @app.on_event("shutdown")
