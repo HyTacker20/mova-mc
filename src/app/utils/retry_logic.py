@@ -1,5 +1,6 @@
 """Retry logic and rate limiting for translation API calls."""
 
+import asyncio
 import random
 import threading
 import time
@@ -144,7 +145,7 @@ def retry_with_exponential_backoff(
                 # Check cancellation before each retry attempt
                 if attempt > 0 and cancel_token.is_set():
                     logger.info("Cancellation detected during retry — aborting")
-                    raise KeyboardInterrupt("Cancelled during retry")
+                    raise asyncio.CancelledError("Cancelled during retry")
 
                 try:
                     # Apply preventive delay if we've had recent rate limits
@@ -216,7 +217,7 @@ def _responsive_sleep(duration: float, interval: float = 0.25) -> None:
     elapsed = 0.0
     while elapsed < duration:
         if cancel_token.is_set():
-            raise KeyboardInterrupt("Cancelled during retry delay")
+            raise asyncio.CancelledError("Cancelled during retry delay")
         chunk = min(interval, duration - elapsed)
         time.sleep(chunk)
         elapsed += chunk

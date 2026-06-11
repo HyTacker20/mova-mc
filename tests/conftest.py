@@ -7,6 +7,19 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _clear_cancel_token() -> None:
+    """Ensure the global cancel token is cleared before every test.
+
+    Some tests (notably the TUI smoke test for Ctrl+C) set the token but
+    don't restore it, which leaks into subsequent tests that call
+    ``cancel_token.raise_if_set()``.
+    """
+    from app.utils.cancellation import cancel_token
+
+    cancel_token.clear()
+
+
 @pytest.fixture
 def sample_en_us_json() -> dict:
     return {

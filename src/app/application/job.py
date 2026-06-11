@@ -19,12 +19,12 @@ from enum import Enum
 
 from loguru import logger
 
-from .pipeline import build_context, run_pipeline_async
 from ..core.mod_scanner import ModInfo, modinfo_to_domain_mod
 from ..core.settings import Settings
 from ..domain.stats import OverallStats
 from ..utils.cancellation import cancel_token
 from ..utils.progress import ProgressReporter
+from .pipeline import build_context, run_pipeline_async
 
 
 class JobStatus(str, Enum):
@@ -67,12 +67,13 @@ class TranslationJob:
             self.result = pipeline_result.stats
             self.status = JobStatus.DONE
         except asyncio.CancelledError:
-            logger.info("Pipeline cancelled by system shutdown")
+            logger.info("Pipeline cancelled by user")
             self.status = JobStatus.CANCELLED
             self.error = "Cancelled"
-            raise
         except KeyboardInterrupt:
-            logger.info("Pipeline cancelled by user")
+            # Actual OS-level Ctrl+C (sys.exit path).  Handled identically to
+            # the cooperative CancelledError path above.
+            logger.info("Pipeline cancelled by system shutdown")
             self.status = JobStatus.CANCELLED
             self.error = "Cancelled"
         except Exception:
