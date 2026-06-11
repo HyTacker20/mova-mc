@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -11,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from app.application.job import JobRegistry, TranslationJob
 from app.core.mod_scanner import ModScanner
 from app.core.settings import Settings
+from backend.dev_progress_log import attach_dev_progress_logger
 from backend.job_bridge import SseBridge
 from backend.schemas import JobCreatedResponse, JobRequest, JobStatusResponse
 from backend.sse import serialise_stats, sse_frame, sse_keepalive
@@ -48,6 +50,9 @@ async def create_job(req: JobRequest) -> JobCreatedResponse:
     bridge = SseBridge(loop)
     job.reporter.subscribe(bridge.on_event)
 
+    if os.environ.get("MOVAMC_DEV") == "1":
+        attach_dev_progress_logger(job.reporter)
+
     job_registry.register(job)
     _bridges[job.id] = bridge
 
@@ -55,6 +60,8 @@ async def create_job(req: JobRequest) -> JobCreatedResponse:
         try:
             await job.run()
         finally:
+            # Flush progress events scheduled from worker-thread stages.
+            await asyncio.sleep(0)
             bridge.close()
 
     task = asyncio.create_task(_run_and_close(), name=f"job-{job.id[:8]}")
