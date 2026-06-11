@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useWizard } from '../../context/WizardContext'
+import { api } from '../../api/client'
 
 const COMMON_LANGS = [
   ['en_US', 'English (US)'], ['uk_UA', 'Ukrainian'], ['pl_PL', 'Polish'],
@@ -21,6 +22,13 @@ export default function Paths() {
   function next() {
     if (!modsPath.trim()) { setError('Mods path is required'); return }
     setError('')
+    // Persist path settings on explicit Next
+    api.saveConfig({
+      mods_path: modsPath,
+      output: outputPath,
+      output_mode: outputMode,
+      config_path: state.configPath ?? undefined,
+    }).catch(() => {})
     dispatch({ type: 'SET_PATHS', source, target, modsPath, outputPath, outputMode })
     dispatch({ type: 'SET_STEP', step: 3 })
   }

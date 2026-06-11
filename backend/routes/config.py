@@ -19,10 +19,22 @@ router = APIRouter()
 class ConfigPayload(BaseModel):
     """Fields the web UI can persist to movamc.toml."""
 
+    # -- Provider step --
     provider: str | None = None
     model: str | None = None
-    # Path used to discover/place the config file
-    mods_path: str = "./mods"
+    # -- Paths step --
+    mods_path: str | None = None
+    output: str | None = None
+    output_mode: str | None = None
+    # -- Advanced step --
+    workers: int | None = None
+    no_cache: bool | None = None
+    hint_lang: str | None = None
+    # QA section (nested; passed as flat keys too)
+    qa: dict | None = None
+    # Explicit path to the config file (from GET /api/config response).
+    # When provided, saves go directly to this file — no discovery needed.
+    config_path: str | None = None
 
 
 class ConfigResponse(BaseModel):
@@ -88,9 +100,21 @@ def get_config(path: str = "./mods") -> ConfigResponse:
 
 @router.post("/config", status_code=200)
 def post_config(payload: ConfigPayload) -> dict[str, str]:
-    """Save the given fields to movamc.toml."""
-    mods_dir = _resolve_path(payload.mods_path)
-    existing = find_config_file(str(mods_dir))
+    """Save the given fields to movamc.toml.
+
+    When *config_path* is provided, writes directly to that file (the
+    frontend passes the value from GET /api/config, so saves always go
+    to the same file that was loaded).  Otherwise falls back to
+    *mods_path* or CWD.
+    """
+    if payload.config_path:
+        config_file = Path(payload.config_path)
+    elif payload.mods_path:
+        config_file = _resolve_path(payload.mods_path) / "movamc.toml"
+    else:
+        config_file = Path.cwd() / "movamc.toml"
+
+    existing: Path | None = config_file if config_file.is_file() else None
 
     # Start with existing settings if available
     data: dict = {}
@@ -107,9 +131,21 @@ def post_config(payload: ConfigPayload) -> dict[str, str]:
         data["model"] = payload.model
     if payload.mods_path:
         data["path"] = payload.mods_path
+    if payload.output is not None:
+        data["output"] = payload.output
+    if payload.output_mode is not None:
+        data["output_mode"] = payload.output_mode
+    if payload.workers is not None:
+        data["workers"] = payload.workers
+    if payload.no_cache is not None:
+        data["no_cache"] = payload.no_cache
+    if payload.hint_lang is not None:
+        data["hint_lang"] = payload.hint_lang
+    if isinstance(payload.qa, dict):
+        data["qa"] = payload.qa
 
     try:
-        saved = save_config(data, existing)
+        saved = save_config(data, config_file)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to save config: {exc}") from exc
 

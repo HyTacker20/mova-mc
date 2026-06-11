@@ -21,6 +21,20 @@ export default function Advanced() {
   }, [])
 
   function next() {
+    // Persist advanced settings on explicit Next
+    api.saveConfig({
+      workers,
+      no_cache: noCache,
+      hint_lang: hintLang || undefined,
+      qa: {
+        judge: qaEnabled,
+        judge_provider: qaProvider || null,
+        judge_model: qaModel || null,
+        threshold: qaThreshold,
+        max_attempts: qaMaxAttempts,
+      },
+      config_path: state.configPath ?? undefined,
+    }).catch(() => {})
     dispatch({
       type: 'SET_ADVANCED',
       workers,

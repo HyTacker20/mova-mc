@@ -243,8 +243,20 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
     If config_path is given, overwrites that file.
     Otherwise writes to CWD/movamc.toml.
     Returns the path written to.
+
+    Logs a compact summary of what changed (added / modified / removed keys)
+    so you always know what the save actually did.
     """
     target = config_path or (Path.cwd() / CONFIG_FILE_NAME)
+
+    # Snapshot existing file before overwriting so we can show a delta.
+    prev: dict[str, Any] = {}
+    if target.is_file():
+        try:
+            with target.open("rb") as f:
+                prev = tomllib.load(f)
+        except Exception:
+            prev = {}
 
     # Build TOML structure with [translation], [mods], and [qa] sections
     toml_output: dict[str, Any] = {"translation": {}, "mods": {}}
@@ -268,8 +280,13 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
         "ui_locale": "ui_locale",
     }
     for toml_key, data_key in trans_keys_map.items():
-        if data_key in data and data[data_key] is not None:
-            toml_output["translation"][toml_key] = data[data_key]
+        # Prefer internal key (from settings_to_config_dict), fall back to
+        # TOML key (from load_config) so both callers work without translating.
+        value = data.get(data_key)
+        if value is None and toml_key != data_key:
+            value = data.get(toml_key)
+        if value is not None:
+            toml_output["translation"][toml_key] = value
 
     # Map mods-section keys
     mods_data = data.get("mods", {})
@@ -325,8 +342,60 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
     with target.open("wb") as f:
         tomli_w.dump(toml_output, f)
 
-    logger.info(f"Configuration saved to {target}")
+    # Log a compact delta so the user knows what actually changed.
+    _log_config_delta(prev, toml_output, target)
     return target
+
+
+def _log_config_delta(prev: dict[str, Any], curr: dict[str, Any], target: Path) -> None:
+    """Log which top-level sections / keys were added, changed, or removed."""
+
+    def _flatten(d: dict[str, Any], prefix: str = "") -> dict[str, Any]:
+        flat: dict[str, Any] = {}
+        for k, v in d.items():
+            full = f"{prefix}{k}" if prefix else k
+            if isinstance(v, dict) and not isinstance(v, list):
+                flat.update(_flatten(v, f"{full}."))
+            else:
+                flat[full] = v
+        return flat
+
+    old_flat = _flatten(prev)
+    new_flat = _flatten(curr)
+
+    added = {k: v for k, v in new_flat.items() if k not in old_flat}
+    removed = {k: v for k, v in old_flat.items() if k not in new_flat}
+    changed = {
+        k: (old_flat[k], new_flat[k])
+        for k in new_flat
+        if k in old_flat and old_flat[k] != new_flat[k]
+    }
+
+    lines: list[str] = [f"Saved {target.name} →"]
+    if added:
+        for k, v in sorted(added.items()):
+            lines.append(f"  + {k} = {_fmt_val(v)}")
+    if changed:
+        for k, (old, new) in sorted(changed.items()):
+            lines.append(f"  ~ {k}: {_fmt_val(old)} → {_fmt_val(new)}")
+    if removed:
+        for k, v in sorted(removed.items()):
+            lines.append(f"  - {k}  (was {_fmt_val(v)})")
+
+    if not added and not changed and not removed:
+        lines.append("  (no changes — file was identical)")
+
+    logger.info("\n".join(lines))
+
+
+def _fmt_val(v: Any) -> str:
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, str):
+        return repr(v)
+    if isinstance(v, list):
+        return "[" + ", ".join(repr(x) for x in v) + "]"
+    return str(v)
 
 
 def generate_config_template(output_dir: str) -> Path:

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useWizard } from '../../context/WizardContext'
 import { api } from '../../api/client'
 import type { ConfigResponse, ProviderInfo } from '../../types'
@@ -11,11 +11,7 @@ export default function Provider() {
   const [loading, setLoading] = useState(true)
   const [configLoaded, setConfigLoaded] = useState(false)
   const [loadError, setLoadError] = useState('')
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const providerRef = useRef(provider)
-  const modelRef = useRef(model)
-  providerRef.current = provider
-  modelRef.current = model
+  const configPathRef = useRef<string | null>(null)
 
   // Load provider catalog
   useEffect(() => {
@@ -30,6 +26,9 @@ export default function Provider() {
     if (configLoaded) return
     api.getConfig(state.modsPath)
       .then((cfg: ConfigResponse) => {
+        configPathRef.current = cfg.config_path
+        dispatch({ type: 'SET_CONFIG_PATH', path: cfg.config_path })
+        // Provider fields
         if (cfg.provider && cfg.provider !== state.provider) {
           setProvider(cfg.provider)
           dispatch({ type: 'SET_PROVIDER', provider: cfg.provider, model: cfg.model ?? '' })
@@ -37,49 +36,51 @@ export default function Provider() {
         if (cfg.model && cfg.model !== state.model) {
           setModel(cfg.model)
         }
+        // Paths & Advanced fields — sync into wizard state so other steps
+        // pick them up without re-fetching.
+        dispatch({
+          type: 'SET_PATHS',
+          source: cfg.source,
+          target: cfg.target,
+          modsPath: state.modsPath,
+          outputPath: cfg.output || state.outputPath,
+          outputMode: cfg.output_mode || 'separate',
+        })
+        dispatch({
+          type: 'SET_ADVANCED',
+          workers: cfg.workers,
+          noCache: cfg.no_cache,
+          dryRun: state.dryRun,
+          hintLang: cfg.hint_lang ?? '',
+          qaEnabled: state.qaEnabled,
+          qaProvider: state.qaProvider,
+          qaModel: state.qaModel,
+          qaThreshold: state.qaThreshold,
+          qaMaxAttempts: state.qaMaxAttempts,
+        })
       })
       .catch(() => {/* no config yet — use defaults */})
       .finally(() => setConfigLoaded(true))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Debounced auto-save to movamc.toml
-  const scheduleSave = useCallback(() => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => {
-      api.saveConfig({
-        provider: providerRef.current,
-        model: modelRef.current || undefined,
-        mods_path: state.modsPath,
-      }).catch(() => {/* silent — config save is best-effort */})
-    }, 400)
-  }, [state.modsPath])
-
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    }
-  }, [])
 
   const info = providers.find(p => p.id === provider)
 
   function handleProviderChange(value: string) {
     setProvider(value)
     setModel('')
-    // Save immediately on provider change
-    api.saveConfig({
-      provider: value,
-      model: undefined,
-      mods_path: state.modsPath,
-    }).catch(() => {})
   }
 
   function handleModelChange(value: string) {
     setModel(value)
-    scheduleSave()
   }
 
   function next() {
+    // Save config only on explicit Next (provider + model only; path is set on Paths step)
+    api.saveConfig({
+      provider,
+      model: model || info?.default_model || undefined,
+      config_path: configPathRef.current ?? undefined,
+    }).catch(() => {})
     dispatch({ type: 'SET_PROVIDER', provider, model: model || info?.default_model || '' })
     dispatch({ type: 'SET_STEP', step: 2 })
   }

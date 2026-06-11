@@ -10,6 +10,7 @@ const INITIAL_PROGRESS: ProgressState = {
   completedEntries: 0,
   totalEntries: 0,
   logs: [],
+  translations: [],
   failed: 0,
 }
 
@@ -38,6 +39,7 @@ export const INITIAL_STATE: WizardState = {
   progress: INITIAL_PROGRESS,
   stats: null,
   error: null,
+  configPath: null,
 }
 
 function MAX_LOGS(logs: string[], line: string): string[] {
@@ -102,7 +104,10 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         ...state,
         jobId: action.jobId,
         jobStatus: 'running',
-        progress: INITIAL_PROGRESS,
+        progress: {
+          ...INITIAL_PROGRESS,
+          totalMods: state.selectedMods.length,
+        },
         error: null,
       }
 
@@ -114,10 +119,27 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         return { ...state, progress: { ...p, phase: String(data.text ?? '') } }
       }
       if (event === 'mod_start') {
-        return { ...state, progress: { ...p, modName: String(data.mod_name ?? '') } }
+        return {
+          ...state,
+          progress: {
+            ...p,
+            modName: String(data.mod_name ?? ''),
+            totalEntries: Number(data.entry_count ?? p.totalEntries),
+          },
+        }
       }
       if (event === 'mod_file_start') {
         return { ...state, progress: { ...p, currentFile: String(data.file_path ?? '') } }
+      }
+      if (event === 'entry_progress') {
+        return {
+          ...state,
+          progress: {
+            ...p,
+            completedEntries: Number(data.done ?? 0),
+            totalEntries: Number(data.total ?? p.totalEntries),
+          },
+        }
       }
       if (event === 'overall_progress') {
         return {
@@ -143,9 +165,22 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         return { ...state, progress: { ...p, logs: MAX_LOGS(p.logs, line) } }
       }
       if (event === 'translated_entry') {
-        const src = String(data.source ?? '').replace(/\n/g, '\\n')
-        const trn = String(data.translated ?? '').replace(/\n/g, '\\n')
-        return { ...state, progress: { ...p, logs: MAX_LOGS(p.logs, `  ${src} → ${trn}`) } }
+        const src = String(data.source ?? '')
+        const trn = String(data.translated ?? '')
+        const t: { key: string; source: string; translated: string } = {
+          key: String(data.key ?? ''),
+          source: src,
+          translated: trn,
+        }
+        return {
+          ...state,
+          progress: {
+            ...p,
+            translations: p.translations.length > 200
+              ? [...p.translations.slice(-200), t]
+              : [...p.translations, t],
+          },
+        }
       }
       if (event === 'error') {
         return { ...state, error: String(data.text ?? 'Unknown error') }
@@ -161,6 +196,9 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
 
     case 'RESET':
       return { ...INITIAL_STATE }
+
+    case 'SET_CONFIG_PATH':
+      return { ...state, configPath: action.path }
 
     default:
       return state

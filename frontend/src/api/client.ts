@@ -15,6 +15,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     try { detail = (JSON.parse(text) as { detail?: string }).detail ?? text } catch { /* keep */ }
     throw new Error(detail)
   }
+  if (res.status === 204) return undefined as unknown as T
   return res.json() as Promise<T>
 }
 
@@ -25,7 +26,13 @@ export const api = {
   getConfig: (modsPath: string): Promise<ConfigResponse> =>
     request(`/api/config?path=${encodeURIComponent(modsPath)}`),
 
-  saveConfig: (data: { provider?: string; model?: string; mods_path: string }): Promise<{ status: string; config_path: string }> =>
+  saveConfig: (data: {
+    provider?: string; model?: string;
+    mods_path?: string; output?: string; output_mode?: string;
+    workers?: number; no_cache?: boolean; hint_lang?: string;
+    qa?: Record<string, unknown>;
+    config_path?: string;
+  }): Promise<{ status: string; config_path: string }> =>
     request('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

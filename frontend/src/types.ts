@@ -106,6 +106,7 @@ export interface ProgressState {
   completedEntries: number
   totalEntries: number
   logs: string[]
+  translations: { key: string; source: string; translated: string }[]
   failed: number
 }
 
@@ -140,6 +141,8 @@ export interface WizardState {
   // Step 6 — Summary
   stats: OverallStatsResponse | null
   error: string | null
+  // Shared — path to the config file being used
+  configPath: string | null
 }
 
 export type WizardAction =
@@ -156,3 +159,4 @@ export type WizardAction =
   | { type: 'JOB_DONE'; stats: OverallStatsResponse }
   | { type: 'JOB_ERROR'; error: string }
   | { type: 'RESET' }
+  | { type: 'SET_CONFIG_PATH'; path: string | null }
