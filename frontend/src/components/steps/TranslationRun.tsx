@@ -3,8 +3,6 @@ import { api } from '../../api/client'
 import { useWizard } from '../../context/WizardContext'
 import type { JobRequest, WizardState } from '../../types'
 
-const SKIP_EVENTS = new Set(['translated_entry', 'entry_progress'])
-
 function buildJobRequest(state: WizardState): JobRequest {
   return {
     source: state.source,
@@ -95,7 +93,6 @@ export default function TranslationRun() {
         es.onmessage = (ev) => {
           try {
             const frame = JSON.parse(ev.data) as { event: string; data: Record<string, unknown> }
-            if (SKIP_EVENTS.has(frame.event)) return
             dispatch({ type: 'PROGRESS', event: frame.event, data: frame.data })
           } catch {
             /* ignore malformed frames */
@@ -186,10 +183,14 @@ export default function TranslationRun() {
         </div>
       </div>
 
-      {progress.logs.length > 0 && (
-        <div className="run-log">
-          {progress.logs.map((line, i) => (
-            <div key={i} className="run-log-line">{line}</div>
+      {progress.translations.length > 0 && (
+        <div className="translations-panel">
+          {progress.translations.map((t, i) => (
+            <div key={i} className="tr-row">
+              <span className="tr-source">{t.source}</span>
+              <span className="tr-arrow">→</span>
+              <span className="tr-target">{t.translated}</span>
+            </div>
           ))}
         </div>
       )}

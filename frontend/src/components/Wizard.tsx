@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import './Wizard.css'
 import { useWizard } from '../context/WizardContext'
+import LogPanel from './LogPanel'
 import Welcome from './steps/Welcome'
 import Provider from './steps/Provider'
 import Paths from './steps/Paths'
@@ -13,6 +15,7 @@ const STEP_LABELS = ['Welcome', 'Provider', 'Paths', 'Advanced', 'Mods', 'Transl
 export default function Wizard() {
   const { state } = useWizard()
   const { step } = state
+  const [logOpen, setLogOpen] = useState(false)
 
   const stepContent = () => {
     switch (step) {
@@ -32,12 +35,21 @@ export default function Wizard() {
       <header className="wizard-header">
         <span className="wizard-logo">⚒ MovaMC</span>
         <Stepper current={step} labels={STEP_LABELS} />
+        <button
+          className={`log-toggle ${logOpen ? 'active' : ''}`}
+          onClick={() => setLogOpen(v => !v)}
+          title={logOpen ? 'Hide logs' : 'Show logs'}
+          aria-label={logOpen ? 'Hide logs' : 'Show logs'}
+        >
+          {logOpen ? '◀' : '📋'}
+        </button>
       </header>
       <main className="wizard-body">
         <div className="step-transition" key={step}>
           {stepContent()}
         </div>
       </main>
+      <LogPanel visible={logOpen} onClose={() => setLogOpen(false)} />
     </div>
   )
 }
