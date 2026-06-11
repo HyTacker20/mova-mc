@@ -312,9 +312,12 @@ class OpenAILikeProvider:
     def translate_batch(self, units: list[TranslationUnit]) -> list[TranslationResult]:
         results: list[TranslationResult] = []
         for unit in units:
+            cancel_token.raise_if_set()
             try:
                 translated = self._translate_text(unit.source_text, unit.hint_text)
                 results.append(TranslationResult(unit=unit, translated_text=translated, success=True))
+            except KeyboardInterrupt:
+                raise
             except Exception as exc:
                 results.append(
                     TranslationResult(unit=unit, translated_text=unit.source_text, success=False, error=str(exc))
@@ -418,6 +421,7 @@ class OpenAILikeProvider:
         Processes items concurrently using asyncio.gather.
         Short texts are batched into chunks; long texts go individually.
         """
+        cancel_token.raise_if_set()
         items = [(unit.key, unit.source_text, unit) for unit in units]
         short_items = [(k, t, u) for k, t, u in items if len(t) <= self._MAX_CHUNK_TEXT_LENGTH]
         long_items = [(k, t, u) for k, t, u in items if len(t) > self._MAX_CHUNK_TEXT_LENGTH]
