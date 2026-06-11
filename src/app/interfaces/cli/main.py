@@ -17,14 +17,21 @@ from .presenter import export_stats_json, print_cli_summary
 JAR = ".jar"
 
 
+_KNOWN_COMMANDS = frozenset({"cli", "tui", "init", "web"})
+_HELP_FLAGS = frozenset({"-h", "--help"})
+
+
 def main() -> None:
     try:
+        # Default to web UI when no subcommand is given
+        if len(sys.argv) == 1 or (
+            len(sys.argv) > 1
+            and sys.argv[1] not in _KNOWN_COMMANDS
+            and sys.argv[1] not in _HELP_FLAGS
+        ):
+            sys.argv.insert(1, "web")
+
         parser = build_argument_parser()
-
-        if len(sys.argv) == 1:
-            parser.print_help()
-            return
-
         args = parser.parse_args()
 
         if getattr(args, "command", None) == "init":
@@ -34,7 +41,7 @@ def main() -> None:
             logger.info(f"Config template created at: {path}")
             return
 
-        if getattr(args, "command", None) == "app":
+        if getattr(args, "command", None) == "tui":
             from ..tui.main import main as tui_main
 
             debug = getattr(args, "debug", False)

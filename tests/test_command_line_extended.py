@@ -8,14 +8,17 @@ from app.interfaces.cli.main import main
 
 
 class TestCommandLineExtended:
-    def test_main_no_args_shows_help(self):
-        with patch("sys.argv", ["mova"]), patch.object(sys.stdout, "write") as mock_write:
-            main()
-            mock_write.assert_called()
-
-    def test_main_app_command(self):
+    def test_main_defaults_to_web(self):
         with (
-            patch("sys.argv", ["mova", "app"]),
+            patch("sys.argv", ["mova"]),
+            patch("backend.__main__.main") as mock_web_main,
+        ):
+            main()
+            mock_web_main.assert_called_once()
+
+    def test_main_tui_command(self):
+        with (
+            patch("sys.argv", ["mova", "tui"]),
             patch("app.interfaces.tui.main.main") as mock_tui_main,
         ):
             main()
