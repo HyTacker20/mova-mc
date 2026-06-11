@@ -483,13 +483,39 @@
 
 /* ── Live translations panel ────────────────────────────────── */
 
-.translations-panel {
+.run-stats {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.translations-section {
   margin-top: 20px;
+}
+
+.translations-heading {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.translations-panel {
   max-height: 300px;
   overflow-y: auto;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+}
+
+.translations-empty {
+  margin: 0;
+  padding: 20px 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  font-size: 13px;
 }
 
 .tr-row {

@@ -43,15 +43,51 @@ function pct(done: number, total: number): number {
   return Math.min(100, Math.round((done / total) * 100))
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds.toFixed(0)}s`
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}m ${s}s`
+}
+
+function estimateEtaSeconds(done: number, total: number, elapsedS: number): number | null {
+  if (done <= 0 || total <= done || elapsedS <= 1) return null
+  const rate = done / elapsedS
+  if (rate <= 0) return null
+  return (total - done) / rate
+}
+
 export default function TranslationRun() {
   const { state, dispatch } = useWizard()
   const { progress, jobStatus } = state
   const [startError, setStartError] = useState('')
   const [cancelling, setCancelling] = useState(false)
+  const [elapsedS, setElapsedS] = useState(0)
   const startedRef = useRef(false)
   const esRef = useRef<EventSource | null>(null)
   const stateRef = useRef(state)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const jobStartRef = useRef<number | null>(null)
   stateRef.current = state
+
+  useEffect(() => {
+    if (jobStatus !== 'running') return
+    if (jobStartRef.current === null) {
+      jobStartRef.current = Date.now()
+    }
+    const id = window.setInterval(() => {
+      if (jobStartRef.current !== null) {
+        setElapsedS((Date.now() - jobStartRef.current) / 1000)
+      }
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [jobStatus])
+
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    panel.scrollTop = panel.scrollHeight
+  }, [progress.translations.length])
 
   useEffect(() => {
     if (startedRef.current) return
@@ -134,10 +170,20 @@ export default function TranslationRun() {
     }
   }
 
-  const modsPct = pct(progress.completedMods, progress.totalMods)
+  const modsDone = progress.fractionalMods ?? progress.completedMods
+  const modsPct = pct(modsDone, progress.totalMods)
   const entriesPct = pct(progress.completedEntries, progress.totalEntries)
+  const eta = estimateEtaSeconds(
+    progress.completedEntries,
+    progress.totalEntries,
+    elapsedS,
+  )
   const running = jobStatus === 'running'
   const failed = jobStatus === 'failed'
+
+  const modsLabel = progress.fractionalMods != null && progress.fractionalMods !== progress.completedMods
+    ? `${progress.fractionalMods.toFixed(1)} / ${progress.totalMods || '?'}`
+    : `${progress.completedMods} / ${progress.totalMods || '?'}`
 
   return (
     <div className="step-card wide">
@@ -163,7 +209,7 @@ export default function TranslationRun() {
       <div className="progress-block">
         <div className="progress-label">
           <span>Mods</span>
-          <span>{progress.completedMods} / {progress.totalMods || '?'}</span>
+          <span>{modsLabel}</span>
         </div>
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${modsPct}%` }} />
@@ -183,17 +229,29 @@ export default function TranslationRun() {
         </div>
       </div>
 
-      {progress.translations.length > 0 && (
-        <div className="translations-panel">
-          {progress.translations.map((t, i) => (
-            <div key={i} className="tr-row">
-              <span className="tr-source">{t.source}</span>
-              <span className="tr-arrow">→</span>
-              <span className="tr-target">{t.translated}</span>
-            </div>
-          ))}
-        </div>
+      {running && (
+        <p className="run-stats">
+          Elapsed: {formatDuration(elapsedS)}
+          {eta != null ? ` · ETA: ~${formatDuration(eta)}` : ''}
+        </p>
       )}
+
+      <div className="translations-section">
+        <p className="translations-heading">Translations</p>
+        <div className="translations-panel" ref={panelRef}>
+          {progress.translations.length === 0 ? (
+            <p className="translations-empty">Waiting for first translation…</p>
+          ) : (
+            progress.translations.map((t, i) => (
+              <div key={`${t.key}-${i}`} className="tr-row">
+                <span className="tr-source">{t.source}</span>
+                <span className="tr-arrow">→</span>
+                <span className="tr-target">{t.translated}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
 
       <div className="step-actions">
         <button

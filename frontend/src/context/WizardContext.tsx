@@ -7,11 +7,17 @@ const INITIAL_PROGRESS: ProgressState = {
   currentFile: '',
   completedMods: 0,
   totalMods: 0,
+  fractionalMods: null,
   completedEntries: 0,
   totalEntries: 0,
   logs: [],
   translations: [],
   failed: 0,
+}
+
+function estimatedEntriesForMods(mods: ModInfo[], selectedNames: string[]): number {
+  const selected = new Set(selectedNames)
+  return mods.filter(m => selected.has(m.name)).reduce((sum, m) => sum + m.estimated_entries, 0)
 }
 
 export const INITIAL_STATE: WizardState = {
@@ -99,7 +105,8 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case 'DESELECT_ALL_MODS':
       return { ...state, selectedMods: [] }
 
-    case 'JOB_STARTED':
+    case 'JOB_STARTED': {
+      const totalEntries = estimatedEntriesForMods(state.mods, state.selectedMods)
       return {
         ...state,
         jobId: action.jobId,
@@ -107,9 +114,11 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         progress: {
           ...INITIAL_PROGRESS,
           totalMods: state.selectedMods.length,
+          totalEntries,
         },
         error: null,
       }
+    }
 
     case 'PROGRESS': {
       const { event, data } = action
@@ -142,17 +151,28 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         }
       }
       if (event === 'overall_progress') {
+        const fractional = data.fractional_mods
         return {
           ...state,
           progress: {
             ...p,
             completedMods: Number(data.completed_mods ?? 0),
             totalMods: Number(data.total_mods ?? 0),
+            fractionalMods: fractional != null ? Number(fractional) : null,
             completedEntries: Number(data.completed_entries ?? 0),
             totalEntries: Number(data.total_entries ?? 0),
             failed: Number(data.failed_entries ?? 0),
           },
         }
+      }
+      if (event === 'mod_file_complete') {
+        const filePath = String(data.file_path ?? '')
+        const name = filePath.split(/[/\\]/).pop() || filePath
+        const durationMs = Number(data.duration_ms ?? 0)
+        const errors = Number(data.errors ?? 0)
+        const errPart = errors > 0 ? `, ${errors} failed` : ''
+        const line = `${name}: done in ${(durationMs / 1000).toFixed(1)}s${errPart}`
+        return { ...state, progress: { ...p, logs: MAX_LOGS(p.logs, line) } }
       }
       if (event === 'mod_complete') {
         const name = String(data.mod_name ?? '')

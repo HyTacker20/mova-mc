@@ -103,6 +103,7 @@ export interface ProgressState {
   currentFile: string
   completedMods: number
   totalMods: number
+  fractionalMods: number | null
   completedEntries: number
   totalEntries: number
   logs: string[]
