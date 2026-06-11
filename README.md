@@ -90,10 +90,10 @@ Supported environment variables:
 ### Interactive Mode
 
 ```bash
-mova app
+mova tui
 ```
 
-Launch the interactive TUI: `mova app`. The Textual interface guides you through translation settings, mod selection, live progress, and a results summary.
+Launch the interactive TUI: `mova tui`. The Textual interface guides you through translation settings, mod selection, live progress, and a results summary.
 
 ### Command Line Interface
 

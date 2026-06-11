@@ -17,7 +17,7 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
-uv run mova app %*
+uv run mova tui %*
 
 echo.
 echo Press Enter to exit...

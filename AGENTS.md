@@ -6,7 +6,7 @@ AI agent reference for the MovaMC project.
 
 A Python tool that translates Minecraft mod files between languages. It unpacks JAR files, finds language files (JSON/LANG/MCFUNCTION), translates their contents via Google Translate or AI providers (OpenAI, Anthropic, Gemini, Ollama, OpenAI-compatible), and repacks them into translated JARs.
 
-Two interfaces: interactive TUI (`mova app`) and CLI (`mova cli`).
+Two interfaces: interactive TUI (`mova tui`) and CLI (`mova cli`).
 
 ## Architecture
 
@@ -277,7 +277,7 @@ uv run ruff check .        # Lint
 uv run ruff format .       # Format
 uv run mypy src/           # Type check
 uv run lint-imports        # Check layer isolation
-uv run mova app  # Run interactive app
+uv run mova tui  # Run interactive TUI
 uv run mova cli  # Run CLI
 ```
 

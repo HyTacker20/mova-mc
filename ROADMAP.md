@@ -11,7 +11,7 @@
 - **Ukrainian-first quality** — custom glossary (62 Minecraft terms), anti-surzhyk prompt, russism detector
 - **Three file formats** — JSON with comments, Minecraft LANG (`key=value`), MCFUNCTION (`data modify storage`)
 - **Placeholder safety** — `%s`, `%d`, `%1$s`, `§c`, `{name}` are validated so nothing breaks in-game
-- **Both GUI and CLI** — interactive Textual TUI (`mova app`) or scriptable CLI (`mova cli`)
+- **Both GUI and CLI** — interactive Textual TUI (`mova tui`) or scriptable CLI (`mova cli`)
 
 ## What's coming next
 
