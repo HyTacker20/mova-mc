@@ -15,6 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from backend.routes.catalog import router as catalog_router
 from backend.routes.config import router as config_router
 from backend.routes.jobs import router as jobs_router
+from backend.routes.logs import attach_log_sink, detach_log_sink
+from backend.routes.logs import router as logs_router
 from backend.routes.mods import router as mods_router
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -27,8 +29,17 @@ def create_app(*, dev: bool = False) -> FastAPI:
     ----------
     dev:
         When True, enables permissive CORS so the Vite dev server (port 5173)
-        can call the API without CORS errors.  Never set this in production.
+        can call the API without CORS errors.  In *dev* mode the server does
+        **not** serve static files — Vite handles the frontend via HMR.
+
+        When called as a uvicorn factory (``uvicorn.run(…, factory=True)``)
+        this parameter is ``False``; the factory reads the ``MOVAMC_DEV``
+        environment variable instead.
     """
+    import os
+
+    if not dev and os.environ.get("MOVAMC_DEV") == "1":
+        dev = True
     app = FastAPI(
         title="MovaMC Web",
         description="Translate Minecraft mod language files via a browser UI.",
@@ -50,8 +61,19 @@ def create_app(*, dev: bool = False) -> FastAPI:
     app.include_router(config_router, prefix="/api")
     app.include_router(mods_router, prefix="/api")
     app.include_router(jobs_router, prefix="/api")
+    app.include_router(logs_router, prefix="/api")
 
-    if _STATIC_DIR.exists():
+    @app.on_event("startup")
+    async def _startup() -> None:
+        attach_log_sink()
+
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:
+        detach_log_sink()
+
+    # In dev mode Vite serves the frontend (with HMR); only mount static
+    # files in production mode.
+    if not dev and _STATIC_DIR.exists():
         app.mount("/", StaticFiles(directory=str(_STATIC_DIR), html=True), name="spa")
 
     return app
