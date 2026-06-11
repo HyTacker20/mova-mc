@@ -52,11 +52,11 @@ export default function Provider() {
           noCache: cfg.no_cache,
           dryRun: state.dryRun,
           hintLang: cfg.hint_lang ?? '',
-          qaEnabled: state.qaEnabled,
-          qaProvider: state.qaProvider,
-          qaModel: state.qaModel,
-          qaThreshold: state.qaThreshold,
-          qaMaxAttempts: state.qaMaxAttempts,
+          qaEnabled: cfg.qa?.judge ?? state.qaEnabled,
+          qaProvider: cfg.qa?.judge_provider ?? '',
+          qaModel: cfg.qa?.judge_model ?? '',
+          qaThreshold: cfg.qa?.threshold ?? state.qaThreshold,
+          qaMaxAttempts: cfg.qa?.max_attempts ?? state.qaMaxAttempts,
         })
       })
       .catch(() => {/* no config yet — use defaults */})

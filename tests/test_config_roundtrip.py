@@ -89,6 +89,21 @@ class TestConfigRoundTrip:
         loaded = load_config(saved)
         assert loaded.get("output_mode") == "replace"
 
+    def test_qa_table_alias_keys(self) -> None:
+        """Web API alias keys (enabled/provider/model) parse via from_table_dict."""
+        from app.core.qa_config import QaConfig
+
+        qa = QaConfig.from_table_dict(
+            {
+                "enabled": True,
+                "provider": "opencode",
+                "model": "deepseek-v4-flash",
+            }
+        )
+        assert qa.enabled is True
+        assert qa.provider == "opencode"
+        assert qa.model == "deepseek-v4-flash"
+
     def test_round_trip_qa_corrector_model(self, config_dir: Path) -> None:
         """QA corrector_model survives round-trip."""
         data = {

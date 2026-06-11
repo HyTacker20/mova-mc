@@ -122,3 +122,49 @@ class TestConfig:
         data = get_resp.json()
         assert data["provider"] == "openai"
         assert data["model"] == "gpt-4o-mini"
+
+    def test_config_qa_roundtrip(self, client: TestClient, tmp_path) -> None:
+        resp = client.post(
+            "/api/config",
+            json={
+                "mods_path": str(tmp_path),
+                "qa": {
+                    "judge": True,
+                    "judge_provider": "opencode",
+                    "judge_model": "deepseek-v4-flash",
+                    "threshold": 4,
+                    "max_attempts": 3,
+                },
+            },
+        )
+        assert resp.status_code == 200
+
+        get_resp = client.get("/api/config", params={"path": str(tmp_path)})
+        assert get_resp.status_code == 200
+        qa = get_resp.json()["qa"]
+        assert qa["judge"] is True
+        assert qa["judge_provider"] == "opencode"
+        assert qa["judge_model"] == "deepseek-v4-flash"
+        assert qa["threshold"] == 4
+        assert qa["max_attempts"] == 3
+
+
+class TestJobQaMapping:
+    def test_job_qa_settings_applied(self) -> None:
+        from app.core.settings import Settings
+
+        from backend.schemas import JobRequest, QaRequest
+
+        req = JobRequest(
+            path="./mods",
+            selected_mods=["test-mod"],
+            qa=QaRequest(
+                enabled=True,
+                provider="opencode",
+                model="deepseek-v4-flash",
+            ),
+        )
+        settings = Settings(config_data=req.to_settings_dict())
+        assert settings.qa_judge is True
+        assert settings.qa_judge_provider == "opencode"
+        assert settings.qa_judge_model == "deepseek-v4-flash"

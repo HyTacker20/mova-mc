@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -37,6 +38,19 @@ class ConfigPayload(BaseModel):
     config_path: str | None = None
 
 
+class QaConfigResponse(BaseModel):
+    """Sanitised view of the [qa] section for the web UI."""
+
+    judge: bool = False
+    judge_provider: str | None = None
+    judge_model: str | None = None
+    threshold: int = 3
+    max_attempts: int = 2
+    streaming: bool = True
+    chunk_size: int = 25
+    judge_workers: int = 2
+
+
 class ConfigResponse(BaseModel):
     """Sanitised view of the [translation] section for the web UI."""
 
@@ -51,6 +65,24 @@ class ConfigResponse(BaseModel):
     glossary_path: str | None
     output_mode: str
     config_path: str | None  # where the config was found, or None
+    qa: QaConfigResponse = QaConfigResponse()
+
+
+def _qa_from_raw(raw: dict[str, Any]) -> QaConfigResponse:
+    """Build QaConfigResponse from loaded config (supports TOML + flat keys)."""
+    qa_table = raw.get("qa", {})
+    if not isinstance(qa_table, dict):
+        qa_table = {}
+    return QaConfigResponse(
+        judge=bool(qa_table.get("judge", raw.get("qa_judge", False))),
+        judge_provider=qa_table.get("judge_provider", raw.get("qa_judge_provider")),
+        judge_model=qa_table.get("judge_model", raw.get("qa_judge_model")),
+        threshold=int(qa_table.get("threshold", raw.get("qa_threshold", 3))),
+        max_attempts=int(qa_table.get("max_attempts", raw.get("qa_max_attempts", 2))),
+        streaming=bool(qa_table.get("streaming", raw.get("qa_streaming", True))),
+        chunk_size=int(qa_table.get("chunk_size", raw.get("qa_chunk_size", 25))),
+        judge_workers=int(qa_table.get("judge_workers", raw.get("qa_judge_workers", 2))),
+    )
 
 
 def _resolve_path(mods_path: str) -> Path:
@@ -79,6 +111,7 @@ def get_config(path: str = "./mods") -> ConfigResponse:
             glossary_path=None,
             output_mode="separate",
             config_path=None,
+            qa=QaConfigResponse(),
         )
 
     raw = load_config(config_path)
@@ -95,6 +128,7 @@ def get_config(path: str = "./mods") -> ConfigResponse:
         glossary_path=raw.get("glossary_path"),
         output_mode=raw.get("output_mode", "separate"),
         config_path=str(config_path),
+        qa=_qa_from_raw(raw),
     )
 
 

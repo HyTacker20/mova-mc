@@ -95,10 +95,13 @@ class QaConfig:
     @classmethod
     def from_table_dict(cls, table: dict[str, Any]) -> QaConfig:
         """Build from a ``[qa]`` TOML table."""
+        enabled_raw = table.get("judge", table.get("enabled", False))
+        provider_raw = table.get("judge_provider", table.get("provider"))
+        model_raw = table.get("judge_model", table.get("model"))
         return cls(
-            enabled=bool(table.get("judge", False)),
-            provider=table.get("judge_provider"),
-            model=_coerce_model(table.get("judge_model")),
+            enabled=bool(enabled_raw),
+            provider=provider_raw,
+            model=_coerce_model(model_raw),
             corrector_model=table.get("corrector_model"),
             threshold=int(table.get("threshold", 3)),
             max_attempts=int(table.get("max_attempts", 2)),

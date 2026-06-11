@@ -71,9 +71,9 @@ class JobRequest(BaseModel):
             "chunk_token_budget": self.chunk_token_budget,
             "progress_batch_size": self.progress_batch_size,
             "qa": {
-                "enabled": self.qa.enabled,
-                "provider": self.qa.provider,
-                "model": self.qa.model,
+                "judge": self.qa.enabled,
+                "judge_provider": self.qa.provider,
+                "judge_model": self.qa.model,
                 "threshold": self.qa.threshold,
                 "max_attempts": self.qa.max_attempts,
                 "streaming": self.qa.streaming,

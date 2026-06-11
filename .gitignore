@@ -58,3 +58,4 @@ backend/static/*
 .claude/
 .opencode/
 .impeccable/
+.cursor/

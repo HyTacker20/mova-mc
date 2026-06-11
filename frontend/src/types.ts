@@ -7,6 +7,17 @@ export interface ModInfo {
   selected: boolean
 }
 
+export interface QaConfigResponse {
+  judge: boolean
+  judge_provider: string | null
+  judge_model: string | null
+  threshold: number
+  max_attempts: number
+  streaming: boolean
+  chunk_size: number
+  judge_workers: number
+}
+
 export interface ConfigResponse {
   provider: string
   model: string | null
@@ -19,6 +30,7 @@ export interface ConfigResponse {
   glossary_path: string | null
   output_mode: string
   config_path: string | null
+  qa: QaConfigResponse
 }
 
 export interface ProviderInfo {
