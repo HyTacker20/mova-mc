@@ -48,6 +48,7 @@ class JobRequest(BaseModel):
     glossary_path: str | None = None
     chunk_mode: str = "auto"
     chunk_size: int | None = None
+    chunk_token_budget: int = 3500
     progress_batch_size: int = 10
 
     selected_mods: list[str] = Field(default_factory=list)
@@ -67,6 +68,7 @@ class JobRequest(BaseModel):
             "no_cache": self.no_cache,
             "output_mode": self.output_mode,
             "chunk_mode": self.chunk_mode,
+            "chunk_token_budget": self.chunk_token_budget,
             "progress_batch_size": self.progress_batch_size,
             "qa": {
                 "enabled": self.qa.enabled,

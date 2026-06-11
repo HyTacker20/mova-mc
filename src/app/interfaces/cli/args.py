@@ -20,6 +20,25 @@ def add_translate_arguments(parser: ArgumentParser) -> None:
         help="Model name for AI providers (e.g. gpt-4o, claude-sonnet-4). Uses provider default if not set.",
     )
     parser.add_argument("--workers", type=int, default=4, help="Number of concurrent translation workers (default: 4)")
+    parser.add_argument(
+        "--chunk-mode",
+        type=str,
+        default=None,
+        choices=["auto", "chunk", "item"],
+        help="Translation batching: auto (token budget), chunk (fixed size), item (one per request)",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=None,
+        help="Fixed chunk size when --chunk-mode=chunk (default: provider default, usually 25)",
+    )
+    parser.add_argument(
+        "--chunk-token-budget",
+        type=int,
+        default=None,
+        help="Max estimated input tokens per JSON batch when --chunk-mode=auto (default: 3500)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Show what would be translated without making changes")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging to console")
     parser.add_argument(

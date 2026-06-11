@@ -6,6 +6,7 @@ Implementations live in infrastructure/.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
 from ..domain.models import TranslationResult, TranslationUnit
@@ -39,7 +40,10 @@ class TranslationProvider(Protocol):
         """Async TranslationUnit translation with structured result."""
 
     async def translate_batch_async(
-        self, units: list[TranslationUnit]
+        self,
+        units: list[TranslationUnit],
+        *,
+        on_entry: Callable[[str, str, str], None] | None = None,
     ) -> list[TranslationResult]:
         """Async batch translation with structured results."""
 

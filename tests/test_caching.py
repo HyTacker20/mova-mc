@@ -278,6 +278,32 @@ class TestCachingProvider:
         caching.translate_unit(unit)
         assert fake_provider.translate_unit.call_count == 2
 
+    @pytest.mark.asyncio
+    async def test_translate_batch_async_preserves_order(self, fake_cache: _FakeCache, fake_provider: MagicMock) -> None:
+        from unittest.mock import AsyncMock
+
+        async def batch_async(units, *, on_entry=None):
+            return [
+                TranslationResult(unit=u, translated_text=f"tr({u.source_text})", success=True)
+                for u in units
+            ]
+
+        fake_provider.translate_batch_async = AsyncMock(side_effect=batch_async)
+        caching = _make_caching(fake_cache, fake_provider)
+        units = [_make_unit("k1", "A"), _make_unit("k2", "B"), _make_unit("k3", "C")]
+
+        # Pre-cache middle item only
+        key_b = caching._cache_key("B")
+        fake_cache.set(key_b, "cached_B")
+
+        results = await caching.translate_batch_async(units)
+        assert [r.unit.key for r in results] == ["k1", "k2", "k3"]
+        assert results[1].cached is True
+        assert results[1].translated_text == "cached_B"
+        assert fake_provider.translate_batch_async.await_count == 1
+        passed_units = fake_provider.translate_batch_async.await_args.args[0]
+        assert [u.key for u in passed_units] == ["k1", "k3"]
+
     def test_translate_batch_units(self, fake_cache: _FakeCache, fake_provider: MagicMock) -> None:
         caching = _make_caching(fake_cache, fake_provider)
         units = [

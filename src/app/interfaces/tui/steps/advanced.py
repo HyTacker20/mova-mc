@@ -153,6 +153,8 @@ class AdvancedStep(Widget):
 
     initial_chunk_size: int | None = None
 
+    initial_chunk_token_budget: int = 3500
+
     initial_progress_batch_size: int = 10
 
     initial_rate_limit_rpm: float | None = None
@@ -489,6 +491,17 @@ class AdvancedStep(Widget):
                 ),
                 classes="inline-field",
                 id="chunk-size-row",
+            )
+
+            yield HorizontalGroup(
+                Label("Token budget (auto mode):", classes="field-label-sm"),
+                Input(
+                    value=str(self.initial_chunk_token_budget),
+                    placeholder="3500",
+                    id="chunk-token-budget-input",
+                    type="integer",
+                ),
+                classes="inline-field",
             )
 
             yield HorizontalGroup(
@@ -838,6 +851,9 @@ class AdvancedStep(Widget):
             "output_mode": self.query_one("#output-mode-select", Select).value,
             "chunk_mode": chunk_mode,
             "chunk_size": chunk_size,
+            "chunk_token_budget": _parse_required_int(
+                self.query_one("#chunk-token-budget-input", Input).value, 3500
+            ),
             "progress_batch_size": _parse_required_int(self.query_one("#progress-batch-input", Input).value, 10),
             "qa_judge": self.query_one("#qa-judge-switch", Switch).value,
             "qa_judge_provider": self._get_qa_provider(),

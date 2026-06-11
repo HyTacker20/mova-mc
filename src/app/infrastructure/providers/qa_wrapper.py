@@ -263,9 +263,12 @@ class InlineQaWrapper:
         return await self._inner.translate_unit_async(unit)
 
     async def translate_batch_async(
-        self, units: list[TranslationUnit]
+        self,
+        units: list[TranslationUnit],
+        *,
+        on_entry: object | None = None,
     ) -> list[TranslationResult]:
-        return await self._inner.translate_batch_async(units)
+        return await self._inner.translate_batch_async(units, on_entry=on_entry)  # type: ignore[arg-type]
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._inner, name)

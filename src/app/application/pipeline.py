@@ -16,9 +16,9 @@ from ..infrastructure.providers.registry import AI_PROVIDERS
 
 
 def _resolve_translation_chunk_size(settings: Settings) -> int | None:
-    """Return chunk_size for LLM providers: 0 = per-item, None = provider default."""
+    """Return chunk_size for LLM providers: 1 = per-item, None = provider default."""
     if settings.chunk_mode == "item":
-        return 0
+        return 1
     if settings.chunk_size is not None:
         return settings.chunk_size
     if settings.chunk_mode in ("auto", "chunk"):
@@ -124,6 +124,10 @@ def build_context(
         model=model,
         glossary=glossary,
         chunk_size=translation_chunk_size,
+        max_concurrent_chunks=settings.max_workers,
+        chunk_token_budget=settings.chunk_token_budget,
+        chunk_max_text_length=settings.chunk_max_text_length,
+        chunk_mode=settings.chunk_mode,
     )
 
     resolved_model = _resolve_model(settings.provider, model)

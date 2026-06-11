@@ -30,13 +30,24 @@ def progress() -> ProgressReporter:
     return ProgressReporter()
 
 
+async def _default_batch_async(
+    units: list[TranslationUnit],
+    *,
+    on_entry: object | None = None,
+) -> list[TranslationResult]:
+    results: list[TranslationResult] = []
+    for unit in units:
+        tr = TranslationResult(unit=unit, translated_text=f"tr({unit.source_text})", success=True)
+        results.append(tr)
+        if callable(on_entry):
+            on_entry(unit.key, unit.source_text, tr.translated_text)
+    return results
+
+
 @pytest.fixture
 def provider() -> MagicMock:
     p = MagicMock(spec=TranslationProvider)
-    p.translate_batch.side_effect = lambda units: [
-        TranslationResult(unit=u, translated_text=f"tr({u.source_text})", success=True)
-        for u in units
-    ]
+    p.translate_batch_async.side_effect = _default_batch_async
     return p
 
 
@@ -104,11 +115,11 @@ class TestTranslateStage:
         result = stage_translate(ctx, [mod])
         # Unselected mod should not have its lang files translated
         assert result[0].selected is False
-        provider.translate_batch.assert_not_called()
+        provider.translate_batch_async.assert_not_called()
 
-    def test_batch_translate_error_falls_back(self, settings: Settings, progress: ProgressReporter, provider: MagicMock, tmp_path: Path) -> None:
-        """When translate_batch raises, original text is used as fallback."""
-        provider.translate_batch.side_effect = Exception("API unavailable")
+    def test_translate_unit_error_falls_back(self, settings: Settings, progress: ProgressReporter, provider: MagicMock, tmp_path: Path) -> None:
+        """When batch translation raises, original text is used as fallback."""
+        provider.translate_batch_async.side_effect = Exception("API unavailable")
         ctx = _ctx(settings, progress, provider, tmp_path)
         mod = _make_mod()
         result = stage_translate(ctx, [mod])
@@ -117,16 +128,27 @@ class TestTranslateStage:
         assert all(u.translated_text == u.unit.source_text for u in units)
         assert all(not u.success for u in units)
 
-    def test_batch_translate_partial_results(self, settings: Settings, progress: ProgressReporter, provider: MagicMock, tmp_path: Path) -> None:
-        """Provider returns fewer results than input — missing units use original text."""
+    def test_translate_unit_partial_failure(self, settings: Settings, progress: ProgressReporter, provider: MagicMock, tmp_path: Path) -> None:
+        """Per-unit failure preserves original text for that entry."""
 
-        def partial(units):
-            return [
-                TranslationResult(unit=units[0], translated_text="tr(Hello)", success=True),
-                TranslationResult(unit=units[1], translated_text=units[1].source_text, success=False),
-            ]
+        async def per_batch(
+            units: list[TranslationUnit],
+            *,
+            on_entry: object | None = None,
+        ) -> list[TranslationResult]:
+            results: list[TranslationResult] = []
+            for unit in units:
+                if unit.key == "k1":
+                    tr = TranslationResult(unit=unit, translated_text="tr(Hello)", success=True)
+                else:
+                    tr = TranslationResult(unit=unit, translated_text=unit.source_text, success=False)
+                results.append(tr)
+                if callable(on_entry):
+                    txt = tr.translated_text if tr.success else unit.source_text
+                    on_entry(unit.key, unit.source_text, txt)
+            return results
 
-        provider.translate_batch.side_effect = partial
+        provider.translate_batch_async.side_effect = per_batch
         ctx = _ctx(settings, progress, provider, tmp_path)
         mod = _make_mod()
         result = stage_translate(ctx, [mod])
@@ -186,6 +208,50 @@ class TestTranslateStage:
         assert len(result[0].lang_files) == 2
         assert len(result[0].lang_files[0].units) == 1
         assert len(result[0].lang_files[1].units) == 1
+
+    def test_progress_emitted_during_translation(
+        self, settings: Settings, progress: ProgressReporter, provider: MagicMock, tmp_path: Path
+    ) -> None:
+        """Progress events fire after each unit, not only after the whole file completes."""
+        events: list[tuple[str, dict]] = []
+
+        def capture(event: str, **kw: object) -> None:
+            events.append((event, dict(kw)))
+
+        progress.subscribe(capture)
+
+        call_count = 0
+
+        async def slow_batch(
+            units: list[TranslationUnit],
+            *,
+            on_entry: object | None = None,
+        ) -> list[TranslationResult]:
+            nonlocal call_count
+            results: list[TranslationResult] = []
+            for unit in units:
+                if call_count >= 1:
+                    translated = [e for e in events if e[0] == "translated_entry"]
+                    assert len(translated) == call_count
+                tr = TranslationResult(unit=unit, translated_text=f"tr({unit.source_text})", success=True)
+                results.append(tr)
+                if callable(on_entry):
+                    on_entry(unit.key, unit.source_text, tr.translated_text)
+                call_count += 1
+            return results
+
+        provider.translate_batch_async.side_effect = slow_batch
+        units = [
+            TranslationUnit(key="k1", source_text="Hello", file_type="json"),
+            TranslationUnit(key="k2", source_text="World", file_type="json"),
+            TranslationUnit(key="k3", source_text="Foo", file_type="json"),
+        ]
+        mod = _make_mod(units=units)
+        ctx = _ctx(settings, progress, provider, tmp_path)
+        stage_translate(ctx, [mod])
+
+        translated_events = [e for e in events if e[0] == "translated_entry"]
+        assert len(translated_events) == 3
 
     def test_stage_translate_async(self, settings: Settings, progress: ProgressReporter, provider: MagicMock, tmp_path: Path) -> None:
         import asyncio

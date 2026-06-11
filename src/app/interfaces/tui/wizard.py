@@ -529,6 +529,8 @@ class WizardScreen(Screen):
                 step.initial_chunk_mode = wiz.settings.chunk_mode  # type: ignore[attr-defined]
             if hasattr(step, "initial_chunk_size"):
                 step.initial_chunk_size = wiz.settings.chunk_size  # type: ignore[attr-defined]
+            if hasattr(step, "initial_chunk_token_budget"):
+                step.initial_chunk_token_budget = wiz.settings.chunk_token_budget  # type: ignore[attr-defined]
             if hasattr(step, "initial_progress_batch_size"):
                 step.initial_progress_batch_size = wiz.settings.progress_batch_size  # type: ignore[attr-defined]
             if hasattr(step, "initial_rate_limit_rpm"):
@@ -589,6 +591,8 @@ class WizardScreen(Screen):
                 wiz.settings.chunk_mode = str(data["chunk_mode"])
             if "chunk_size" in data:
                 wiz.settings.chunk_size = data["chunk_size"]
+            if "chunk_token_budget" in data:
+                wiz.settings.chunk_token_budget = int(data["chunk_token_budget"])
             if "progress_batch_size" in data:
                 wiz.settings.progress_batch_size = int(data["progress_batch_size"])
             if "qa_streaming" in data:

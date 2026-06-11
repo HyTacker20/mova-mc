@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 
 from loguru import logger
 
@@ -78,15 +79,17 @@ class CachingProvider:
         return result
 
     def translate_batch(self, units: list[TranslationUnit]) -> list[TranslationResult]:
-        results: list[TranslationResult] = []
+        results: list[TranslationResult | None] = [None] * len(units)
+        uncached_indices: list[int] = []
         uncached_units: list[TranslationUnit] = []
 
-        for unit in units:
+        for i, unit in enumerate(units):
             key = self._cache_key(unit.source_text)
             cached = self._cache.get(key)
             if cached is not None:
-                results.append(TranslationResult(unit=unit, translated_text=cached, success=True, cached=True))
+                results[i] = TranslationResult(unit=unit, translated_text=cached, success=True, cached=True)
             else:
+                uncached_indices.append(i)
                 uncached_units.append(unit)
 
         cached_count = len(units) - len(uncached_units)
@@ -94,12 +97,12 @@ class CachingProvider:
 
         if uncached_units:
             new_results = self._inner.translate_batch(uncached_units)
-            for r in new_results:
-                if r.success:
+            for idx, r in zip(uncached_indices, new_results, strict=True):
+                if r.success and r.translated_text:
                     self._cache.set(self._cache_key(r.unit.source_text), r.translated_text)
-                results.append(r)
+                results[idx] = r
 
-        return results
+        return [r for r in results if r is not None]
 
     def __getattr__(self, name: str):
         return getattr(self._inner, name)
@@ -139,23 +142,33 @@ class CachingProvider:
             self._cache.set(key, result.translated_text)
         return result
 
-    async def translate_batch_async(self, units: list[TranslationUnit]) -> list[TranslationResult]:
-        results: list[TranslationResult] = []
+    async def translate_batch_async(
+        self,
+        units: list[TranslationUnit],
+        *,
+        on_entry: Callable[[str, str, str], None] | None = None,
+    ) -> list[TranslationResult]:
+        entry_cb = on_entry
+        results: list[TranslationResult | None] = [None] * len(units)
+        uncached_indices: list[int] = []
         uncached_units: list[TranslationUnit] = []
 
-        for unit in units:
+        for i, unit in enumerate(units):
             key = self._cache_key(unit.source_text)
             cached = self._cache.get(key)
             if cached is not None:
-                results.append(TranslationResult(unit=unit, translated_text=cached, success=True, cached=True))
+                results[i] = TranslationResult(unit=unit, translated_text=cached, success=True, cached=True)
+                if entry_cb is not None:
+                    entry_cb(unit.key, unit.source_text, cached)
             else:
+                uncached_indices.append(i)
                 uncached_units.append(unit)
 
         if uncached_units:
-            new_results = await self._inner.translate_batch_async(uncached_units)
-            for r in new_results:
+            new_results = await self._inner.translate_batch_async(uncached_units, on_entry=entry_cb)
+            for idx, r in zip(uncached_indices, new_results, strict=True):
                 if r.success and r.translated_text:
                     self._cache.set(self._cache_key(r.unit.source_text), r.translated_text)
-                results.append(r)
+                results[idx] = r
 
-        return results
+        return [r for r in results if r is not None]

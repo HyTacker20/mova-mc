@@ -31,6 +31,8 @@ VALID_CONFIG_KEYS = frozenset(
         "path",
         "chunk_mode",
         "chunk_size",
+        "chunk_token_budget",
+        "chunk_max_text_length",
         "progress_batch_size",
         "ui_locale",
     }
@@ -59,6 +61,8 @@ def settings_to_config_dict(settings: Any, *, ui_locale: str | None = None) -> d
         "output_mode": settings.output_mode,
         "chunk_mode": settings.chunk_mode,
         "chunk_size": settings.chunk_size,
+        "chunk_token_budget": settings.chunk_token_budget,
+        "chunk_max_text_length": settings.chunk_max_text_length,
         "progress_batch_size": settings.progress_batch_size,
         "qa_judge": settings.qa_judge,
         "qa_judge_provider": settings.qa_judge_provider,
@@ -176,7 +180,7 @@ def load_config(config_path: Path) -> dict[str, Any]:
                 except (ValueError, TypeError):
                     logger.warning(f"Config key 'workers' must be an integer, got: {type(value).__name__}")
                     continue
-            elif key in ("chunk_size", "progress_batch_size") and value is not None:
+            elif key in ("chunk_size", "progress_batch_size", "chunk_token_budget", "chunk_max_text_length") and value is not None:
                 try:
                     config[key] = int(value)
                 except (ValueError, TypeError):
@@ -276,6 +280,8 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
         "output_mode": "output_mode",
         "chunk_mode": "chunk_mode",
         "chunk_size": "chunk_size",
+        "chunk_token_budget": "chunk_token_budget",
+        "chunk_max_text_length": "chunk_max_text_length",
         "progress_batch_size": "progress_batch_size",
         "ui_locale": "ui_locale",
     }

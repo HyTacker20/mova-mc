@@ -16,7 +16,12 @@ class TestChunkModeSettings:
 
     def test_item_mode_forces_per_item(self) -> None:
         settings = Settings(config_data={"chunk_mode": "item"})
-        assert _resolve_translation_chunk_size(settings) == 0
+        assert _resolve_translation_chunk_size(settings) == 1
+
+    def test_chunk_token_budget_from_config(self) -> None:
+        settings = Settings(config_data={"chunk_token_budget": 5000, "chunk_max_text_length": 150})
+        assert settings.chunk_token_budget == 5000
+        assert settings.chunk_max_text_length == 150
 
     def test_explicit_chunk_size(self) -> None:
         settings = Settings(config_data={"chunk_size": 10})

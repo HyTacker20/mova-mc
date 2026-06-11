@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 
 from deep_translator import GoogleTranslator
 from loguru import logger
 
 from ...domain.models import TranslationResult, TranslationUnit
 from ...exceptions import TranslationServiceError
+from ...utils.cancellation import cancel_token
 from ...utils.retry_logic import create_retry_decorator, global_rate_limiter
 from .helpers import capitalize_first
 
@@ -27,10 +29,12 @@ class GoogleProvider:
         target_lang: str,
         capitalize: bool = True,
         max_retries: int = 3,
+        max_concurrent_chunks: int = 4,
     ) -> None:
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.capitalize = capitalize
+        self._max_concurrent_chunks = max(1, max_concurrent_chunks)
         self._retry = create_retry_decorator("google", max_retries=max_retries)
         self._translator = GoogleTranslator(source=self.source_lang, target=self.target_lang)
 
@@ -85,19 +89,37 @@ class GoogleProvider:
         return await asyncio.to_thread(self.translate_unit, unit)
 
     async def translate_batch_async(
-        self, units: list[TranslationUnit]
+        self,
+        units: list[TranslationUnit],
+        *,
+        on_entry: Callable[[str, str, str], None] | None = None,
     ) -> list[TranslationResult]:
-        """Async batch translation — runs sync ``translate_unit`` per item."""
-        results: list[TranslationResult] = []
-        for unit in units:
-            try:
-                translated = await self.translate_async(unit.source_text)
-                results.append(TranslationResult(unit=unit, translated_text=translated, success=True))
-            except Exception as exc:
-                results.append(
-                    TranslationResult(unit=unit, translated_text=unit.source_text, success=False, error=str(exc))
-                )
-        return results
+        """Async batch translation with parallel workers."""
+        cancel_token.raise_if_set()
+        if not units:
+            return []
+
+        sem = asyncio.Semaphore(self._max_concurrent_chunks)
+        results: list[TranslationResult | None] = [None] * len(units)
+
+        async def _translate_indexed(index: int, unit: TranslationUnit) -> None:
+            async with sem:
+                cancel_token.raise_if_set()
+                tr = await self.translate_unit_async(unit)
+                results[index] = tr
+                if on_entry is not None:
+                    txt = tr.translated_text if tr.success else unit.source_text
+                    on_entry(unit.key, unit.source_text, txt)
+
+        await asyncio.gather(
+            *[_translate_indexed(i, unit) for i, unit in enumerate(units)],
+            return_exceptions=True,
+        )
+
+        return [
+            r if r is not None else TranslationResult(unit=u, translated_text=u.source_text, success=False)
+            for u, r in zip(units, results, strict=True)
+        ]
 
     # ── New-style sync batch ─────────────────────────────────────────
 

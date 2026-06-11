@@ -13,6 +13,11 @@ from ..pipeline import PipelineContext
 
 
 def stage_translate(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
+    """Sync wrapper used by tests; production pipeline uses :func:`stage_translate_async`."""
+    return asyncio.run(stage_translate_async(ctx, mods))
+
+
+async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
     result: list[Mod] = []
     selected = [m for m in mods if m.selected]
     total_mods = len(selected)
@@ -88,20 +93,20 @@ def stage_translate(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
                     entries_done_in_mod += 1
                     cumulative = _base + entries_done_in_mod
                     is_last = entries_done_in_mod >= _total_in_mod
-                    should_report = (
+                    should_report_bars = (
                         entries_done_in_mod % progress_batch == 0
                         or is_last
                     )
 
-                    if should_report:
-                        _ctx.progress.report(
-                            "translated_entry",
-                            key=key,
-                            source=source,
-                            translated=translated,
-                            mod_name=_mod_name,
-                        )
+                    _ctx.progress.report(
+                        "translated_entry",
+                        key=key,
+                        source=source,
+                        translated=translated,
+                        mod_name=_mod_name,
+                    )
 
+                    if should_report_bars:
                         _ctx.progress.report(
                             "entry_progress",
                             done=cumulative,
@@ -120,30 +125,30 @@ def stage_translate(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
                             failed_entries=_failed_entries,
                         )
 
-                    if _ctx.settings.debug or should_report or entries_done_in_mod <= 3:
+                    if _ctx.settings.debug or should_report_bars or entries_done_in_mod <= 3:
                         src_log = source.replace("\n", "\\n")
                         tgt_log = translated.replace("\n", "\\n")
                         logger.debug(f'    "{src_log}"  →  "{tgt_log}"')
 
-                translated_units: list[TranslationResult] = []
+                cancel_token.raise_if_set()
                 try:
-                    translated_units = ctx.provider.translate_batch(source_units)
-                    # Emit progress for each result (batch, not streaming)
-                    for tr in translated_units:
-                        txt = tr.translated_text if tr.success else tr.unit.source_text
-                        _on_entry(tr.unit.key, tr.unit.source_text, txt)
+                    translated_units = await ctx.provider.translate_batch_async(
+                        source_units,
+                        on_entry=_on_entry,
+                    )
                 except Exception:
                     logger.exception(f"Batch translation failed for {lang_file.source_path}")
-                    # Fallback: return original text for all units
                     translated_units = [
                         TranslationResult(
-                            unit=u,
-                            translated_text=u.source_text,
+                            unit=unit,
+                            translated_text=unit.source_text,
                             success=False,
-                            error="batch translation failed",
+                            error="translation failed",
                         )
-                        for u in source_units
+                        for unit in source_units
                     ]
+                    for tr in translated_units:
+                        _on_entry(tr.unit.key, tr.unit.source_text, tr.unit.source_text)
 
                 qa_meta = _consume_inline_qa_metadata(ctx.provider)
                 if qa_meta:
@@ -250,15 +255,6 @@ def stage_translate(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
         _dump_translations(ctx, result)
 
     return result
-
-
-async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
-    """Async version of :func:`stage_translate`.
-
-    Delegates to the sync version via ``asyncio.to_thread`` so existing
-    progress-reporting and caching logic is shared unchanged.
-    """
-    return await asyncio.to_thread(stage_translate, ctx, mods)
 
 
 def _dump_translations(ctx: PipelineContext, mods: list[Mod]) -> None:

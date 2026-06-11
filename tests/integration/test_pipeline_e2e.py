@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import zipfile
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from app.application.pipeline import PipelineContext, run_pipeline
 from app.core.settings import Settings
@@ -51,6 +51,7 @@ def _build_provider() -> OpenAILikeProvider:
         return f"tr_{content.replace('Translate: ', '')}"
 
     transport.complete.side_effect = _translate_response
+    transport.acomplete = AsyncMock(side_effect=_translate_response)
     return OpenAILikeProvider(
         source_lang="en",
         target_lang="es",

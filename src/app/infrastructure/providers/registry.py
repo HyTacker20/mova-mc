@@ -78,6 +78,7 @@ def _register_builtins() -> None:
             target_lang=kwargs["target_lang"],
             capitalize=kwargs.get("capitalize", True),
             max_retries=kwargs.get("max_retries", 3),
+            max_concurrent_chunks=kwargs.get("max_concurrent_chunks", 4),
         )
 
     # OpenAI-like providers ----------------------------------------------
@@ -166,6 +167,10 @@ def _build_openai_like(provider: str, **kwargs: Any) -> TranslationProvider:
 
     resolved_model = _resolve_model(provider, kwargs.get("model"))
     transport = build_transport(provider, resolved_model)
+    resolved_chunk_size = kwargs.get("chunk_size")
+    if resolved_chunk_size is None:
+        resolved_chunk_size = 10 if provider == "openaicompatible" else 25
+
     return OpenAILikeProvider(
         source_lang=kwargs.get("source_lang", ""),
         target_lang=kwargs.get("target_lang", ""),
@@ -173,7 +178,11 @@ def _build_openai_like(provider: str, **kwargs: Any) -> TranslationProvider:
         service_name=provider if provider != "openaicompatible" else "openaicompatible",
         capitalize=kwargs.get("capitalize", True),
         max_retries=kwargs.get("max_retries", 3),
-        chunk_size=kwargs.get("chunk_size", 10 if provider == "openaicompatible" else 25),
+        chunk_size=resolved_chunk_size,
+        max_concurrent_chunks=kwargs.get("max_concurrent_chunks", 4),
+        chunk_token_budget=kwargs.get("chunk_token_budget", 3500),
+        chunk_max_text_length=kwargs.get("chunk_max_text_length", 200),
+        chunk_mode=kwargs.get("chunk_mode", "auto"),
         source_lang_display=kwargs.get("source_lang_display"),
         target_lang_display=kwargs.get("target_lang_display"),
         glossary=kwargs.get("glossary"),
