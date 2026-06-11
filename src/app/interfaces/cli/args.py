@@ -141,4 +141,10 @@ def build_argument_parser() -> ArgumentParser:
         help="Directory to create movamc.toml in (default: current directory)",
     )
 
+    web_parser = subparsers.add_parser("web", help="Launch browser-based web UI")
+    web_parser.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
+    web_parser.add_argument("--port", type=int, default=8000, help="Listen port (default: 8000)")
+    web_parser.add_argument("--dev", action="store_true", help="Enable CORS for Vite dev server")
+    web_parser.add_argument("--no-browser", action="store_true", help="Do not open browser automatically")
+
     return parser

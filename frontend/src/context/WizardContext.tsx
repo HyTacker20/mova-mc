@@ -1,0 +1,186 @@
+import { createContext, useContext, useReducer, type Dispatch } from 'react'
+import type { ModInfo, OverallStatsResponse, ProgressState, WizardAction, WizardState } from '../types'
+
+const INITIAL_PROGRESS: ProgressState = {
+  phase: '',
+  modName: '',
+  currentFile: '',
+  completedMods: 0,
+  totalMods: 0,
+  completedEntries: 0,
+  totalEntries: 0,
+  logs: [],
+  failed: 0,
+}
+
+export const INITIAL_STATE: WizardState = {
+  step: 0,
+  provider: 'google',
+  model: '',
+  source: 'en_US',
+  target: 'uk_UA',
+  modsPath: './mods',
+  outputPath: './translated_mods',
+  outputMode: 'separate',
+  workers: 4,
+  noCache: false,
+  dryRun: false,
+  hintLang: '',
+  qaEnabled: false,
+  qaProvider: '',
+  qaModel: '',
+  qaThreshold: 3,
+  qaMaxAttempts: 2,
+  mods: [],
+  selectedMods: [],
+  jobId: null,
+  jobStatus: '',
+  progress: INITIAL_PROGRESS,
+  stats: null,
+  error: null,
+}
+
+function MAX_LOGS(logs: string[], line: string): string[] {
+  const next = [...logs, line]
+  return next.length > 300 ? next.slice(-300) : next
+}
+
+function wizardReducer(state: WizardState, action: WizardAction): WizardState {
+  switch (action.type) {
+    case 'SET_STEP':
+      return { ...state, step: action.step }
+
+    case 'SET_PROVIDER':
+      return { ...state, provider: action.provider, model: action.model }
+
+    case 'SET_PATHS':
+      return {
+        ...state,
+        source: action.source,
+        target: action.target,
+        modsPath: action.modsPath,
+        outputPath: action.outputPath,
+        outputMode: action.outputMode,
+      }
+
+    case 'SET_ADVANCED':
+      return {
+        ...state,
+        workers: action.workers,
+        noCache: action.noCache,
+        dryRun: action.dryRun,
+        hintLang: action.hintLang,
+        qaEnabled: action.qaEnabled,
+        qaProvider: action.qaProvider,
+        qaModel: action.qaModel,
+        qaThreshold: action.qaThreshold,
+        qaMaxAttempts: action.qaMaxAttempts,
+      }
+
+    case 'SET_MODS': {
+      const mods = action.mods
+      const selected = mods.filter(m => m.selected).map(m => m.name)
+      return { ...state, mods, selectedMods: selected }
+    }
+
+    case 'TOGGLE_MOD': {
+      const exists = state.selectedMods.includes(action.name)
+      const selectedMods = exists
+        ? state.selectedMods.filter(n => n !== action.name)
+        : [...state.selectedMods, action.name]
+      return { ...state, selectedMods }
+    }
+
+    case 'SELECT_ALL_MODS':
+      return { ...state, selectedMods: state.mods.map(m => m.name) }
+
+    case 'DESELECT_ALL_MODS':
+      return { ...state, selectedMods: [] }
+
+    case 'JOB_STARTED':
+      return {
+        ...state,
+        jobId: action.jobId,
+        jobStatus: 'running',
+        progress: INITIAL_PROGRESS,
+        error: null,
+      }
+
+    case 'PROGRESS': {
+      const { event, data } = action
+      const p = state.progress
+
+      if (event === 'title') {
+        return { ...state, progress: { ...p, phase: String(data.text ?? '') } }
+      }
+      if (event === 'mod_start') {
+        return { ...state, progress: { ...p, modName: String(data.mod_name ?? '') } }
+      }
+      if (event === 'mod_file_start') {
+        return { ...state, progress: { ...p, currentFile: String(data.file_path ?? '') } }
+      }
+      if (event === 'overall_progress') {
+        return {
+          ...state,
+          progress: {
+            ...p,
+            completedMods: Number(data.completed_mods ?? 0),
+            totalMods: Number(data.total_mods ?? 0),
+            completedEntries: Number(data.completed_entries ?? 0),
+            totalEntries: Number(data.total_entries ?? 0),
+            failed: Number(data.failed_entries ?? 0),
+          },
+        }
+      }
+      if (event === 'mod_complete') {
+        const name = String(data.mod_name ?? '')
+        const t = Number(data.total ?? 0)
+        const done = Number(data.translated ?? 0)
+        const fail = Number(data.failed ?? 0)
+        const line = fail > 0
+          ? `✓ ${name} (${done}/${t}, ${fail} failed)`
+          : `✓ ${name} (${done}/${t})`
+        return { ...state, progress: { ...p, logs: MAX_LOGS(p.logs, line) } }
+      }
+      if (event === 'translated_entry') {
+        const src = String(data.source ?? '').replace(/\n/g, '\\n')
+        const trn = String(data.translated ?? '').replace(/\n/g, '\\n')
+        return { ...state, progress: { ...p, logs: MAX_LOGS(p.logs, `  ${src} → ${trn}`) } }
+      }
+      if (event === 'error') {
+        return { ...state, error: String(data.text ?? 'Unknown error') }
+      }
+      return state
+    }
+
+    case 'JOB_DONE':
+      return { ...state, jobStatus: 'done', stats: action.stats }
+
+    case 'JOB_ERROR':
+      return { ...state, jobStatus: 'failed', error: action.error }
+
+    case 'RESET':
+      return { ...INITIAL_STATE }
+
+    default:
+      return state
+  }
+}
+
+interface WizardContextValue {
+  state: WizardState
+  dispatch: Dispatch<WizardAction>
+}
+
+const WizardContext = createContext<WizardContextValue | null>(null)
+
+export function WizardProvider({ children }: { children: React.ReactNode }) {
+  const [state, dispatch] = useReducer(wizardReducer, INITIAL_STATE)
+  return <WizardContext.Provider value={{ state, dispatch }}>{children}</WizardContext.Provider>
+}
+
+export function useWizard(): WizardContextValue {
+  const ctx = useContext(WizardContext)
+  if (!ctx) throw new Error('useWizard must be used inside WizardProvider')
+  return ctx
+}

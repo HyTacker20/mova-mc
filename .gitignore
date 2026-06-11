@@ -50,3 +50,8 @@ movamc.toml
 /.omo/
 openspec/
 .hermes/
+
+# Web UI
+frontend/node_modules/
+backend/static/*
+!backend/static/.gitkeep

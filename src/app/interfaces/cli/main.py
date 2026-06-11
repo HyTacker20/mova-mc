@@ -39,6 +39,15 @@ def main() -> None:
 
             debug = getattr(args, "debug", False)
             tui_main(debug=debug)
+        elif getattr(args, "command", None) == "web":
+            from backend.__main__ import main as web_main
+
+            web_main(
+                host=getattr(args, "host", "127.0.0.1"),
+                port=getattr(args, "port", 8000),
+                dev=getattr(args, "dev", False),
+                no_browser=getattr(args, "no_browser", False),
+            )
         else:
             _run_translation(args)
     except KeyboardInterrupt:

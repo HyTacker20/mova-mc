@@ -31,6 +31,11 @@ ai = [
     "python-dotenv>=0.19.0",
     "openai>=1.0.0",
 ]
+web = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
+]
 
 [dependency-groups]
 dev = [
@@ -52,10 +57,12 @@ mova = "app.interfaces.cli.main:main"
 mova-app = "app.interfaces.tui.main:main"
 
 [tool.setuptools.package-dir]
-"" = "src"
+app = "src/app"
+backend = "backend"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src/app", "backend"]
+include = ["app*", "backend*"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -64,7 +71,7 @@ warn_unused_configs = true
 ignore_missing_imports = false
 
 [[tool.mypy.overrides]]
-module = ["deep_translator.*", "litellm.*", "textual.*", "tomli_w.*", "rich.*", "loguru.*", "dotenv.*", "openai.*"]
+module = ["deep_translator.*", "litellm.*", "textual.*", "tomli_w.*", "rich.*", "loguru.*", "dotenv.*", "openai.*", "fastapi.*", "uvicorn.*", "starlette.*", "pydantic.*"]
 ignore_missing_imports = true
 
 [tool.coverage.report]
@@ -91,4 +98,4 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
