@@ -109,6 +109,12 @@ export interface OverallStatsResponse {
   mods: ModStatsResponse[]
 }
 
+export type QaLiveEntry =
+  | { kind: 'fix'; key: string; original: string; fixed: string; score?: number; issue?: string }
+  | { kind: 'flag'; key: string; score: number; issue?: string }
+  | { kind: 'warning'; key: string; message: string }
+  | { kind: 'error'; message: string }
+
 export interface ProgressState {
   phase: string
   modName: string
@@ -120,6 +126,7 @@ export interface ProgressState {
   totalEntries: number
   logs: string[]
   translations: { key: string; source: string; translated: string }[]
+  qaEntries: QaLiveEntry[]
   failed: number
 }
 

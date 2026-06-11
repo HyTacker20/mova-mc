@@ -44,7 +44,7 @@ export default function Wizard() {
           {logOpen ? '◀' : '📋'}
         </button>
       </header>
-      <main className="wizard-body">
+      <main className={`wizard-body${step === 5 ? ' wizard-body--run' : ''}`}>
         <div className="step-transition" key={step}>
           {stepContent()}
         </div>

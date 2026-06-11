@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api/client'
 import { useWizard } from '../../context/WizardContext'
-import type { JobRequest, WizardState } from '../../types'
+import type { JobRequest, QaLiveEntry, WizardState } from '../../types'
+import { shortQaKey } from '../../utils/qaLive'
 
 function buildJobRequest(state: WizardState): JobRequest {
   return {
@@ -57,6 +58,48 @@ function estimateEtaSeconds(done: number, total: number, elapsedS: number): numb
   return (total - done) / rate
 }
 
+function renderQaEntry(entry: QaLiveEntry, index: number) {
+  if (entry.kind === 'fix') {
+    const badge =
+      entry.score != null || entry.issue
+        ? `${entry.score != null ? `${entry.score}/5` : ''}${entry.issue ? `${entry.score != null ? ' · ' : ''}${entry.issue}` : ''}`
+        : null
+    return (
+      <div key={`fix-${entry.key}-${index}`} className="qa-row qa-row--fix">
+        <span className="qa-original">{entry.original}</span>
+        <span className="tr-arrow">→</span>
+        <span className="qa-fixed">{entry.fixed}</span>
+        {badge && <span className="qa-badge">{badge}</span>}
+      </div>
+    )
+  }
+
+  if (entry.kind === 'flag') {
+    const issuePart = entry.issue ? ` · ${entry.issue}` : ''
+    return (
+      <div key={`flag-${entry.key}-${index}`} className="qa-row qa-row--flag">
+        <span className="qa-key" title={entry.key}>{shortQaKey(entry.key)}</span>
+        <span className="qa-badge">⚠ {entry.score}/5{issuePart}</span>
+      </div>
+    )
+  }
+
+  if (entry.kind === 'warning') {
+    return (
+      <div key={`warn-${entry.key}-${index}`} className="qa-row qa-row--warning">
+        <span className="qa-key" title={entry.key}>{shortQaKey(entry.key)}</span>
+        <span className="qa-badge">⚡ {entry.message}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div key={`err-${index}`} className="qa-row qa-row--error">
+      <span className="qa-error-text">✗ {entry.message}</span>
+    </div>
+  )
+}
+
 export default function TranslationRun() {
   const { state, dispatch } = useWizard()
   const { progress, jobStatus } = state
@@ -67,6 +110,7 @@ export default function TranslationRun() {
   const esRef = useRef<EventSource | null>(null)
   const stateRef = useRef(state)
   const panelRef = useRef<HTMLDivElement>(null)
+  const qaPanelRef = useRef<HTMLDivElement>(null)
   const jobStartRef = useRef<number | null>(null)
   stateRef.current = state
 
@@ -88,6 +132,12 @@ export default function TranslationRun() {
     if (!panel) return
     panel.scrollTop = panel.scrollHeight
   }, [progress.translations.length])
+
+  useEffect(() => {
+    const panel = qaPanelRef.current
+    if (!panel) return
+    panel.scrollTop = panel.scrollHeight
+  }, [progress.qaEntries.length])
 
   useEffect(() => {
     if (startedRef.current) return
@@ -186,7 +236,7 @@ export default function TranslationRun() {
     : `${progress.completedMods} / ${progress.totalMods || '?'}`
 
   return (
-    <div className="step-card wide">
+    <div className="step-card wide translate-run-card">
       <h2 className="step-title">Translating</h2>
       <p className="step-subtitle">
         {state.source} → {state.target} via {state.provider}
@@ -236,21 +286,36 @@ export default function TranslationRun() {
         </p>
       )}
 
-      <div className="translations-section">
-        <p className="translations-heading">Translations</p>
-        <div className="translations-panel" ref={panelRef}>
-          {progress.translations.length === 0 ? (
-            <p className="translations-empty">Waiting for first translation…</p>
-          ) : (
-            progress.translations.map((t, i) => (
-              <div key={`${t.key}-${i}`} className="tr-row">
-                <span className="tr-source">{t.source}</span>
-                <span className="tr-arrow">→</span>
-                <span className="tr-target">{t.translated}</span>
-              </div>
-            ))
-          )}
+      <div className={`live-panels${state.qaEnabled ? ' live-panels--dual' : ''}`}>
+        <div className="translations-section">
+          <p className="translations-heading">Translations</p>
+          <div className="translations-panel" ref={panelRef}>
+            {progress.translations.length === 0 ? (
+              <p className="translations-empty">Waiting for first translation…</p>
+            ) : (
+              progress.translations.map((t, i) => (
+                <div key={`${t.key}-${i}`} className="tr-row">
+                  <span className="tr-source">{t.source}</span>
+                  <span className="tr-arrow">→</span>
+                  <span className="tr-target">{t.translated}</span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
+
+        {state.qaEnabled && (
+          <div className="qa-live-section">
+            <p className="translations-heading qa-live-heading">QA</p>
+            <div className="qa-live-panel" ref={qaPanelRef}>
+              {progress.qaEntries.length === 0 ? (
+                <p className="translations-empty">Waiting for QA output…</p>
+              ) : (
+                progress.qaEntries.map((entry, i) => renderQaEntry(entry, i))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="step-actions">

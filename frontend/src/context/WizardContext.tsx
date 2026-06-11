@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, type Dispatch } from 'react'
 import type { ModInfo, OverallStatsResponse, ProgressState, WizardAction, WizardState } from '../types'
+import { appendQaEntry, qaEventToEntry } from '../utils/qaLive'
 
 const INITIAL_PROGRESS: ProgressState = {
   phase: '',
@@ -12,6 +13,7 @@ const INITIAL_PROGRESS: ProgressState = {
   totalEntries: 0,
   logs: [],
   translations: [],
+  qaEntries: [],
   failed: 0,
 }
 
@@ -204,6 +206,15 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       }
       if (event === 'error') {
         return { ...state, error: String(data.text ?? 'Unknown error') }
+      }
+      if (event.startsWith('qa_')) {
+        const entry = qaEventToEntry(event, data, p.qaEntries)
+        if (entry) {
+          return {
+            ...state,
+            progress: { ...p, qaEntries: appendQaEntry(p.qaEntries, entry) },
+          }
+        }
       }
       return state
     }
