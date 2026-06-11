@@ -7,6 +7,20 @@ export interface ModInfo {
   selected: boolean
 }
 
+export interface ConfigResponse {
+  provider: string
+  model: string | null
+  source: string
+  target: string
+  workers: number
+  output: string | null
+  no_cache: boolean
+  hint_lang: string | null
+  glossary_path: string | null
+  output_mode: string
+  config_path: string | null
+}
+
 export interface ProviderInfo {
   id: string
   label: string

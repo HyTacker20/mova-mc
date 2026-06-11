@@ -1,4 +1,4 @@
-import type { ModInfo, OverallStatsResponse, ProviderInfo } from '../types'
+import type { ConfigResponse, ModInfo, OverallStatsResponse, ProviderInfo } from '../types'
 
 export interface CatalogResponse { providers: ProviderInfo[] }
 export interface JobCreatedResponse { job_id: string; status: string }
@@ -21,6 +21,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   getProviders: (): Promise<CatalogResponse> =>
     request('/api/catalog/providers'),
+
+  getConfig: (modsPath: string): Promise<ConfigResponse> =>
+    request(`/api/config?path=${encodeURIComponent(modsPath)}`),
+
+  saveConfig: (data: { provider?: string; model?: string; mods_path: string }): Promise<{ status: string; config_path: string }> =>
+    request('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
 
   scanMods: (path: string): Promise<ScanResponse> =>
     request(`/api/mods?path=${encodeURIComponent(path)}`),

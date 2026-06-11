@@ -74,3 +74,51 @@ class TestJobs:
     def test_events_unknown_job_returns_404(self, client: TestClient) -> None:
         resp = client.get("/api/jobs/nonexistent-id/events")
         assert resp.status_code == 404
+
+
+class TestConfig:
+    def test_get_config_no_file_returns_defaults(self, client: TestClient, tmp_path) -> None:
+        resp = client.get("/api/config", params={"path": str(tmp_path)})
+        assert resp.status_code == 200
+        data = resp.json()
+        # CWD fallback may find the project's own movamc.toml — that's fine.
+        # The endpoint always returns 200 with sensible defaults.
+        assert "provider" in data
+        assert "model" in data
+        assert "source" in data
+
+    def test_save_and_load_config_roundtrip(self, client: TestClient, tmp_path) -> None:
+        # Save
+        resp = client.post(
+            "/api/config",
+            json={"provider": "openai", "model": "gpt-4o", "mods_path": str(tmp_path)},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["config_path"] is not None
+
+        # Load back
+        resp = client.get("/api/config", params={"path": str(tmp_path)})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["provider"] == "openai"
+        assert data["model"] == "gpt-4o"
+        assert data["config_path"] is not None
+
+    def test_save_merges_with_existing(self, client: TestClient, tmp_path) -> None:
+        # Save provider first
+        client.post("/api/config", json={"provider": "openai", "mods_path": str(tmp_path)})
+
+        # Then save model only — should keep provider
+        resp = client.post(
+            "/api/config",
+            json={"model": "gpt-4o-mini", "mods_path": str(tmp_path)},
+        )
+        assert resp.status_code == 200
+
+        # Verify both persisted
+        get_resp = client.get("/api/config", params={"path": str(tmp_path)})
+        data = get_resp.json()
+        assert data["provider"] == "openai"
+        assert data["model"] == "gpt-4o-mini"

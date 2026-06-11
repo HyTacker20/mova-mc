@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.routes.catalog import router as catalog_router
+from backend.routes.config import router as config_router
 from backend.routes.jobs import router as jobs_router
 from backend.routes.mods import router as mods_router
 
@@ -46,6 +47,7 @@ def create_app(*, dev: bool = False) -> FastAPI:
         )
 
     app.include_router(catalog_router, prefix="/api")
+    app.include_router(config_router, prefix="/api")
     app.include_router(mods_router, prefix="/api")
     app.include_router(jobs_router, prefix="/api")
 
