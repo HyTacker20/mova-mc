@@ -11,8 +11,11 @@ while keeping the translate workers busy at all times.
 
 from __future__ import annotations
 
+import queue
 import re
 import threading
+import time
+from dataclasses import replace
 from typing import Any
 
 from loguru import logger
@@ -20,7 +23,10 @@ from loguru import logger
 from ...application.ports import ProgressSink, TranslationProvider
 from ...domain.models import TranslationResult, TranslationUnit
 from ...domain.placeholders import validate_placeholders
-from .judge import LlmJudge, Verdict
+from ...utils.cancellation import cancel_token
+from .judge import LlmJudge, Verdict, display_score
+
+_IDLE_FLUSH_SECONDS = 1.5
 
 # Russian-only Cyrillic letters that do NOT exist in Ukrainian.
 # Used as a fast deterministic sanity check for ru→uk judge fixes.
@@ -147,20 +153,22 @@ class InlineQaWrapper:
         attempts = 0
 
         if verdict.fix and verdict.fix.strip() and validate_placeholders(source, verdict.fix):
-            logger.debug("Inline QA: applied judge fix for {!r}…", source[:60])
+            fix = verdict.fix.strip()
+            if _is_safe_fix(translated, fix):
+                logger.debug("Inline QA: accepted safe judge fix for {!r}…", source[:60])
+                return fix, 0
+            logger.debug("Inline QA: re-judging judge fix for {!r}…", source[:60])
             if re_judge:
                 try:
-                    re_verdicts = self._judge.judge_batch(
-                        [(f"re:{key}", source, verdict.fix.strip())]
-                    )
+                    re_verdicts = self._judge.judge_batch([(f"re:{key}", source, fix)])
                     re_v = re_verdicts.get(f"re:{key}")
                     if re_v is not None and not re_v.is_flag:
-                        return verdict.fix.strip(), 0
+                        return fix, 0
                 except Exception as exc:
                     logger.warning("Inline QA: single re-judge failed, accepting fix anyway: {}", exc)
-                    return verdict.fix.strip(), 0
+                    return fix, 0
                 return None, 0
-            return verdict.fix.strip(), 0
+            return fix, 0
 
         if self._corrector is not None and hasattr(
             self._corrector, "retranslate_with_feedback"
@@ -243,6 +251,129 @@ class InlineQaWrapper:
 
         return None, attempts
 
+    def _needs_correction(self, verdict: Verdict) -> bool:
+        return verdict.is_flag and not (
+            verdict.score is not None and verdict.score > self._threshold
+        )
+
+    def _process_batch(
+        self,
+        batch: list[tuple[str, str, str]],
+        corrections: dict[str, str],
+        corrections_lock: threading.Lock,
+    ) -> None:
+        if not batch:
+            return
+
+        t0 = time.monotonic()
+        flagged_count = 0
+        corrected_count = 0
+
+        if self._progress is not None:
+            self._progress.report(
+                "qa_inline_judging",
+                count=len(batch),
+                chunk_size=self._chunk_size,
+            )
+
+        try:
+            verdicts = self._judge.judge_batch(batch)
+        except Exception as exc:
+            logger.warning("Inline QA: judge batch failed: {}", exc)
+            if self._progress is not None:
+                self._progress.report(
+                    "qa_inline_error",
+                    message=str(exc),
+                    elapsed=time.monotonic() - t0,
+                )
+            return
+
+        for key, source, translated in batch:
+            verdict = verdicts.get(key, Verdict("ok"))
+            score = display_score(verdict)
+
+            if not self._needs_correction(verdict):
+                if verdict.is_flag:
+                    self._store_qa_meta(key, verdict.score, verdict.issue, 0)
+                continue
+
+            flagged_count += 1
+            if self._progress is not None:
+                self._progress.report(
+                    "qa_verdict",
+                    key=key,
+                    score=score,
+                    is_flagged=True,
+                    issue=verdict.issue,
+                )
+
+            corrected, attempts = self._attempt_corrections(key, source, translated, verdict)
+            if corrected:
+                corrected_count += 1
+                normalized = _normalize_trailing_period(source, corrected)
+                with corrections_lock:
+                    corrections[key] = normalized
+                self._store_qa_meta(key, score, verdict.issue, attempts)
+                if self._progress is not None:
+                    self._progress.report(
+                        "qa_inline_fix",
+                        key=key,
+                        original=translated,
+                        fixed=normalized,
+                    )
+            else:
+                self._store_qa_meta(key, score, verdict.issue, attempts)
+
+        if self._progress is not None:
+            self._progress.report(
+                "qa_inline_summary",
+                flagged=flagged_count,
+                total=len(batch),
+                corrected=corrected_count,
+                elapsed=time.monotonic() - t0,
+            )
+
+    def _qa_worker_loop(
+        self,
+        work_queue: queue.Queue[tuple[str, str, str] | None],
+        corrections: dict[str, str],
+        corrections_lock: threading.Lock,
+    ) -> None:
+        buffer: list[tuple[str, str, str]] = []
+        last_put = time.monotonic()
+
+        while True:
+            if cancel_token.is_set():
+                while True:
+                    try:
+                        item = work_queue.get_nowait()
+                    except queue.Empty:
+                        break
+                    if item is not None:
+                        buffer.append(item)
+                if buffer:
+                    self._process_batch(buffer, corrections, corrections_lock)
+                return
+
+            try:
+                item = work_queue.get(timeout=0.25)
+            except queue.Empty:
+                if buffer and (time.monotonic() - last_put) >= _IDLE_FLUSH_SECONDS:
+                    self._process_batch(buffer, corrections, corrections_lock)
+                    buffer = []
+                continue
+
+            if item is None:
+                if buffer:
+                    self._process_batch(buffer, corrections, corrections_lock)
+                return
+
+            buffer.append(item)
+            last_put = time.monotonic()
+            if len(buffer) >= self._chunk_size:
+                self._process_batch(buffer, corrections, corrections_lock)
+                buffer = []
+
     def translate(self, text: str) -> str:
         return self._inner.translate(text)
 
@@ -268,7 +399,48 @@ class InlineQaWrapper:
         *,
         on_entry: object | None = None,
     ) -> list[TranslationResult]:
-        return await self._inner.translate_batch_async(units, on_entry=on_entry)  # type: ignore[arg-type]
+        if not units:
+            return []
+
+        user_on_entry = on_entry if callable(on_entry) else None
+        work_queue: queue.Queue[tuple[str, str, str] | None] = queue.Queue()
+        corrections: dict[str, str] = {}
+        corrections_lock = threading.Lock()
+
+        def wrapped_on_entry(key: str, source: str, translated: str) -> None:
+            if user_on_entry is not None:
+                user_on_entry(key, source, translated)  # type: ignore[misc]
+            tgt = _normalize_trailing_period(source, translated).strip()
+            src = source.strip()
+            if tgt and tgt != src:
+                work_queue.put((key, source, tgt))
+
+        worker = threading.Thread(
+            target=self._qa_worker_loop,
+            args=(work_queue, corrections, corrections_lock),
+            name="inline-qa",
+            daemon=True,
+        )
+        worker.start()
+
+        try:
+            results = await self._inner.translate_batch_async(
+                units,
+                on_entry=wrapped_on_entry,
+            )
+        finally:
+            work_queue.put(None)
+            worker.join()
+
+        out: list[TranslationResult] = []
+        for tr in results:
+            with corrections_lock:
+                new_text = corrections.get(tr.unit.key)
+            if new_text and tr.success:
+                out.append(replace(tr, translated_text=new_text))
+            else:
+                out.append(tr)
+        return out
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._inner, name)

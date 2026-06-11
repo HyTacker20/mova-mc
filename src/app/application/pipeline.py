@@ -163,11 +163,6 @@ def build_context(
                 chunk_size=settings.qa_chunk_size,
                 progress=progress,
             )
-            progress.report(
-                "qa_inline_status",
-                provider=judge_provider,
-                model=judge_model,
-            )
         except Exception:
             logger.warning(
                 "Inline QA: failed to build judge ({}/{}), skipping streaming QA",

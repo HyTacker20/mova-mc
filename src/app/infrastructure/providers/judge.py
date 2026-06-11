@@ -16,6 +16,7 @@ from typing import Any, Protocol
 from loguru import logger
 
 from ...application.batching import chunk_list
+from ...utils.cancellation import cancel_token
 from ...utils.retry_logic import global_rate_limiter
 from .glossary import get_relevant_terms
 from .judge_prompts import JUDGE_PROMPT_VERSION, make_judge_prompt
@@ -207,6 +208,7 @@ class LlmJudge:
 
         if workers <= 1:
             for chunk in chunks:
+                cancel_token.raise_if_set()
                 chunk_results = self._judge_chunk(chunk, system_prompt)
                 results.update(chunk_results)
         else:
@@ -216,6 +218,7 @@ class LlmJudge:
                     for chunk in chunks
                 }
                 for future in as_completed(future_map):
+                    cancel_token.raise_if_set()
                     chunk_results = future.result()
                     results.update(chunk_results)
 
@@ -252,6 +255,8 @@ class LlmJudge:
         for key, src, tgt in chunk:
             payload[key] = {"src": src, "tgt": tgt}
 
+        chunk_tokens = max(256, min(self._max_tokens, 72 * len(chunk)))
+
         try:
             global_rate_limiter.apply_service_delay(self._service_name)
             response = self._transport.complete(
@@ -260,7 +265,7 @@ class LlmJudge:
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                 ],
                 temperature=0.0,
-                max_tokens=self._max_tokens,
+                max_tokens=chunk_tokens,
             )
             parsed = parse_judge_response(response)
             if parsed is None:

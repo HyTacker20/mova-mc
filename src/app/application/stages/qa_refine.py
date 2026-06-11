@@ -158,6 +158,7 @@ def stage_qa_refine(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
     new_mods: list[Mod] = list(mods)
 
     for judge_key, verdict in verdicts.items():
+        cancel_token.raise_if_set()
         mi, fi, ri, old_result = judge_key_to_pos[judge_key]
 
         src = old_result.unit.source_text
@@ -223,6 +224,7 @@ def stage_qa_refine(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
         if accepted is None and corrector is not None:
             attempt = 0
             while attempt < max_attempts and accepted is None:
+                cancel_token.raise_if_set()
                 attempt += 1
                 attempts += 1
                 try:
