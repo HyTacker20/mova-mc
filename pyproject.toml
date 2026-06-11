@@ -57,11 +57,11 @@ mova = "app.interfaces.cli.main:main"
 mova-app = "app.interfaces.tui.main:main"
 
 [tool.setuptools.package-dir]
-app = "src/app"
+"" = "src"
 backend = "backend"
 
 [tool.setuptools.packages.find]
-where = ["src/app", "backend"]
+where = ["src", "."]
 include = ["app*", "backend*"]
 
 [tool.mypy]
