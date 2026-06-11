@@ -11,10 +11,10 @@ router = APIRouter()
 
 
 @router.get("/mods", response_model=ScanResponse)
-def scan_mods(path: str = "./mods") -> ScanResponse:
+def scan_mods(path: str = "./mods", source: str = "en_US") -> ScanResponse:
     """Scan *path* for JAR files and return their metadata."""
     try:
-        scanner = ModScanner(path)
+        scanner = ModScanner(path, source_lang=source)
         mods = scanner.discover_mods()
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Directory not found: {path}") from exc

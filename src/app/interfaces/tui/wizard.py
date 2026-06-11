@@ -562,7 +562,7 @@ class WizardScreen(Screen):
             wiz.settings.mods_path = data.get("mods_path", "./mods")
             wiz.settings.translation_path = data.get("output_path", "./translated_mods")
             try:
-                scanner = ModScanner(wiz.settings.mods_path)
+                scanner = ModScanner(wiz.settings.mods_path, source_lang=wiz.settings.source_mc_lang)
                 wiz.mod_infos = scanner.discover_mods()
             except Exception:
                 logger.exception("Mod scanning failed")

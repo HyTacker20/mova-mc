@@ -180,3 +180,48 @@ class TestModScanner:
         assert "scan_start" in events
         assert "scan_progress" in events
         assert "scan_complete" in events
+
+    def test_source_lang_filters_lang_files(self, tmp_path: Path, sample_en_us_json: dict):
+        """ModScanner with source_lang set should only count matching lang files."""
+        mods_dir = tmp_path / "mods"
+        mods_dir.mkdir()
+
+        jar_path = mods_dir / "multi_lang.jar"
+        tmp_jar_dir = tmp_path / "_build"
+        assets = tmp_jar_dir / "assets" / "testmod" / "lang"
+        assets.mkdir(parents=True)
+
+        # en_US — source language, 4 entries
+        (assets / "en_us.json").write_text(json.dumps(sample_en_us_json), encoding="utf-8")
+        # en_US.lang — also source language, 2 entries
+        (assets / "en_US.lang").write_text("item.test=Test\nitem.other=Other\n", encoding="utf-8")
+        # uk_UA.json — non-source, should be excluded (3 entries)
+        (assets / "uk_UA.json").write_text(
+            json.dumps({"item.a": "А", "item.b": "Б", "item.c": "В"}), encoding="utf-8"
+        )
+        # ru_RU.lang — non-source, should be excluded (1 entry)
+        (assets / "ru_RU.lang").write_text("item.x=Икс\n", encoding="utf-8")
+
+        with zipfile.ZipFile(jar_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for root, _, files in __import__("os").walk(tmp_jar_dir):
+                for f in files:
+                    fp = Path(root) / f
+                    zf.write(fp, str(fp.relative_to(tmp_jar_dir)))
+
+        # Without source_lang — should count ALL lang files
+        scanner_all = ModScanner(str(mods_dir))
+        mods_all = scanner_all.discover_mods()
+        assert len(mods_all) == 1
+        # 4 files: en_us.json, en_US.lang, uk_UA.json, ru_RU.lang
+        assert mods_all[0].lang_file_count == 4
+        # entries: 4 + 2 + 3 + 1 = 10
+        assert mods_all[0].estimated_entries == 10
+
+        # With source_lang="en_US" — should only count en_US files
+        scanner_en = ModScanner(str(mods_dir), source_lang="en_US")
+        mods_en = scanner_en.discover_mods()
+        assert len(mods_en) == 1
+        # Only en_us.json and en_US.lang
+        assert mods_en[0].lang_file_count == 2
+        # entries: 4 + 2 = 6
+        assert mods_en[0].estimated_entries == 6

@@ -39,8 +39,8 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  scanMods: (path: string): Promise<ScanResponse> =>
-    request(`/api/mods?path=${encodeURIComponent(path)}`),
+  scanMods: (path: string, source: string): Promise<ScanResponse> =>
+    request(`/api/mods?path=${encodeURIComponent(path)}&source=${encodeURIComponent(source)}`),
 
   createJob: (req: JobRequest): Promise<JobCreatedResponse> =>
     request('/api/jobs', {

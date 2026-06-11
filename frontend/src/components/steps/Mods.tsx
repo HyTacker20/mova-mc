@@ -19,7 +19,7 @@ export default function Mods() {
   useEffect(() => {
     if (state.mods.length > 0) return
     setLoading(true)
-    api.scanMods(state.modsPath)
+    api.scanMods(state.modsPath, state.source)
       .then(r => {
         setMods(r.mods)
         setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name)))
@@ -93,7 +93,7 @@ export default function Mods() {
                 <span className="mod-name">{mod.name}</span>
                 <span className="mod-meta">
                   {mod.has_lang_files
-                    ? `${mod.lang_file_count} lang file${mod.lang_file_count !== 1 ? 's' : ''}, ~${mod.estimated_entries} entries`
+                    ? `~${mod.estimated_entries} entries`
                     : 'no lang files'}
                 </span>
                 <span className="mod-size">{formatBytes(mod.size_bytes)}</span>
@@ -110,7 +110,7 @@ export default function Mods() {
           onClick={() => {
             setError('')
             setLoading(true)
-            api.scanMods(state.modsPath)
+            api.scanMods(state.modsPath, state.source)
               .then(r => {
                 setMods(r.mods)
                 setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name)))

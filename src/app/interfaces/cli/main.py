@@ -99,7 +99,7 @@ def _run_translation(args) -> None:
     settings = Settings(cli_args=args, config_data=config_data)
     settings.debug = getattr(args, "debug", False)
 
-    scanner = ModScanner(settings.mods_path)
+    scanner = ModScanner(settings.mods_path, source_lang=settings.source_mc_lang)
     reporter = ProgressReporter()
     scanner.reporter = reporter
 

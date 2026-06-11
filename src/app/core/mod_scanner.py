@@ -64,10 +64,26 @@ def modinfo_to_domain_mod(mod_info: ModInfo) -> Mod:
     )
 
 
+def _is_source_lang_file(filename: str, source_lang: str) -> bool:
+    """Check if *filename* (basename, e.g. ``en_US.json``) matches *source_lang*.
+
+    Case-insensitive matching so ``en_US``, ``En_Us``, and ``en_us`` all
+    match the file ``en_us.json``.
+    """
+    stem = filename.rsplit(".", 1)[0] if "." in filename else filename
+    return stem.lower() == source_lang.lower()
+
+
 class ModScanner:
-    def __init__(self, mods_path: str, reporter: ProgressReporter | None = None) -> None:
+    def __init__(
+        self,
+        mods_path: str,
+        reporter: ProgressReporter | None = None,
+        source_lang: str | None = None,
+    ) -> None:
         self.mods_path = Path(mods_path)
         self.reporter = reporter or ProgressReporter()
+        self.source_lang = source_lang
 
     def discover_mods(self, include: list[str] | None = None, exclude: list[str] | None = None) -> list[ModInfo]:
         if include is None:
@@ -108,18 +124,22 @@ class ModScanner:
                 for name in archive.namelist():
                     lower = name.lower()
                     if lower.endswith(JSON) or lower.endswith(LANG):
+                        # When source_lang is set, only count files matching
+                        # that language (e.g. en_US.json, not uk_UA.json).
+                        basename = name.rsplit("/", 1)[-1] if "/" in name else name
+                        if self.source_lang and not _is_source_lang_file(basename, self.source_lang):
+                            continue
                         source_files.append(name)
                         lang_file_count += 1
                         has_lang_files = True
-                        if estimated_entries == 0:
-                            try:
-                                raw = archive.read(name).decode("utf-8", errors="replace")
-                                if lower.endswith(JSON):
-                                    estimated_entries = _count_entries_from_json(raw)
-                                elif lower.endswith(LANG):
-                                    estimated_entries = _count_entries_from_lang(raw)
-                            except Exception:
-                                logger.debug(f"Could not parse entries from {name}")
+                        try:
+                            raw = archive.read(name).decode("utf-8", errors="replace")
+                            if lower.endswith(JSON):
+                                estimated_entries += _count_entries_from_json(raw)
+                            elif lower.endswith(LANG):
+                                estimated_entries += _count_entries_from_lang(raw)
+                        except Exception:
+                            logger.debug(f"Could not parse entries from {name}")
                     elif lower.endswith(MCFUNCTION):
                         mcfunction_count += 1
                         source_files.append(name)

@@ -112,7 +112,6 @@ class ModsStep(Widget):
             locale,
             name=name,
             entries=mod.estimated_entries,  # type: ignore[attr-defined]
-            langs=mod.lang_file_count,  # type: ignore[attr-defined]
         )
 
     def refresh_mods(self) -> None:
