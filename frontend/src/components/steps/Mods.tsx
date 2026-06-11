@@ -52,11 +52,16 @@ export default function Mods() {
     <div className="step-card wide">
       <h2 className="step-title">Select Mods</h2>
       <p className="step-subtitle">
-        Scanning <code style={{ fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>{state.modsPath}</code>
-        {' '}— choose which mods to translate.
+        Scanning <code>{state.modsPath}</code> — choose which mods to translate.
       </p>
 
-      {loading && <p style={{ color: 'var(--text-muted)' }}>Scanning…</p>}
+      {loading && (
+        <div>
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+        </div>
+      )}
 
       {!loading && error && <p className="error-msg">{error}</p>}
 
@@ -66,18 +71,25 @@ export default function Mods() {
 
       {!loading && mods.length > 0 && (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-            <button className="btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={selectAll}>Select all</button>
-            <button className="btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={deselectAll}>Deselect all</button>
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+          <div className="mods-toolbar">
+            <button className="btn-ghost btn-sm" onClick={selectAll}>Select all</button>
+            <button className="btn-ghost btn-sm" onClick={deselectAll}>Deselect all</button>
+            <span className="mods-counter">
               {selected.size} / {mods.length} selected
             </span>
           </div>
 
-          <div className="mods-list">
+          <div className="mods-list" role="listbox" aria-multiselectable="true">
             {mods.map(mod => (
-              <label key={mod.name} className={`mod-row ${!mod.has_lang_files ? 'mod-row--no-lang' : ''}`}>
-                <input type="checkbox" checked={selected.has(mod.name)} onChange={() => toggleMod(mod.name)} />
+              <label
+                key={mod.name}
+                className={`mod-row ${!mod.has_lang_files ? 'mod-row--no-lang' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(mod.name)}
+                  onChange={() => toggleMod(mod.name)}
+                />
                 <span className="mod-name">{mod.name}</span>
                 <span className="mod-meta">
                   {mod.has_lang_files
@@ -92,20 +104,35 @@ export default function Mods() {
       )}
 
       {error && mods.length === 0 && (
-        <button className="btn-ghost" style={{ marginTop: 12 }} onClick={() => {
-          setError('')
-          setLoading(true)
-          api.scanMods(state.modsPath)
-            .then(r => { setMods(r.mods); setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name))) })
-            .catch(e => setError(String(e.message ?? e)))
-            .finally(() => setLoading(false))
-        }}>Retry</button>
+        <button
+          className="btn-ghost"
+          style={{ marginTop: 12 }}
+          onClick={() => {
+            setError('')
+            setLoading(true)
+            api.scanMods(state.modsPath)
+              .then(r => {
+                setMods(r.mods)
+                setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name)))
+              })
+              .catch(e => setError(String(e.message ?? e)))
+              .finally(() => setLoading(false))
+          }}
+        >
+          Retry
+        </button>
       )}
 
       <div className="step-actions">
-        <button className="btn-ghost" onClick={() => dispatch({ type: 'SET_STEP', step: 3 })}>← Back</button>
-        <button className="btn-primary" onClick={next} disabled={selected.size === 0 || loading}>
-          Translate {selected.size > 0 ? `${selected.size} mod${selected.size !== 1 ? 's' : ''}` : ''} →
+        <button className="btn-ghost" onClick={() => dispatch({ type: 'SET_STEP', step: 3 })}>
+          ← Back
+        </button>
+        <button
+          className="btn-primary"
+          onClick={next}
+          disabled={selected.size === 0 || loading}
+        >
+          Translate{selected.size > 0 ? ` ${selected.size} mod${selected.size !== 1 ? 's' : ''}` : ''} →
         </button>
       </div>
     </div>

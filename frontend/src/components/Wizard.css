@@ -1,8 +1,17 @@
+/* ═══ Wizard layout ═══════════════════════════════════════════
+ * Campfire — warm ember on deep charcoal.
+ * Full-height flex column: header → body.
+ * No footer — actions inline in step card.
+ * Spacing: bottom margins only, 14px fields, 28px actions gap.
+ */
+
 .wizard-layout {
   display: flex;
   flex-direction: column;
   height: 100vh;
 }
+
+/* ── Header ────────────────────────────────────────────────── */
 
 .wizard-header {
   display: flex;
@@ -19,7 +28,10 @@
   font-weight: 700;
   color: var(--primary);
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
+
+/* ── Stepper ───────────────────────────────────────────────── */
 
 .stepper {
   display: flex;
@@ -32,26 +44,40 @@
 .stepper-dot {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;
+  transition: color 0.2s ease;
 }
 
 .stepper-dot::after {
-  content: '──';
+  content: '─';
   color: var(--border);
-  margin: 0 4px;
+  margin: 0 3px;
   font-size: 10px;
 }
 
-.stepper-dot:last-child::after { display: none; }
+.stepper-dot:last-child::after {
+  display: none;
+}
 
-.stepper-dot.done { color: var(--success); }
-.stepper-dot.active { color: var(--primary); font-weight: 600; }
+.stepper-dot.done {
+  color: var(--success);
+}
 
-.stepper-label { display: inline; }
+.stepper-dot.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.stepper-dot .dot-icon {
+  font-size: 8px;
+  line-height: 1;
+}
+
+/* ── Body — centered card ──────────────────────────────────── */
 
 .wizard-body {
   flex: 1;
@@ -62,17 +88,40 @@
   padding: 32px 16px;
 }
 
-/* Shared step styles */
+/* ── Step transition ───────────────────────────────────────── */
+
+@keyframes stepFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.step-transition {
+  animation: stepFadeIn 200ms ease-out;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-transition {
+    animation: none;
+  }
+}
+
+/* ── Step card ─────────────────────────────────────────────── */
+
 .step-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   padding: 32px;
   width: 100%;
   max-width: 640px;
 }
 
-.step-card.wide { max-width: 860px; }
+.step-card.wide {
+  max-width: 860px;
+}
 
 .step-title {
   font-size: 20px;
@@ -85,6 +134,7 @@
   font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 24px;
+  line-height: 1.55;
 }
 
 .step-actions {
@@ -93,6 +143,32 @@
   gap: 10px;
   margin-top: 28px;
 }
+
+/* ── Welcome step ──────────────────────────────────────────── */
+
+.welcome-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.welcome-card {
+  text-align: center;
+  max-width: 520px;
+}
+
+.welcome-card .step-subtitle {
+  margin-bottom: 8px;
+}
+
+.welcome-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+/* ── Mods list ─────────────────────────────────────────────── */
 
 .mods-list {
   display: flex;
@@ -103,6 +179,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 6px;
+  background: var(--surface2);
 }
 
 .mod-row {
@@ -116,8 +193,13 @@
   transition: background 0.12s;
 }
 
-.mod-row:hover { background: var(--surface2); }
-.mod-row--no-lang { opacity: 0.55; }
+.mod-row:hover {
+  background: var(--surface);
+}
+
+.mod-row--no-lang {
+  opacity: 0.5;
+}
 
 .mod-name {
   font-size: 13px;
@@ -139,11 +221,26 @@
   white-space: nowrap;
 }
 
+.mods-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+.mods-counter {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Translation run ───────────────────────────────────────── */
+
 .run-phase {
   font-size: 15px;
   font-weight: 600;
   color: var(--primary);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .run-detail {
@@ -152,7 +249,13 @@
   margin-bottom: 20px;
 }
 
-.progress-block { margin-bottom: 16px; }
+.run-detail strong {
+  color: var(--text);
+}
+
+.progress-block {
+  margin-bottom: 16px;
+}
 
 .progress-label {
   display: flex;
@@ -173,10 +276,12 @@
   height: 100%;
   background: var(--primary);
   border-radius: 4px;
-  transition: width 0.25s ease;
+  transition: width 0.3s ease;
 }
 
-.progress-fill--entries { background: var(--success); }
+.progress-fill--entries {
+  background: var(--success);
+}
 
 .run-log {
   margin-top: 20px;
@@ -197,6 +302,8 @@
   word-break: break-word;
 }
 
+/* ── Summary ───────────────────────────────────────────────── */
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -205,7 +312,9 @@
 }
 
 @media (max-width: 640px) {
-  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .summary-stat {
@@ -229,6 +338,8 @@
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .summary-table-wrap {
@@ -259,4 +370,21 @@
   letter-spacing: 0.04em;
 }
 
-.summary-table tr:last-child td { border-bottom: none; }
+.summary-table tr:last-child td {
+  border-bottom: none;
+}
+
+.summary-meta {
+  margin-top: 20px;
+  margin-bottom: 12px;
+}
+
+/* ── QA section (Advanced step) ────────────────────────────── */
+
+.qa-section {
+  padding: 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: 6px;
+}

@@ -27,48 +27,68 @@ export default function Paths() {
 
   return (
     <div className="step-card">
-      <h2 className="step-title">Paths & Languages</h2>
+      <h2 className="step-title">Paths &amp; Languages</h2>
       <p className="step-subtitle">Configure source and output locations.</p>
 
       <div className="row">
         <div className="field">
-          <label>Source language</label>
-          <select value={source} onChange={e => setSource(e.target.value)}>
-            {COMMON_LANGS.map(([code, name]) => <option key={code} value={code}>{name} ({code})</option>)}
+          <label htmlFor="source-lang">Source language</label>
+          <select id="source-lang" value={source} onChange={e => setSource(e.target.value)}>
+            {COMMON_LANGS.map(([code, name]) => (
+              <option key={code} value={code}>{name} ({code})</option>
+            ))}
           </select>
         </div>
         <div className="field">
-          <label>Target language</label>
-          <select value={target} onChange={e => setTarget(e.target.value)}>
-            {COMMON_LANGS.map(([code, name]) => <option key={code} value={code}>{name} ({code})</option>)}
+          <label htmlFor="target-lang">Target language</label>
+          <select id="target-lang" value={target} onChange={e => setTarget(e.target.value)}>
+            {COMMON_LANGS.map(([code, name]) => (
+              <option key={code} value={code}>{name} ({code})</option>
+            ))}
           </select>
         </div>
       </div>
 
       <div className="field">
-        <label>Mods directory</label>
-        <input type="text" value={modsPath} onChange={e => setModsPath(e.target.value)} placeholder="./mods" />
+        <label htmlFor="mods-path">Mods directory</label>
+        <input
+          id="mods-path"
+          type="text"
+          value={modsPath}
+          onChange={e => setModsPath(e.target.value)}
+          placeholder="./mods"
+        />
         <p className="hint">Absolute or relative path to the folder containing .jar files</p>
       </div>
 
       <div className="field">
-        <label>Output directory</label>
-        <input type="text" value={outputPath} onChange={e => setOutputPath(e.target.value)} placeholder="./translated_mods" />
+        <label htmlFor="output-path">Output directory</label>
+        <input
+          id="output-path"
+          type="text"
+          value={outputPath}
+          onChange={e => setOutputPath(e.target.value)}
+          placeholder="./translated_mods"
+        />
       </div>
 
       <div className="field">
-        <label>Output mode</label>
-        <select value={outputMode} onChange={e => setOutputMode(e.target.value)}>
+        <label htmlFor="output-mode">Output mode</label>
+        <select id="output-mode" value={outputMode} onChange={e => setOutputMode(e.target.value)}>
           <option value="separate">Separate — write translated JARs to output directory</option>
-          <option value="replace">Replace — overwrite original JARs (DANGEROUS)</option>
+          <option value="replace">Replace — overwrite original JARs</option>
         </select>
       </div>
 
       {error && <p className="error-msg">{error}</p>}
 
       <div className="step-actions">
-        <button className="btn-ghost" onClick={() => dispatch({ type: 'SET_STEP', step: 1 })}>← Back</button>
-        <button className="btn-primary" onClick={next}>Next →</button>
+        <button className="btn-ghost" onClick={() => dispatch({ type: 'SET_STEP', step: 1 })}>
+          ← Back
+        </button>
+        <button className="btn-primary" onClick={next}>
+          Next →
+        </button>
       </div>
     </div>
   )

@@ -14,6 +14,19 @@ export default function Wizard() {
   const { state } = useWizard()
   const { step } = state
 
+  const stepContent = () => {
+    switch (step) {
+      case 0: return <Welcome />
+      case 1: return <Provider />
+      case 2: return <Paths />
+      case 3: return <Advanced />
+      case 4: return <Mods />
+      case 5: return <TranslationRun />
+      case 6: return <Summary />
+      default: return <Welcome />
+    }
+  }
+
   return (
     <div className="wizard-layout">
       <header className="wizard-header">
@@ -21,13 +34,9 @@ export default function Wizard() {
         <Stepper current={step} labels={STEP_LABELS} />
       </header>
       <main className="wizard-body">
-        {step === 0 && <Welcome />}
-        {step === 1 && <Provider />}
-        {step === 2 && <Paths />}
-        {step === 3 && <Advanced />}
-        {step === 4 && <Mods />}
-        {step === 5 && <TranslationRun />}
-        {step === 6 && <Summary />}
+        <div className="step-transition" key={step}>
+          {stepContent()}
+        </div>
       </main>
     </div>
   )
@@ -35,14 +44,16 @@ export default function Wizard() {
 
 function Stepper({ current, labels }: { current: number; labels: string[] }) {
   return (
-    <nav className="stepper">
+    <nav className="stepper" aria-label="Translation progress">
       {labels.map((label, i) => (
         <span
           key={i}
           className={`stepper-dot ${i < current ? 'done' : i === current ? 'active' : ''}`}
-          title={label}
+          aria-current={i === current ? 'step' : undefined}
         >
-          {i < current ? '●' : i === current ? '●' : '○'}
+          <span className="dot-icon" aria-hidden="true">
+            {i < current ? '●' : i === current ? '●' : '○'}
+          </span>
           <span className="stepper-label">{label}</span>
         </span>
       ))}

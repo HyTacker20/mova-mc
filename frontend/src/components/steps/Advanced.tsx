@@ -43,15 +43,26 @@ export default function Advanced() {
 
       <div className="row">
         <div className="field" style={{ flex: '0 0 160px' }}>
-          <label>Workers</label>
-          <input type="number" min={1} max={32} value={workers}
-            onChange={e => setWorkers(Math.max(1, Math.min(32, parseInt(e.target.value) || 1)))} />
+          <label htmlFor="workers">Workers</label>
+          <input
+            id="workers"
+            type="number"
+            min={1}
+            max={32}
+            value={workers}
+            onChange={e => setWorkers(Math.max(1, Math.min(32, parseInt(e.target.value) || 1)))}
+          />
           <p className="hint">Parallel translation threads</p>
         </div>
         <div className="field">
-          <label>Hint language code</label>
-          <input type="text" value={hintLang} onChange={e => setHintLang(e.target.value)}
-            placeholder="e.g. uk (optional)" />
+          <label htmlFor="hint-lang">Hint language code</label>
+          <input
+            id="hint-lang"
+            type="text"
+            value={hintLang}
+            onChange={e => setHintLang(e.target.value)}
+            placeholder="e.g. uk (optional)"
+          />
           <p className="hint">Extra language context passed to LLM providers</p>
         </div>
       </div>
@@ -78,36 +89,58 @@ export default function Advanced() {
         <div className="qa-section">
           <div className="row">
             <div className="field">
-              <label>QA provider</label>
-              <select value={qaProvider} onChange={e => setQaProvider(e.target.value)}>
-                {providers.filter(p => p.models.length > 0).map(p =>
-                  <option key={p.id} value={p.id}>{p.label}</option>)}
+              <label htmlFor="qa-provider">QA provider</label>
+              <select id="qa-provider" value={qaProvider} onChange={e => setQaProvider(e.target.value)}>
+                {providers.filter(p => p.models.length > 0).map(p => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
               </select>
             </div>
             <div className="field">
-              <label>QA model</label>
-              <input type="text" value={qaModel} onChange={e => setQaModel(e.target.value)}
-                placeholder="e.g. gpt-4o-mini" />
+              <label htmlFor="qa-model">QA model</label>
+              <input
+                id="qa-model"
+                type="text"
+                value={qaModel}
+                onChange={e => setQaModel(e.target.value)}
+                placeholder="e.g. gpt-4o-mini"
+              />
             </div>
           </div>
           <div className="row">
             <div className="field" style={{ flex: '0 0 160px' }}>
-              <label>Threshold (1–5)</label>
-              <input type="number" min={1} max={5} value={qaThreshold}
-                onChange={e => setQaThreshold(Math.max(1, Math.min(5, parseInt(e.target.value) || 3)))} />
+              <label htmlFor="qa-threshold">Threshold (1–5)</label>
+              <input
+                id="qa-threshold"
+                type="number"
+                min={1}
+                max={5}
+                value={qaThreshold}
+                onChange={e => setQaThreshold(Math.max(1, Math.min(5, parseInt(e.target.value) || 3)))}
+              />
             </div>
             <div className="field" style={{ flex: '0 0 160px' }}>
-              <label>Max attempts</label>
-              <input type="number" min={1} max={5} value={qaMaxAttempts}
-                onChange={e => setQaMaxAttempts(Math.max(1, Math.min(5, parseInt(e.target.value) || 2)))} />
+              <label htmlFor="qa-max-attempts">Max attempts</label>
+              <input
+                id="qa-max-attempts"
+                type="number"
+                min={1}
+                max={5}
+                value={qaMaxAttempts}
+                onChange={e => setQaMaxAttempts(Math.max(1, Math.min(5, parseInt(e.target.value) || 2)))}
+              />
             </div>
           </div>
         </div>
       )}
 
       <div className="step-actions">
-        <button className="btn-ghost" onClick={() => dispatch({ type: 'SET_STEP', step: 2 })}>← Back</button>
-        <button className="btn-primary" onClick={next}>Next →</button>
+        <button className="btn-ghost" onClick={() => dispatch({ type: 'SET_STEP', step: 2 })}>
+          ← Back
+        </button>
+        <button className="btn-primary" onClick={next}>
+          Next →
+        </button>
       </div>
     </div>
   )

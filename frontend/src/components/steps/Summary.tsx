@@ -14,7 +14,9 @@ export default function Summary() {
 
   return (
     <div className="step-card wide">
-      <h2 className="step-title">{success ? 'Translation complete' : 'Translation finished'}</h2>
+      <h2 className="step-title">
+        {success ? 'Translation complete' : 'Translation finished'}
+      </h2>
 
       {error && <p className="error-msg" style={{ marginBottom: 16 }}>{error}</p>}
 
@@ -39,7 +41,7 @@ export default function Summary() {
             </div>
           </div>
 
-          <p className="step-subtitle" style={{ marginTop: 20, marginBottom: 12 }}>
+          <p className="step-subtitle summary-meta">
             {stats.provider} · {stats.source_lang} → {stats.target_lang}
             {state.dryRun ? ' · dry run (no files written)' : ''}
           </p>
@@ -61,7 +63,13 @@ export default function Summary() {
                       <td>{mod.name}</td>
                       <td>{mod.translated_entries} / {mod.total_entries}</td>
                       <td>{mod.failed_entries}</td>
-                      <td>{mod.skipped ? 'skipped' : mod.failed_entries > 0 ? 'partial' : 'ok'}</td>
+                      <td>
+                        {mod.skipped
+                          ? 'skipped'
+                          : mod.failed_entries > 0
+                            ? 'partial'
+                            : 'ok'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
