@@ -51,8 +51,8 @@ scripts\setup.bat
 # Або для Linux/Mac
 ./scripts/setup.sh
 
-# Для підтримки AI-перекладу встановіть додаткові залежності:
-uv sync --extra ai
+# Встановити залежності
+uv sync
 
 # Запуск застосунку (Windows)
 scripts\start.bat
@@ -141,8 +141,7 @@ mova cli --path path/to/mods --source en_US --target uk_UA --dry-run
 ### Налаштування
 
 ```bash
-uv sync                # Встановити основні залежності
-uv sync --extra ai     # Встановити залежності AI-провайдерів
+uv sync                # Встановити всі залежності
 uv sync --group dev    # Встановити інструменти розробки (pytest, ruff, mypy)
 ```
 

@@ -51,8 +51,8 @@ scripts\setup.bat
 # Or for Linux/Mac
 ./scripts/setup.sh
 
-# For AI translation support, sync with ai extras:
-uv sync --extra ai
+# Install dependencies
+uv sync
 
 # Run the application (Windows)
 scripts\start.bat
@@ -134,8 +134,7 @@ mova cli --path path/to/mods --source en_US --target es_ES --dry-run
 ### Setup
 
 ```bash
-uv sync                # Install core dependencies
-uv sync --extra ai     # Install AI provider dependencies
+uv sync                # Install all dependencies
 uv sync --group dev    # Install dev tools (pytest, ruff, mypy)
 ```
 

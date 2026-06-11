@@ -269,8 +269,7 @@ Translation failures are logged and fall back to returning original text. Don't 
 ## Project commands
 
 ```bash
-uv sync                    # Install all deps (including dev)
-uv sync --extra ai         # Install with AI providers
+uv sync                    # Install all deps
 uv run pytest              # Run tests
 uv run pytest --cov        # Run tests with coverage
 uv run ruff check .        # Lint
