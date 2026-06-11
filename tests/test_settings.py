@@ -36,17 +36,6 @@ class TestSettings:
         assert settings.translation_path == "./my_output"
         assert settings.provider == "openai"
 
-    def test_cli_args_ai_deprecated_flag(self):
-        args = argparse.Namespace(
-            source="uk_UA",
-            target="de_DE",
-            path="./my_mods",
-            output="./my_output",
-            ai=True,
-        )
-        settings = Settings(cli_args=args)
-        assert settings.provider == "openai"
-
     def test_google_lang_extraction(self):
         settings = Settings()
         assert settings.source_google_lang == "en"
