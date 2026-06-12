@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 interface LogLine {
   text: string
+  level?: string
 }
 
 interface LogPanelProps {
@@ -9,8 +10,14 @@ interface LogPanelProps {
   onClose: () => void
 }
 
+function lineLevel(entry: LogLine): string {
+  if (entry.level) return entry.level.toLowerCase()
+  const match = entry.text.match(/^(INFO|WARNING|ERROR|DEBUG|TRACE|SUCCESS):/)
+  return match ? match[1].toLowerCase() : 'info'
+}
+
 export default function LogPanel({ visible, onClose }: LogPanelProps) {
-  const [lines, setLines] = useState<string[]>([])
+  const [lines, setLines] = useState<LogLine[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -21,7 +28,7 @@ export default function LogPanel({ visible, onClose }: LogPanelProps) {
       try {
         const entry: LogLine = JSON.parse(ev.data)
         setLines(prev => {
-          const next = [...prev, entry.text]
+          const next = [...prev, { text: entry.text, level: entry.level }]
           return next.length > 500 ? next.slice(-500) : next
         })
       } catch {
@@ -52,7 +59,7 @@ export default function LogPanel({ visible, onClose }: LogPanelProps) {
       <div className="log-panel-body">
         {lines.length === 0 && <div className="log-panel-empty">Waiting for log output…</div>}
         {lines.map((line, i) => (
-          <div key={i} className="log-line">{line}</div>
+          <div key={i} className={`log-line log-line--${lineLevel(line)}`}>{line.text}</div>
         ))}
         <div ref={bottomRef} />
       </div>

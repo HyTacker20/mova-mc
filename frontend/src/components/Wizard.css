@@ -494,6 +494,24 @@
   padding: 2px 0;
 }
 
+.log-line--info,
+.log-line--success {
+  color: color-mix(in srgb, var(--success) 75%, var(--text-muted));
+}
+
+.log-line--warning {
+  color: var(--warning);
+}
+
+.log-line--error {
+  color: var(--error);
+}
+
+.log-line--debug,
+.log-line--trace {
+  color: color-mix(in srgb, var(--text-muted) 70%, var(--border));
+}
+
 /* ── Live translations panel ────────────────────────────────── */
 
 .run-stats {
@@ -550,7 +568,7 @@
   border-bottom: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
   font-size: 13px;
   line-height: 1.5;
-  animation: qaFadeIn 0.15s ease-out;
+  animation: qaFadeIn 0.3s ease-out both;
 }
 
 .qa-row:last-child {
@@ -567,8 +585,8 @@
 }
 
 @keyframes qaFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .qa-original {
@@ -655,7 +673,7 @@
   border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
   font-size: 13px;
   line-height: 1.5;
-  animation: trFadeIn 0.15s ease-out;
+  animation: trFadeIn 0.3s ease-out both;
 }
 
 .tr-row:last-child {
@@ -663,8 +681,8 @@
 }
 
 @keyframes trFadeIn {
-  from { opacity: 0; background: color-mix(in srgb, var(--primary) 10%, transparent); }
-  to   { opacity: 1; background: transparent; }
+  from { opacity: 0; transform: translateY(6px); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+  to   { opacity: 1; transform: translateY(0); background: transparent; }
 }
 
 .tr-source {

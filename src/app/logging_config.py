@@ -60,10 +60,12 @@ def setup_logging(
 
     _console_handler_id = None
     if console:
+        # Level-first format matches uvicorn/stdlib (`INFO: …`) so IDE terminals
+        # highlight log levels consistently alongside access-log lines.
         _console_handler_id = logger.add(
             sys.stderr,
             level=console_level,
-            format="{time:HH:mm:ss} | {level: <8} | {message}",
+            format="{level}: {time:HH:mm:ss} | {message}",
             colorize=True,
         )
 

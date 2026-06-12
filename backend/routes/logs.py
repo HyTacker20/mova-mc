@@ -35,11 +35,16 @@ def _enqueue(entry: dict) -> None:
             _log_queue.put_nowait(entry)
 
 
-def _loguru_sink(message: str) -> None:
+def _loguru_sink(message: object) -> None:
     """Non-blocking enqueue for the loguru callback sink."""
-    if not message.strip():
+    record = message.record  # type: ignore[union-attr]
+    text_body = str(record["message"]).strip()
+    if not text_body:
         return
-    entry = {"text": message.strip()}
+    level = record["level"].name
+    time_str = record["time"].strftime("%H:%M:%S")
+    text = f"{level}: {time_str} | {text_body}"
+    entry = {"text": text, "level": level}
     if _loop is None:
         _enqueue(entry)
         return
@@ -62,7 +67,7 @@ def attach_log_sink() -> None:
     if _LOG_SINK_ID is not None:
         return
     _loop = asyncio.get_running_loop()
-    _LOG_SINK_ID = logger.add(_loguru_sink, level="INFO", format="{message}")
+    _LOG_SINK_ID = logger.add(_loguru_sink, level="INFO")
 
 
 def detach_log_sink() -> None:
