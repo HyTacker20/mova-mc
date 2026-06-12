@@ -342,11 +342,25 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
     if isinstance(rate_limit_data, dict) and rate_limit_data:
         toml_output["rate_limit"] = rate_limit_data
 
+    # Remove empty sections before comparison to avoid noise
+    toml_output = {k: v for k, v in toml_output.items() if v}
+
+    # Don't touch the file if nothing actually changed.
+    # Normalise prev the same way (strip empty tables) for a fair comparison.
+    prev_normalised = {k: v for k, v in prev.items() if v}
+    if prev_normalised and toml_output == prev_normalised:
+        logger.info(
+            f"Saved {target.name} →\n"
+            "  (no changes — file was identical)"
+        )
+        return target
+
     with target.open("wb") as f:
         tomli_w.dump(toml_output, f)
 
     # Log a compact delta so the user knows what actually changed.
-    _log_config_delta(prev, toml_output, target)
+    # Use normalised prev so empty-section removals don't show as spurious deltas.
+    _log_config_delta(prev_normalised, toml_output, target)
     return target
 
 
