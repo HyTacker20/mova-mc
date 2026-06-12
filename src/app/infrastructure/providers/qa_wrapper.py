@@ -11,6 +11,7 @@ while keeping the translate workers busy at all times.
 
 from __future__ import annotations
 
+import asyncio
 import queue
 import re
 import threading
@@ -280,6 +281,8 @@ class InlineQaWrapper:
 
         try:
             verdicts = self._judge.judge_batch(batch)
+        except asyncio.CancelledError:
+            return
         except Exception as exc:
             logger.warning("Inline QA: judge batch failed: {}", exc)
             if self._progress is not None:
@@ -350,13 +353,9 @@ class InlineQaWrapper:
             if cancel_token.is_set():
                 while True:
                     try:
-                        item = work_queue.get_nowait()
+                        work_queue.get_nowait()
                     except queue.Empty:
                         break
-                    if item is not None:
-                        buffer.append(item)
-                if buffer:
-                    self._process_batch(buffer, corrections, corrections_lock)
                 return
 
             try:
