@@ -113,13 +113,18 @@ class WelcomeStep(Widget):
         wiz = self.app.wizard_state  # type: ignore[attr-defined]
         wiz.ui_locale = str(event.value)
         self.apply_locale()
+        # Save ONLY the locale preference to the config file — never the
+        # full settings dict.  Writing the full dict risks overwriting
+        # provider/model/path values with defaults if the config wasn't
+        # loaded properly (e.g. find_config_file returned None).
         try:
-            from ....core.config_loader import save_config, settings_to_config_dict
+            from ....core.config_loader import load_config, save_config
 
-            data = settings_to_config_dict(wiz.settings, ui_locale=wiz.ui_locale)
-            saved = save_config(data, wiz.config_path)
-            if not wiz.config_path:
-                wiz.config_path = saved
+            config_path = wiz.config_path
+            if config_path is not None and config_path.is_file():
+                data = load_config(config_path)
+                data["ui_locale"] = wiz.ui_locale
+                save_config(data, config_path)
         except Exception:
             pass
         from ..wizard import WizardScreen
