@@ -117,7 +117,6 @@ class TestFormatQaEvent:
         line = format_qa_event(
             "qa_verdict",
             key="bbw.chat.mode.eastwest",
-            score=3,
             is_flagged=True,
             issue="russism",
             source="East/West mode",
@@ -126,7 +125,6 @@ class TestFormatQaEvent:
         )
         assert line is not None
         assert "── ⚠" in line
-        assert "3/5" in line
         assert "russism" in line
         assert 'src:  "East/West mode"' in line
         assert 'tgt:  "Схід/Західний режим"' in line
@@ -137,12 +135,11 @@ class TestFormatQaEvent:
         line = format_qa_event(
             "qa_verdict",
             key="item.test",
-            score=2,
             is_flagged=True,
             issue="grammar",
         )
         assert line is not None
-        assert "── ⚠ test · 2/5 · grammar ──" in line
+        assert "── ⚠ test · grammar ──" in line
         # No source/translated passed — should not crash
         assert "src:" not in line
         # Fallback why is generated from the issue category
@@ -194,7 +191,6 @@ class TestFormatQaEvent:
             source="Coffee Dust",
             original="<item>Біо-Маша<r>",
             fixed="<item>Біомасу<r>",
-            score=3,
             issue="russism",
             why="використано російське слово 'Маша'",
         )
@@ -204,7 +200,7 @@ class TestFormatQaEvent:
         assert 'src:  "Coffee Dust"' in line
         assert 'was:  "Біо-Маша"' in line
         assert 'now:  "Біомасу"' in line
-        assert "flag: 3/5 · russism" in line
+        assert "flag: russism" in line
         assert "why:  використано російське слово" in line
 
     def test_inline_fix_minimal_no_source_no_why(self) -> None:

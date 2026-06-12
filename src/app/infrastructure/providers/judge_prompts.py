@@ -9,7 +9,7 @@ automatically invalidated.
 
 from __future__ import annotations
 
-JUDGE_PROMPT_VERSION = "1.3"
+JUDGE_PROMPT_VERSION = "1.6"
 
 # ── Judge system prompt ──────────────────────────────────────────────────
 
@@ -24,28 +24,32 @@ Error categories (pick the single most specific):
 - "untranslated": meaning left in the wrong language — leftover Russian/English that
   should be {target_lang}. Proper nouns and mod names may stay as-is (see NEVER flag).
 - "punctuation": added or removed trailing punctuation (period, exclamation) that
-  does NOT match the source — unless it changes the meaning, score 4 (minor)
+  does NOT match the source.
 - "russism": surzhyk / Russian calque, or a Russian word spelled in the target alphabet
   (e.g. "булыжник" -> "булижник"/"брук"; "паксел" -> a correct tool term).
 - "grammar": agreement / case / gender errors
   (e.g. "Крем'яний сокира": masculine adjective with feminine noun -> "Крем'яна сокира").
 - "meaning": mistranslation that changes the meaning.
-- "placeholder": a %s %d {{}} \\\\n or § code present in <src> is missing or altered in <tgt>.
+- "placeholder": a %s %d {{}} \\n or § code present in <src> is missing or altered in <tgt>.
 - "terminology": contradicts a glossary term you were given.
 NEVER flag (these are CORRECT):
 - Proper nouns and mod names left untranslated (e.g. "Pickle Tweaks").
 - Words identical in both languages (e.g. "Молоток").
+CRITICAL RULES:
+- If your fix would be identical to <tgt>, the translation is CORRECT — output "ok".
+- Do NOT use "why" to think out loud or debate with yourself. State the error directly.
+- If you are unsure whether something is wrong, output "ok".
 For each key output an object:
 - "v": "ok" or "flag"
-- when "flag" also include:
-  - "score": integer 1..5  (1 = unusable, 3 = clearly wrong, 5 = perfect)
-  - "issue": one category above
-  |   "why": <= 12 words, written in {target_lang}
-  |   "fix": a corrected {target_lang} translation, or "" if you are unsure
+- when "flag" you MUST include ALL of:
+  - "issue": one category from the list above
+  - "why": one short sentence in {target_lang} explaining what is wrong
+  - "fix": the corrected {target_lang} translation
   Example:
   input  {{"a":{{"src":"Кремниевый топор","tgt":"Крем'яний сокира"}},
             "b":{{"src":"Молоток","tgt":"Молоток"}}}}
-  output {{"a":{{"v":"flag","score":1,"issue":"grammar","why":"рід не узгоджено",
+  output {{"a":{{"v":"flag","issue":"grammar",
+                 "why":"прикметник чоловічого роду не узгоджено з іменником жіночого роду",
                  "fix":"Крем'яна сокира"}},
             "b":{{"v":"ok"}}}}
   Respond with ONLY a valid JSON object — same keys as the input. No markdown, no commentary."""
@@ -60,7 +64,7 @@ JUDGE_LANG_SPECIFIC: dict[str, str] = {
         "Source is Russian, target is Ukrainian.  Apply these EXTRA rules:\n"
         "\n"
         "RUSSIAN-ONLY LETTERS (automatic flag):\n"
-        "- ANY of ы, ё, ъ, э in <tgt> → FLAG immediately (score 1-2, issue=\"russism\").\n"
+        "- ANY of ы, ё, ъ, э in <tgt> → FLAG immediately (issue=\"russism\").\n"
         "  These letters do not exist in the Ukrainian alphabet.\n"
         "\n"
         "WHEN WRITING A FIX:\n"

@@ -59,18 +59,6 @@ def _why_line(why: str) -> str:
     return f"   why:  {why}"
 
 
-def _score_line(score: int | None, issue: str | None) -> str | None:
-    """Format score/issue summary, or None if neither is available."""
-    parts: list[str] = []
-    if score is not None:
-        parts.append(f"{score}/5")
-    if issue:
-        parts.append(str(issue))
-    if parts:
-        return f"   flag: {' · '.join(parts)}"
-    return None
-
-
 def format_qa_event(event: str, **kw: Any) -> str | None:
     """Return a plain-text QA line or multi-line block for *event*, or None if unhandled."""
     if event == "qa_start":
@@ -80,7 +68,6 @@ def format_qa_event(event: str, **kw: Any) -> str | None:
     if event == "qa_verdict":
         if not kw.get("is_flagged"):
             return None
-        score = kw.get("score", 0)
         key = format_qa_key(kw.get("key", "?"))
         issue = kw.get("issue")
         source = kw.get("source", "")
@@ -91,7 +78,7 @@ def format_qa_event(event: str, **kw: Any) -> str | None:
         if not why and issue:
             why = _default_why(str(issue))
 
-        header = f"── ⚠ {key} · {score}/5"
+        header = f"── ⚠ {key}"
         if issue:
             header += f" · {issue}"
         header += " ──"
@@ -163,7 +150,6 @@ def format_qa_event(event: str, **kw: Any) -> str | None:
         original = kw.get("original", "")
         fixed = kw.get("fixed", "")
         source = kw.get("source", "")
-        score = kw.get("score")
         issue = kw.get("issue")
         why = kw.get("why")
 
@@ -178,9 +164,8 @@ def format_qa_event(event: str, **kw: Any) -> str | None:
             lines.append(_was_line(original))
         if fixed:
             lines.append(_now_line(fixed))
-        sc = _score_line(score, issue)
-        if sc:
-            lines.append(sc)
+        if issue:
+            lines.append(f"   flag: {issue}")
         if why:
             lines.append(_why_line(why))
         return "\n".join(lines)

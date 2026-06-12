@@ -110,13 +110,7 @@ function renderQaMeta(entry: QaLiveEntry, style: CSSProperties) {
 
 function renderQaGroup(group: QaEntryGroup, style: CSSProperties) {
   const failure = summarizeCorrectionFailures(group)
-  const scoreBadge = group.fix?.score != null || group.fix?.issue
-    ? `${group.fix?.score != null ? `${group.fix.score}/5` : ''}${group.fix?.issue ? `${group.fix.score != null ? ' · ' : ''}${group.fix.issue}` : ''}`
-    : group.flag?.issue
-      ? `${group.flag.score}/5 · ${group.flag.issue}`
-      : group.flag
-        ? `${group.flag.score}/5`
-        : null
+  const issueBadge = group.fix?.issue || group.flag?.issue || null
 
   const whyText = group.fix?.why || group.flag?.why
 
@@ -125,7 +119,7 @@ function renderQaGroup(group: QaEntryGroup, style: CSSProperties) {
       <div className="qa-card-header">
         <span className="qa-card-key" title={group.key}>{group.displayKey}</span>
         {group.flag && !group.fix && (
-          <span className="qa-badge">⚠ {group.flag.score}/5{group.flag.issue ? ` · ${group.flag.issue}` : ''}</span>
+          <span className="qa-badge">⚠ {group.flag.issue || 'flagged'}</span>
         )}
       </div>
       <div className="qa-card-body">
@@ -145,7 +139,7 @@ function renderQaGroup(group: QaEntryGroup, style: CSSProperties) {
               <span className="qa-label">now:</span>
               <span className="qa-text-fix">{formatTextPreview(group.fix.fixed)}</span>
             </div>
-            {scoreBadge && <span className="qa-badge qa-badge--inline">{scoreBadge}</span>}
+            {issueBadge && <span className="qa-badge qa-badge--inline">{issueBadge}</span>}
           </>
         )}
         {group.flag && !group.fix && group.flag.translated && (
