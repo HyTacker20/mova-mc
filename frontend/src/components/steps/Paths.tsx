@@ -24,6 +24,8 @@ export default function Paths() {
     setError('')
     // Persist path settings on explicit Next
     api.saveConfig({
+      source,
+      target,
       mods_path: modsPath,
       output: outputPath,
       output_mode: outputMode,

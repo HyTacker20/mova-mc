@@ -24,6 +24,8 @@ class ConfigPayload(BaseModel):
     provider: str | None = None
     model: str | None = None
     # -- Paths step --
+    source: str | None = None
+    target: str | None = None
     mods_path: str | None = None
     output: str | None = None
     output_mode: str | None = None
@@ -161,6 +163,10 @@ def post_config(payload: ConfigPayload) -> dict[str, str]:
         data["provider"] = payload.provider
     if payload.model is not None:
         data["model"] = payload.model
+    if payload.source is not None:
+        data["source"] = payload.source
+    if payload.target is not None:
+        data["target"] = payload.target
     if payload.mods_path:
         data["path"] = payload.mods_path
     if payload.output is not None:

@@ -28,6 +28,7 @@ export const api = {
 
   saveConfig: (data: {
     provider?: string; model?: string;
+    source?: string; target?: string;
     mods_path?: string; output?: string; output_mode?: string;
     workers?: number; no_cache?: boolean; hint_lang?: string;
     qa?: Record<string, unknown>;
