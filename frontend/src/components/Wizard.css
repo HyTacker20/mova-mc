@@ -455,6 +455,32 @@
   color: var(--text);
 }
 
+.log-panel-tabs {
+  display: flex;
+  gap: 0;
+}
+
+.log-panel-tab {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.log-panel-tab:hover {
+  color: var(--text);
+}
+
+.log-panel-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
 .log-panel-close {
   background: none;
   border: none;
