@@ -12,6 +12,9 @@ export default function Provider() {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [loadError, setLoadError] = useState('')
   const configPathRef = useRef<string | null>(null)
+  // Remember the last model selected for each provider so toggling
+  // away and back doesn't lose the user's choice.
+  const modelCacheRef = useRef<Record<string, string>>({})
 
   // Load provider catalog
   useEffect(() => {
@@ -35,6 +38,10 @@ export default function Provider() {
         }
         if (cfg.model && cfg.model !== state.model) {
           setModel(cfg.model)
+        }
+        // Seed the model cache so handleProviderChange can restore models
+        if (cfg.provider && cfg.model) {
+          modelCacheRef.current[cfg.provider] = cfg.model
         }
         // Paths & Advanced fields — sync into wizard state so other steps
         // pick them up without re-fetching.
@@ -66,12 +73,19 @@ export default function Provider() {
   const info = providers.find(p => p.id === provider)
 
   function handleProviderChange(value: string) {
+    // Cache current model before switching
+    if (model) {
+      modelCacheRef.current[provider] = model
+    }
     setProvider(value)
-    setModel('')
+    // Restore cached model for this provider, or default to empty
+    setModel(modelCacheRef.current[value] || '')
   }
 
   function handleModelChange(value: string) {
     setModel(value)
+    // Keep the cache in sync so handleProviderChange picks it up
+    modelCacheRef.current[provider] = value
   }
 
   function next() {
