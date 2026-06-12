@@ -1,3 +1,4 @@
+import LiveResultsPanels from '../LiveResultsPanels'
 import { useWizard } from '../../context/WizardContext'
 
 function formatDuration(seconds: number): string {
@@ -9,11 +10,19 @@ function formatDuration(seconds: number): string {
 
 export default function Summary() {
   const { state, dispatch } = useWizard()
-  const { stats, error, jobStatus } = state
+  const { stats, error, jobStatus, progress } = state
   const success = jobStatus === 'done' && stats !== null
 
+  const hasLiveResults =
+    progress.translations.length > 0
+    || (state.qaEnabled && progress.qaEntries.length > 0)
+
+  const truncated =
+    stats != null
+    && stats.translated_entries > progress.translations.length
+
   return (
-    <div className="step-card wide">
+    <div className="step-card wide translate-run-card">
       <h2 className="step-title">
         {success ? 'Translation complete' : 'Translation finished'}
       </h2>
@@ -116,6 +125,27 @@ export default function Summary() {
 
       {!success && !error && (
         <p style={{ color: 'var(--text-muted)' }}>No results to display.</p>
+      )}
+
+      {hasLiveResults && (
+        <>
+          <div className="section-divider" />
+          <h3 className="summary-section-title">Translation results</h3>
+          {truncated && (
+            <p className="hint" style={{ marginBottom: 12 }}>
+              Showing last {progress.translations.length} live entries ({stats!.translated_entries} total translated)
+            </p>
+          )}
+          <LiveResultsPanels
+            translations={progress.translations}
+            qaEntries={progress.qaEntries}
+            qaEnabled={state.qaEnabled}
+            animate={false}
+            autoScroll={false}
+            emptyTranslationText="No translations recorded"
+            emptyQaText="No QA output recorded"
+          />
+        </>
       )}
 
       <div className="step-actions">

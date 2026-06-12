@@ -1,16 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api/client'
+import LiveResultsPanels from '../LiveResultsPanels'
 import { useWizard } from '../../context/WizardContext'
-import type { JobRequest, QaLiveEntry, WizardState } from '../../types'
-import {
-  formatQaKey,
-  formatTextChangePreview,
-  formatTextPreview,
-  groupQaEntries,
-  summarizeCorrectionFailures,
-  type QaEntryGroup,
-  type QaPanelItem,
-} from '../../utils/qaLive'
+import type { JobRequest, WizardState } from '../../types'
 
 function buildJobRequest(state: WizardState): JobRequest {
   return {
@@ -66,130 +58,15 @@ function estimateEtaSeconds(done: number, total: number, elapsedS: number): numb
   return (total - done) / rate
 }
 
-function renderQaMeta(entry: QaLiveEntry, style: CSSProperties) {
-  if (entry.kind === 'summary') {
-    return (
-      <div key={entry.uid} className="qa-row qa-row--meta" style={style}>
-        <span className="qa-meta-text">
-          ← batch · {entry.flagged}/{entry.total} flagged, {entry.corrected} corrected ({entry.elapsed.toFixed(1)}s)
-        </span>
-      </div>
-    )
-  }
-  if (entry.kind === 'done') {
-    return (
-      <div key={entry.uid} className="qa-row qa-row--done" style={style}>
-        <span className="qa-done-text">✓ QA done: {entry.flagged} flagged, {entry.corrected} corrected</span>
-      </div>
-    )
-  }
-  if (entry.kind === 'status') {
-    return (
-      <div key={entry.uid} className="qa-row qa-row--status" style={style}>
-        <span className="qa-status-text">{entry.message}</span>
-      </div>
-    )
-  }
-  if (entry.kind === 'error') {
-    return (
-      <div key={entry.uid} className="qa-row qa-row--error" style={style}>
-        <span className="qa-error-text">✗ {entry.message}</span>
-      </div>
-    )
-  }
-  if (entry.kind === 'warning') {
-    return (
-      <div key={entry.uid} className="qa-row qa-row--warning" style={style}>
-        <span className="qa-key" title={entry.key}>{formatQaKey(entry.key)}</span>
-        <span className="qa-badge">⚡ {entry.message}</span>
-      </div>
-    )
-  }
-  return null
-}
-
-function renderQaGroup(group: QaEntryGroup, style: CSSProperties) {
-  const failure = summarizeCorrectionFailures(group)
-  const issueBadge = group.fix?.issue || group.flag?.issue || null
-
-  const whyText = group.fix?.why || group.flag?.why
-
-  return (
-    <div key={group.key} className="qa-card" style={style}>
-      <div className="qa-card-header">
-        <span className="qa-card-key" title={group.key}>{group.displayKey}</span>
-        {group.flag && !group.fix && (
-          <span className="qa-badge">⚠ {group.flag.issue || 'flagged'}</span>
-        )}
-      </div>
-      <div className="qa-card-body">
-        {group.source && (
-          <div className="qa-card-row">
-            <span className="qa-label">src:</span>
-            <span className="qa-text-dim">{formatTextPreview(group.source)}</span>
-          </div>
-        )}
-        {group.fix && (
-          <>
-            <div className="qa-card-row">
-              <span className="qa-label">was:</span>
-              <span className="qa-text-warn">{formatTextPreview(group.fix.original)}</span>
-            </div>
-            <div className="qa-card-row">
-              <span className="qa-label">now:</span>
-              <span className="qa-text-fix">{formatTextPreview(group.fix.fixed)}</span>
-            </div>
-            {issueBadge && <span className="qa-badge qa-badge--inline">{issueBadge}</span>}
-          </>
-        )}
-        {group.flag && !group.fix && group.flag.translated && (
-          <div className="qa-card-row">
-            <span className="qa-label">tgt:</span>
-            <span className="qa-text-warn">{formatTextPreview(group.flag.translated)}</span>
-          </div>
-        )}
-        {whyText && (
-          <div className="qa-card-row qa-card-why">
-            <span className="qa-label">why:</span>
-            <span className="qa-text-why">{whyText}</span>
-          </div>
-        )}
-        {failure && !group.fix && (
-          <div className="qa-card-failure">{failure}</div>
-        )}
-        {group.notes.length > 0 && (
-          <div className="qa-card-notes">
-            {group.notes.map((note, i) => (
-              <div key={i} className="qa-card-note">↪ {note}</div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function renderQaPanelItem(item: QaPanelItem, index: number, total: number) {
-  const delayMs = (total - 1 - index) * 25
-  const style = { animationDelay: `${delayMs}ms` }
-  if (item.type === 'meta') {
-    return renderQaMeta(item.entry, style)
-  }
-  return renderQaGroup(item.group, style)
-}
-
 export default function TranslationRun() {
   const { state, dispatch } = useWizard()
   const { progress, jobStatus } = state
   const [startError, setStartError] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [elapsedS, setElapsedS] = useState(0)
-  const [showAllBatches, setShowAllBatches] = useState(false)
   const startedRef = useRef(false)
   const esRef = useRef<EventSource | null>(null)
   const stateRef = useRef(state)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const qaPanelRef = useRef<HTMLDivElement>(null)
   const jobStartRef = useRef<number | null>(null)
   stateRef.current = state
 
@@ -205,18 +82,6 @@ export default function TranslationRun() {
     }, 1000)
     return () => window.clearInterval(id)
   }, [jobStatus])
-
-  useEffect(() => {
-    const panel = panelRef.current
-    if (!panel) return
-    panel.scrollTop = panel.scrollHeight
-  }, [progress.translations.length])
-
-  useEffect(() => {
-    const panel = qaPanelRef.current
-    if (!panel) return
-    panel.scrollTop = panel.scrollHeight
-  }, [progress.qaEntries.length])
 
   useEffect(() => {
     if (startedRef.current) return
@@ -316,8 +181,6 @@ export default function TranslationRun() {
     ? `${progress.fractionalMods.toFixed(1)} / ${progress.totalMods || '?'}`
     : `${progress.completedMods} / ${progress.totalMods || '?'}`
 
-  const qaPanelItems = groupQaEntries(progress.qaEntries, showAllBatches)
-
   return (
     <div className="step-card wide translate-run-card">
       <h2 className="step-title">Translating</h2>
@@ -386,50 +249,11 @@ export default function TranslationRun() {
         </p>
       )}
 
-      <div className={`live-panels${state.qaEnabled ? ' live-panels--dual' : ''}`}>
-        <div className="translations-section">
-          <p className="translations-heading">Translations</p>
-          <div className="translations-panel" ref={panelRef}>
-            {progress.translations.length === 0 ? (
-              <p className="translations-empty">Waiting for first translation…</p>
-            ) : (
-              progress.translations.map((t, i) => {
-                const delayMs = (progress.translations.length - 1 - i) * 25
-                return (
-                  <div key={t.uid} className="tr-row" style={{ animationDelay: `${delayMs}ms` }}>
-                    <span className="tr-source">{t.source}</span>
-                    <span className="tr-arrow">→</span>
-                    <span className="tr-target">{t.translated}</span>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </div>
-
-        {state.qaEnabled && (
-          <div className="qa-live-section">
-            <div className="qa-live-toolbar">
-              <p className="translations-heading qa-live-heading">QA</p>
-              <label className="qa-batch-toggle">
-                <input
-                  type="checkbox"
-                  checked={showAllBatches}
-                  onChange={e => setShowAllBatches(e.target.checked)}
-                />
-                Show all batches
-              </label>
-            </div>
-            <div className="qa-live-panel" ref={qaPanelRef}>
-              {qaPanelItems.length === 0 ? (
-                <p className="translations-empty">Waiting for QA output…</p>
-              ) : (
-                qaPanelItems.map((item, i) => renderQaPanelItem(item, i, qaPanelItems.length))
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      <LiveResultsPanels
+        translations={progress.translations}
+        qaEntries={progress.qaEntries}
+        qaEnabled={state.qaEnabled}
+      />
 
       <div className="step-actions">
         <button
