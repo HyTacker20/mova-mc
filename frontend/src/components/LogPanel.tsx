@@ -3,12 +3,21 @@ import { useEffect, useRef, useState } from 'react'
 interface LogLine {
   text: string
   level?: string
+  category?: string
 }
 
 interface LogPanelProps {
   visible: boolean
   onClose: () => void
 }
+
+type TabId = 'all' | 'translation' | 'qa'
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'translation', label: 'Translation' },
+  { id: 'qa', label: 'QA' },
+]
 
 function lineLevel(entry: LogLine): string {
   if (entry.level) return entry.level.toLowerCase()
@@ -18,6 +27,7 @@ function lineLevel(entry: LogLine): string {
 
 export default function LogPanel({ visible, onClose }: LogPanelProps) {
   const [lines, setLines] = useState<LogLine[]>([])
+  const [activeTab, setActiveTab] = useState<TabId>('all')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -28,7 +38,7 @@ export default function LogPanel({ visible, onClose }: LogPanelProps) {
       try {
         const entry: LogLine = JSON.parse(ev.data)
         setLines(prev => {
-          const next = [...prev, { text: entry.text, level: entry.level }]
+          const next = [...prev, { text: entry.text, level: entry.level, category: entry.category }]
           return next.length > 500 ? next.slice(-500) : next
         })
       } catch {
@@ -41,24 +51,44 @@ export default function LogPanel({ visible, onClose }: LogPanelProps) {
     return () => es.close()
   }, [visible])
 
+  const filteredLines = lines.filter(line => {
+    if (activeTab === 'all') return true
+    if (activeTab === 'translation') return line.category === 'translation'
+    return line.category === 'qa'
+  })
+
   // Auto-scroll to bottom when new lines arrive.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [lines])
+  }, [filteredLines])
 
   if (!visible) return null
 
   return (
     <aside className="log-panel">
       <div className="log-panel-header">
-        <span className="log-panel-title">Logs</span>
+        <div className="log-panel-tabs">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`log-panel-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
         <button className="log-panel-close" onClick={onClose} aria-label="Close log panel">
           ✕
         </button>
       </div>
       <div className="log-panel-body">
-        {lines.length === 0 && <div className="log-panel-empty">Waiting for log output…</div>}
-        {lines.map((line, i) => (
+        {filteredLines.length === 0 && (
+          <div className="log-panel-empty">
+            {activeTab === 'all' ? 'Waiting for log output…' : `No ${activeTab} logs yet…`}
+          </div>
+        )}
+        {filteredLines.map((line, i) => (
           <div key={i} className={`log-line log-line--${lineLevel(line)}`}>{line.text}</div>
         ))}
         <div ref={bottomRef} />
