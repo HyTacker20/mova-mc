@@ -81,7 +81,11 @@ class TranslationJob:
             self.status = JobStatus.FAILED
             self.error = "Pipeline failed — see logs"
         finally:
-            if ctx is not None and ctx.workspace.exists():
+            # Clean up workspace only on success.  On cancellation / failure
+            # a worker thread (launched via asyncio.to_thread) may still be
+            # iterating the temp tree — deleting it here races the thread and
+            # causes FileNotFoundError inside os.walk / ZipFile.write.
+            if self.status == JobStatus.DONE and ctx is not None and ctx.workspace.exists():
                 shutil.rmtree(str(ctx.workspace), ignore_errors=True)
 
     def cancel(self) -> None:
