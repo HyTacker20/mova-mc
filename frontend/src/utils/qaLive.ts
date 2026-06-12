@@ -1,6 +1,11 @@
 import type { QaLiveEntry } from '../types'
 
 const MAX_QA_ENTRIES = 200
+let _nextUid = 1
+
+export function nextUid(): number {
+  return _nextUid++
+}
 
 function hasFixForKey(entries: QaLiveEntry[], key: string): boolean {
   return entries.some(e => e.kind === 'fix' && e.key === key)
@@ -33,6 +38,7 @@ export function qaEventToEntry(
     const key = String(data.key ?? '?')
     const flag = priorFlag(entries, key)
     return {
+      uid: nextUid(),
       kind: 'fix',
       key,
       original: String(data.original ?? ''),
@@ -47,6 +53,7 @@ export function qaEventToEntry(
     const key = String(data.key ?? '?')
     if (hasFixForKey(entries, key)) return null
     return {
+      uid: nextUid(),
       kind: 'flag',
       key,
       score: Number(data.score ?? 0),
@@ -56,6 +63,7 @@ export function qaEventToEntry(
 
   if (event === 'qa_warning') {
     return {
+      uid: nextUid(),
       kind: 'warning',
       key: String(data.key ?? '?'),
       message: String(data.message ?? ''),
@@ -63,7 +71,7 @@ export function qaEventToEntry(
   }
 
   if (event === 'qa_inline_error') {
-    return { kind: 'error', message: String(data.message ?? 'Judge failed') }
+    return { uid: nextUid(), kind: 'error', message: String(data.message ?? 'Judge failed') }
   }
 
   return null

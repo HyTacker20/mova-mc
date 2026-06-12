@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, type Dispatch } from 'react'
-import type { ModInfo, OverallStatsResponse, ProgressState, WizardAction, WizardState } from '../types'
-import { appendQaEntry, qaEventToEntry } from '../utils/qaLive'
+import type { ModInfo, OverallStatsResponse, ProgressState, TranslatedEntry, WizardAction, WizardState } from '../types'
+import { appendQaEntry, nextUid, qaEventToEntry } from '../utils/qaLive'
 
 const INITIAL_PROGRESS: ProgressState = {
   phase: '',
@@ -119,6 +119,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           ...INITIAL_PROGRESS,
           totalMods: state.selectedMods.length,
           totalEntries,
+          totalQa: state.qaEnabled ? totalEntries : 0,
         },
         error: null,
       }
@@ -172,12 +173,14 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         return { ...state, progress: next }
       }
       if (event === 'qa_progress') {
+        // Don't override totalQa — it's set from overall_progress / JOB_STARTED.
+        // The backend reports _qa_queued as 'total', which counts only items
+        // queued so far, not the total number of entries to QA.
         return {
           ...state,
           progress: {
             ...p,
             completedQa: Number(data.done ?? 0),
-            totalQa: Number(data.total ?? p.totalQa),
           },
         }
       }
@@ -203,7 +206,8 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       if (event === 'translated_entry') {
         const src = String(data.source ?? '')
         const trn = String(data.translated ?? '')
-        const t: { key: string; source: string; translated: string } = {
+        const t: TranslatedEntry = {
+          uid: nextUid(),
           key: String(data.key ?? ''),
           source: src,
           translated: trn,

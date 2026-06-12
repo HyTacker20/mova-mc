@@ -107,11 +107,18 @@ export interface OverallStatsResponse {
   mods: ModStatsResponse[]
 }
 
+export interface TranslatedEntry {
+  uid: number
+  key: string
+  source: string
+  translated: string
+}
+
 export type QaLiveEntry =
-  | { kind: 'fix'; key: string; original: string; fixed: string; score?: number; issue?: string }
-  | { kind: 'flag'; key: string; score: number; issue?: string }
-  | { kind: 'warning'; key: string; message: string }
-  | { kind: 'error'; message: string }
+  | { uid: number; kind: 'fix'; key: string; original: string; fixed: string; score?: number; issue?: string }
+  | { uid: number; kind: 'flag'; key: string; score: number; issue?: string }
+  | { uid: number; kind: 'warning'; key: string; message: string }
+  | { uid: number; kind: 'error'; message: string }
 
 export interface ProgressState {
   phase: string
@@ -125,7 +132,7 @@ export interface ProgressState {
   completedQa: number
   totalQa: number
   logs: string[]
-  translations: { key: string; source: string; translated: string }[]
+  translations: TranslatedEntry[]
   qaEntries: QaLiveEntry[]
   failed: number
 }

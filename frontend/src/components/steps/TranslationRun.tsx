@@ -57,14 +57,16 @@ function estimateEtaSeconds(done: number, total: number, elapsedS: number): numb
   return (total - done) / rate
 }
 
-function renderQaEntry(entry: QaLiveEntry, index: number) {
+function renderQaEntry(entry: QaLiveEntry, index: number, total: number) {
+  const delayMs = (total - 1 - index) * 25
+  const style = { animationDelay: `${delayMs}ms` }
   if (entry.kind === 'fix') {
     const badge =
       entry.score != null || entry.issue
         ? `${entry.score != null ? `${entry.score}/5` : ''}${entry.issue ? `${entry.score != null ? ' · ' : ''}${entry.issue}` : ''}`
         : null
     return (
-      <div key={`fix-${entry.key}-${index}`} className="qa-row qa-row--fix">
+      <div key={entry.uid} className="qa-row qa-row--fix" style={style}>
         <span className="qa-original">{entry.original}</span>
         <span className="tr-arrow">→</span>
         <span className="qa-fixed">{entry.fixed}</span>
@@ -76,7 +78,7 @@ function renderQaEntry(entry: QaLiveEntry, index: number) {
   if (entry.kind === 'flag') {
     const issuePart = entry.issue ? ` · ${entry.issue}` : ''
     return (
-      <div key={`flag-${entry.key}-${index}`} className="qa-row qa-row--flag">
+      <div key={entry.uid} className="qa-row qa-row--flag" style={style}>
         <span className="qa-key" title={entry.key}>{shortQaKey(entry.key)}</span>
         <span className="qa-badge">⚠ {entry.score}/5{issuePart}</span>
       </div>
@@ -85,7 +87,7 @@ function renderQaEntry(entry: QaLiveEntry, index: number) {
 
   if (entry.kind === 'warning') {
     return (
-      <div key={`warn-${entry.key}-${index}`} className="qa-row qa-row--warning">
+      <div key={entry.uid} className="qa-row qa-row--warning" style={style}>
         <span className="qa-key" title={entry.key}>{shortQaKey(entry.key)}</span>
         <span className="qa-badge">⚡ {entry.message}</span>
       </div>
@@ -93,7 +95,7 @@ function renderQaEntry(entry: QaLiveEntry, index: number) {
   }
 
   return (
-    <div key={`err-${index}`} className="qa-row qa-row--error">
+    <div key={entry.uid} className="qa-row qa-row--error" style={style}>
       <span className="qa-error-text">✗ {entry.message}</span>
     </div>
   )
@@ -222,7 +224,8 @@ export default function TranslationRun() {
   const modsDone = progress.fractionalMods ?? progress.completedMods
   const modsPct = pct(modsDone, progress.totalMods)
   const entriesPct = pct(progress.completedEntries, progress.totalEntries)
-  const qaPct = pct(progress.completedQa, progress.totalQa)
+  const qaTotal = progress.totalQa || progress.totalEntries
+  const qaPct = pct(progress.completedQa, qaTotal)
   const eta = estimateEtaSeconds(
     progress.completedEntries,
     progress.totalEntries,
@@ -284,7 +287,7 @@ export default function TranslationRun() {
           <div className="progress-label">
             <span>QA</span>
             <span>
-              {progress.completedQa} / {progress.totalQa || progress.totalEntries || '?'}
+              {progress.completedQa} / {qaTotal || '?'}
             </span>
           </div>
           <div className="progress-bar">
@@ -310,13 +313,16 @@ export default function TranslationRun() {
             {progress.translations.length === 0 ? (
               <p className="translations-empty">Waiting for first translation…</p>
             ) : (
-              progress.translations.map((t, i) => (
-                <div key={`${t.key}-${i}`} className="tr-row">
-                  <span className="tr-source">{t.source}</span>
-                  <span className="tr-arrow">→</span>
-                  <span className="tr-target">{t.translated}</span>
-                </div>
-              ))
+              progress.translations.map((t, i) => {
+                const delayMs = (progress.translations.length - 1 - i) * 25
+                return (
+                  <div key={t.uid} className="tr-row" style={{ animationDelay: `${delayMs}ms` }}>
+                    <span className="tr-source">{t.source}</span>
+                    <span className="tr-arrow">→</span>
+                    <span className="tr-target">{t.translated}</span>
+                  </div>
+                )
+              })
             )}
           </div>
         </div>
@@ -328,7 +334,7 @@ export default function TranslationRun() {
               {progress.qaEntries.length === 0 ? (
                 <p className="translations-empty">Waiting for QA output…</p>
               ) : (
-                progress.qaEntries.map((entry, i) => renderQaEntry(entry, i))
+                progress.qaEntries.map((entry, i) => renderQaEntry(entry, i, progress.qaEntries.length))
               )}
             </div>
           </div>
