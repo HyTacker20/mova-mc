@@ -217,7 +217,8 @@
                 "run",
                 "mova",
                 "web",
-                "--dev"
+                "--dev",
+                "--no-browser"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

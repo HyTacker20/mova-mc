@@ -46,13 +46,38 @@ def _build_frontend() -> None:
 
 
 def _kill_port(port: int) -> None:
-    """Kill any process listening on *port* (Windows)."""
+    """Kill any process listening on *port* (Windows).
+
+    Uses ``netstat -ano`` output and only matches the exact port
+    (e.g. port 5173 must appear as ``:5173`` at the end of the
+    local-address token — never ``:51730``, ``:15173``, etc.).
+    """
     import platform
 
     if platform.system() != "Windows":
         return
-    cmd = f'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :{port}\') do taskkill /F /PID %a 2>nul'
-    subprocess.run(cmd, shell=True, capture_output=True, text=True, check=False, timeout=5)  # noqa: S602
+
+    try:
+        result = subprocess.run(
+            ["netstat", "-ano"],
+            capture_output=True, text=True, check=False, timeout=5,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return
+
+    suffix = f":{port}"
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 5:
+            continue
+        local_addr = parts[1]  # e.g. "0.0.0.0:5173" or "[::1]:5173"
+        if not local_addr.endswith(suffix):
+            continue
+        pid = parts[4]
+        subprocess.run(
+            ["taskkill", "/F", "/PID", pid],
+            capture_output=True, check=False, timeout=5,
+        )
 
 
 def _start_vite() -> subprocess.Popen:
