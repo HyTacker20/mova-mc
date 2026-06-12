@@ -42,6 +42,9 @@ export const INITIAL_STATE: WizardState = {
   qaModel: '',
   qaThreshold: 3,
   qaMaxAttempts: 2,
+  qaChunkSize: 25,
+  qaJudgeWorkers: 2,
+  qaCorrectorModel: '',
   mods: [],
   selectedMods: [],
   jobId: null,
@@ -87,6 +90,9 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         qaModel: action.qaModel,
         qaThreshold: action.qaThreshold,
         qaMaxAttempts: action.qaMaxAttempts,
+        qaChunkSize: action.qaChunkSize,
+        qaJudgeWorkers: action.qaJudgeWorkers,
+        qaCorrectorModel: action.qaCorrectorModel,
       }
 
     case 'SET_MODS': {
@@ -173,14 +179,17 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         return { ...state, progress: next }
       }
       if (event === 'qa_progress') {
-        // Don't override totalQa — it's set from overall_progress / JOB_STARTED.
-        // The backend reports _qa_queued as 'total', which counts only items
-        // queued so far, not the total number of entries to QA.
+        // Dynamic denominator: track the max queued count seen so far.
+        // The backend reports _qa_queued as 'total' — the number of
+        // items queued for QA at this moment, not the absolute total.
+        const queued = Number(data.total ?? 0)
+        const judged = Number(data.done ?? 0)
         return {
           ...state,
           progress: {
             ...p,
-            completedQa: Number(data.done ?? 0),
+            completedQa: judged,
+            totalQa: Math.max(p.totalQa, queued, judged),
           },
         }
       }

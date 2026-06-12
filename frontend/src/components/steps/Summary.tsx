@@ -46,6 +46,35 @@ export default function Summary() {
             {state.dryRun ? ' · dry run (no files written)' : ''}
           </p>
 
+          {stats.qa_enabled && (
+            <>
+              <div className="section-divider" />
+              <h3 className="summary-section-title">Quality review</h3>
+              <div className="summary-grid">
+                <div className="summary-stat">
+                  <span className="summary-stat-value">{stats.qa_judged}</span>
+                  <span className="summary-stat-label">judged</span>
+                </div>
+                <div className="summary-stat">
+                  <span className="summary-stat-value" style={{ color: stats.qa_flagged > 0 ? 'var(--qa-warn)' : undefined }}>
+                    {stats.qa_flagged}
+                  </span>
+                  <span className="summary-stat-label">flagged</span>
+                </div>
+                <div className="summary-stat">
+                  <span className="summary-stat-value" style={{ color: stats.qa_corrected > 0 ? 'var(--qa-fix)' : undefined }}>
+                    {stats.qa_corrected}
+                  </span>
+                  <span className="summary-stat-label">corrected</span>
+                </div>
+                <div className="summary-stat">
+                  <span className="summary-stat-value">{stats.qa_warnings}</span>
+                  <span className="summary-stat-label">warnings</span>
+                </div>
+              </div>
+            </>
+          )}
+
           {stats.mods.length > 0 && (
             <div className="summary-table-wrap">
               <table className="summary-table">

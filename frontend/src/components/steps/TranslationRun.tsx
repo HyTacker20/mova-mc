@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '../../api/client'
 import { useWizard } from '../../context/WizardContext'
 import type { JobRequest, QaLiveEntry, WizardState } from '../../types'
-import { shortQaKey } from '../../utils/qaLive'
+import {
+  formatQaKey,
+  formatTextChangePreview,
+  formatTextPreview,
+  groupQaEntries,
+  summarizeCorrectionFailures,
+  type QaEntryGroup,
+  type QaPanelItem,
+} from '../../utils/qaLive'
 
 function buildJobRequest(state: WizardState): JobRequest {
   return {
@@ -26,8 +34,9 @@ function buildJobRequest(state: WizardState): JobRequest {
       model: state.qaModel || null,
       threshold: state.qaThreshold,
       max_attempts: state.qaMaxAttempts,
-      chunk_size: 25,
-      judge_workers: 2,
+      chunk_size: state.qaChunkSize,
+      judge_workers: state.qaJudgeWorkers,
+      corrector_model: state.qaCorrectorModel || null,
     },
     rate_limit: {
       rpm: null,
@@ -57,48 +66,122 @@ function estimateEtaSeconds(done: number, total: number, elapsedS: number): numb
   return (total - done) / rate
 }
 
-function renderQaEntry(entry: QaLiveEntry, index: number, total: number) {
-  const delayMs = (total - 1 - index) * 25
-  const style = { animationDelay: `${delayMs}ms` }
-  if (entry.kind === 'fix') {
-    const badge =
-      entry.score != null || entry.issue
-        ? `${entry.score != null ? `${entry.score}/5` : ''}${entry.issue ? `${entry.score != null ? ' · ' : ''}${entry.issue}` : ''}`
-        : null
+function renderQaMeta(entry: QaLiveEntry, style: CSSProperties) {
+  if (entry.kind === 'summary') {
     return (
-      <div key={entry.uid} className="qa-row qa-row--fix" style={style}>
-        <span className="qa-original">{entry.original}</span>
-        <span className="tr-arrow">→</span>
-        <span className="qa-fixed">{entry.fixed}</span>
-        {badge && <span className="qa-badge">{badge}</span>}
+      <div key={entry.uid} className="qa-row qa-row--meta" style={style}>
+        <span className="qa-meta-text">
+          ← batch · {entry.flagged}/{entry.total} flagged, {entry.corrected} corrected ({entry.elapsed.toFixed(1)}s)
+        </span>
       </div>
     )
   }
-
-  if (entry.kind === 'flag') {
-    const issuePart = entry.issue ? ` · ${entry.issue}` : ''
+  if (entry.kind === 'done') {
     return (
-      <div key={entry.uid} className="qa-row qa-row--flag" style={style}>
-        <span className="qa-key" title={entry.key}>{shortQaKey(entry.key)}</span>
-        <span className="qa-badge">⚠ {entry.score}/5{issuePart}</span>
+      <div key={entry.uid} className="qa-row qa-row--done" style={style}>
+        <span className="qa-done-text">✓ QA done: {entry.flagged} flagged, {entry.corrected} corrected</span>
       </div>
     )
   }
-
+  if (entry.kind === 'status') {
+    return (
+      <div key={entry.uid} className="qa-row qa-row--status" style={style}>
+        <span className="qa-status-text">{entry.message}</span>
+      </div>
+    )
+  }
+  if (entry.kind === 'error') {
+    return (
+      <div key={entry.uid} className="qa-row qa-row--error" style={style}>
+        <span className="qa-error-text">✗ {entry.message}</span>
+      </div>
+    )
+  }
   if (entry.kind === 'warning') {
     return (
       <div key={entry.uid} className="qa-row qa-row--warning" style={style}>
-        <span className="qa-key" title={entry.key}>{shortQaKey(entry.key)}</span>
+        <span className="qa-key" title={entry.key}>{formatQaKey(entry.key)}</span>
         <span className="qa-badge">⚡ {entry.message}</span>
       </div>
     )
   }
+  return null
+}
+
+function renderQaGroup(group: QaEntryGroup, style: CSSProperties) {
+  const failure = summarizeCorrectionFailures(group)
+  const scoreBadge = group.fix?.score != null || group.fix?.issue
+    ? `${group.fix?.score != null ? `${group.fix.score}/5` : ''}${group.fix?.issue ? `${group.fix.score != null ? ' · ' : ''}${group.fix.issue}` : ''}`
+    : group.flag?.issue
+      ? `${group.flag.score}/5 · ${group.flag.issue}`
+      : group.flag
+        ? `${group.flag.score}/5`
+        : null
+
+  const whyText = group.fix?.why || group.flag?.why
 
   return (
-    <div key={entry.uid} className="qa-row qa-row--error" style={style}>
-      <span className="qa-error-text">✗ {entry.message}</span>
+    <div key={group.key} className="qa-card" style={style}>
+      <div className="qa-card-header">
+        <span className="qa-card-key" title={group.key}>{group.displayKey}</span>
+        {group.flag && !group.fix && (
+          <span className="qa-badge">⚠ {group.flag.score}/5{group.flag.issue ? ` · ${group.flag.issue}` : ''}</span>
+        )}
+      </div>
+      <div className="qa-card-body">
+        {group.source && (
+          <div className="qa-card-row">
+            <span className="qa-label">src:</span>
+            <span className="qa-text-dim">{formatTextPreview(group.source)}</span>
+          </div>
+        )}
+        {group.fix && (
+          <>
+            <div className="qa-card-row">
+              <span className="qa-label">was:</span>
+              <span className="qa-text-warn">{formatTextPreview(group.fix.original)}</span>
+            </div>
+            <div className="qa-card-row">
+              <span className="qa-label">now:</span>
+              <span className="qa-text-fix">{formatTextPreview(group.fix.fixed)}</span>
+            </div>
+            {scoreBadge && <span className="qa-badge qa-badge--inline">{scoreBadge}</span>}
+          </>
+        )}
+        {group.flag && !group.fix && group.flag.translated && (
+          <div className="qa-card-row">
+            <span className="qa-label">tgt:</span>
+            <span className="qa-text-warn">{formatTextPreview(group.flag.translated)}</span>
+          </div>
+        )}
+        {whyText && (
+          <div className="qa-card-row qa-card-why">
+            <span className="qa-label">why:</span>
+            <span className="qa-text-why">{whyText}</span>
+          </div>
+        )}
+        {failure && !group.fix && (
+          <div className="qa-card-failure">{failure}</div>
+        )}
+        {group.notes.length > 0 && (
+          <div className="qa-card-notes">
+            {group.notes.map((note, i) => (
+              <div key={i} className="qa-card-note">↪ {note}</div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
+}
+
+function renderQaPanelItem(item: QaPanelItem, index: number, total: number) {
+  const delayMs = (total - 1 - index) * 25
+  const style = { animationDelay: `${delayMs}ms` }
+  if (item.type === 'meta') {
+    return renderQaMeta(item.entry, style)
+  }
+  return renderQaGroup(item.group, style)
 }
 
 export default function TranslationRun() {
@@ -107,6 +190,7 @@ export default function TranslationRun() {
   const [startError, setStartError] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [elapsedS, setElapsedS] = useState(0)
+  const [showAllBatches, setShowAllBatches] = useState(false)
   const startedRef = useRef(false)
   const esRef = useRef<EventSource | null>(null)
   const stateRef = useRef(state)
@@ -238,6 +322,8 @@ export default function TranslationRun() {
     ? `${progress.fractionalMods.toFixed(1)} / ${progress.totalMods || '?'}`
     : `${progress.completedMods} / ${progress.totalMods || '?'}`
 
+  const qaPanelItems = groupQaEntries(progress.qaEntries, showAllBatches)
+
   return (
     <div className="step-card wide translate-run-card">
       <h2 className="step-title">Translating</h2>
@@ -287,7 +373,7 @@ export default function TranslationRun() {
           <div className="progress-label">
             <span>QA</span>
             <span>
-              {progress.completedQa} / {qaTotal || '?'}
+              Judged {progress.completedQa} / {qaTotal || '?'} queued
             </span>
           </div>
           <div className="progress-bar">
@@ -329,12 +415,22 @@ export default function TranslationRun() {
 
         {state.qaEnabled && (
           <div className="qa-live-section">
-            <p className="translations-heading qa-live-heading">QA</p>
+            <div className="qa-live-toolbar">
+              <p className="translations-heading qa-live-heading">QA</p>
+              <label className="qa-batch-toggle">
+                <input
+                  type="checkbox"
+                  checked={showAllBatches}
+                  onChange={e => setShowAllBatches(e.target.checked)}
+                />
+                Show all batches
+              </label>
+            </div>
             <div className="qa-live-panel" ref={qaPanelRef}>
-              {progress.qaEntries.length === 0 ? (
+              {qaPanelItems.length === 0 ? (
                 <p className="translations-empty">Waiting for QA output…</p>
               ) : (
-                progress.qaEntries.map((entry, i) => renderQaEntry(entry, i, progress.qaEntries.length))
+                qaPanelItems.map((item, i) => renderQaPanelItem(item, i, qaPanelItems.length))
               )}
             </div>
           </div>

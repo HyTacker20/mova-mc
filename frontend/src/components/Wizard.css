@@ -520,6 +520,13 @@
   padding: 2px 0;
 }
 
+/* QA log entries are now multi-line blocks — more spacing and subtle visual cue */
+.log-line--qa {
+  border-bottom-color: color-mix(in srgb, var(--warning) 20%, transparent);
+  padding: 4px 0 6px 0;
+  line-height: 1.55;
+}
+
 .log-line--info,
 .log-line--success {
   color: color-mix(in srgb, var(--success) 75%, var(--text-muted));
@@ -574,6 +581,25 @@
 
 .qa-live-heading {
   color: var(--warning);
+  margin: 0;
+}
+
+.qa-live-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.qa-batch-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
 }
 
 .qa-live-panel {
@@ -608,6 +634,115 @@
 
 .qa-row--error {
   background: color-mix(in srgb, var(--error, #e55) 8%, transparent);
+}
+
+.qa-row--meta,
+.qa-row--status {
+  color: var(--text-muted);
+  font-size: 12px;
+  background: transparent;
+}
+
+.qa-row--done {
+  background: color-mix(in srgb, var(--success, #5a5) 8%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.qa-card {
+  margin: 8px 10px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--warning) 4%, var(--surface2));
+  animation: qaFadeIn 0.3s ease-out both;
+}
+
+.qa-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.qa-card-key {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qa-card-body {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.qa-card-fix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.qa-preview {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.qa-card-failure {
+  color: var(--error, #e55);
+  font-size: 12px;
+}
+
+.qa-card-notes {
+  margin-top: 4px;
+}
+
+.qa-card-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Enhanced QA card details (src/was/now/why rows) ───────────── */
+
+.qa-card-row {
+  display: flex;
+  gap: 6px;
+  margin: 2px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  align-items: baseline;
+}
+
+.qa-label {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-weight: 500;
+  min-width: 32px;
+}
+
+.qa-text-dim { color: var(--text-muted); word-break: break-word; min-width: 0; }
+.qa-text-warn { color: var(--warning); word-break: break-word; min-width: 0; }
+.qa-text-fix { color: var(--success); word-break: break-word; font-weight: 500; min-width: 0; }
+.qa-text-why {
+  color: color-mix(in srgb, var(--text-muted) 80%, var(--warning));
+  font-style: italic;
+  word-break: break-word;
+  min-width: 0;
+}
+.qa-card-why {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid color-mix(in srgb, var(--warning) 15%, transparent);
+}
+.qa-badge--inline {
+  margin-top: 4px;
+  display: inline-block;
 }
 
 @keyframes qaFadeIn {

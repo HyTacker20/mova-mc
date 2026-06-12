@@ -15,6 +15,7 @@ export interface QaConfigResponse {
   max_attempts: number
   chunk_size: number
   judge_workers: number
+  corrector_model: string | null
 }
 
 export interface ConfigResponse {
@@ -49,6 +50,7 @@ export interface QaRequest {
   max_attempts: number
   chunk_size: number
   judge_workers: number
+  corrector_model: string | null
 }
 
 export interface RateLimitRequest {
@@ -105,6 +107,11 @@ export interface OverallStatsResponse {
   failed_entries: number
   duration_seconds: number
   mods: ModStatsResponse[]
+  qa_enabled: boolean
+  qa_judged: number
+  qa_flagged: number
+  qa_corrected: number
+  qa_warnings: number
 }
 
 export interface TranslatedEntry {
@@ -115,10 +122,16 @@ export interface TranslatedEntry {
 }
 
 export type QaLiveEntry =
-  | { uid: number; kind: 'fix'; key: string; original: string; fixed: string; score?: number; issue?: string }
-  | { uid: number; kind: 'flag'; key: string; score: number; issue?: string }
+  | { uid: number; kind: 'fix'; key: string; source?: string; original: string; fixed: string; score?: number; issue?: string; why?: string }
+  | { uid: number; kind: 'flag'; key: string; score: number; issue?: string; source?: string; translated?: string; why?: string }
+  | { uid: number; kind: 'info'; key: string; score: number; issue?: string; source?: string; translated?: string; why?: string }
+  | { uid: number; kind: 'correction'; key: string; accepted: boolean; attempt: number; maxAttempts: number; reason?: string; source?: string; original?: string; corrected?: string; why?: string }
+  | { uid: number; kind: 'status'; message: string }
+  | { uid: number; kind: 'summary'; flagged: number; total: number; corrected: number; elapsed: number }
+  | { uid: number; kind: 'done'; flagged: number; corrected: number }
   | { uid: number; kind: 'warning'; key: string; message: string }
   | { uid: number; kind: 'error'; message: string }
+  | { uid: number; kind: 'note'; key?: string; message: string }
 
 export interface ProgressState {
   phase: string
@@ -158,6 +171,9 @@ export interface WizardState {
   qaModel: string
   qaThreshold: number
   qaMaxAttempts: number
+  qaChunkSize: number
+  qaJudgeWorkers: number
+  qaCorrectorModel: string
   // Step 4 — Mods
   mods: ModInfo[]
   selectedMods: string[]
@@ -176,7 +192,7 @@ export type WizardAction =
   | { type: 'SET_STEP'; step: number }
   | { type: 'SET_PROVIDER'; provider: string; model: string }
   | { type: 'SET_PATHS'; source: string; target: string; modsPath: string; outputPath: string; outputMode: string }
-  | { type: 'SET_ADVANCED'; workers: number; noCache: boolean; dryRun: boolean; hintLang: string; qaEnabled: boolean; qaProvider: string; qaModel: string; qaThreshold: number; qaMaxAttempts: number }
+  | { type: 'SET_ADVANCED'; workers: number; noCache: boolean; dryRun: boolean; hintLang: string; qaEnabled: boolean; qaProvider: string; qaModel: string; qaThreshold: number; qaMaxAttempts: number; qaChunkSize: number; qaJudgeWorkers: number; qaCorrectorModel: string }
   | { type: 'SET_MODS'; mods: ModInfo[] }
   | { type: 'TOGGLE_MOD'; name: string }
   | { type: 'SELECT_ALL_MODS' }
