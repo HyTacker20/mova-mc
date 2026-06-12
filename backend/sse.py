@@ -55,4 +55,9 @@ def serialise_stats(stats: OverallStats) -> OverallStatsResponse:
         failed_entries=stats.failed_entries,
         duration_seconds=stats.total_duration_ms / 1000,
         mods=mod_responses,
+        qa_enabled=stats.qa_enabled,
+        qa_judged=stats.qa_judged,
+        qa_flagged=stats.qa_flagged,
+        qa_corrected=stats.qa_corrected,
+        qa_warnings=stats.qa_warnings,
     )

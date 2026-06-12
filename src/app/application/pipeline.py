@@ -133,42 +133,82 @@ def build_context(
     resolved_model = _resolve_model(settings.provider, model)
 
     # ── Wrap with inline QA if enabled ─────────────────────────────
-    if settings.qa_judge and is_llm:
+    if settings.qa_judge:
         from ..infrastructure.providers.judge import LlmJudge
         from ..infrastructure.providers.qa_wrapper import InlineQaWrapper
         from ..infrastructure.providers.registry import build_transport
 
-        judge_provider = settings.qa_judge_provider or settings.provider
-        judge_model = settings.qa_judge_model or resolved_model
-        try:
-            judge_transport = build_transport(judge_provider, judge_model)
-            judge = LlmJudge(
-                transport=judge_transport,
-                source_display=source_display,
-                target_display=target_display,
-                glossary=glossary,
-                chunk_size=settings.qa_chunk_size,
-                max_tokens=1024,
-                cache=sqlite_cache,
-                target_lang=settings.target_mc_lang,
-                judge_model=judge_model,
-                judge_workers=settings.qa_judge_workers,
-            )
-            raw_provider = InlineQaWrapper(
-                inner=raw_provider,
-                judge=judge,
-                corrector=raw_provider,
-                threshold=settings.qa_threshold,
-                max_attempts=settings.qa_max_attempts,
-                chunk_size=settings.qa_chunk_size,
-                progress=progress,
-            )
-        except Exception:
+        # Google + QA without dedicated judge provider: warn and skip
+        if not is_llm and not settings.qa_judge_provider:
             logger.warning(
-                "Inline QA: failed to build judge ({}/{}), skipping inline QA",
-                judge_provider,
-                judge_model,
+                "Inline QA: Google Translate selected but no judge provider configured. "
+                "QA requires an LLM provider — set a judge provider in Advanced settings."
             )
+            if progress is not None:
+                progress.report_qa_warning(
+                    "",
+                    "QA skipped: set a judge provider for Google translation",
+                )
+        else:
+            judge_provider = settings.qa_judge_provider or settings.provider
+            judge_model = settings.qa_judge_model or resolved_model
+            try:
+                judge_transport = build_transport(judge_provider, judge_model)
+                judge = LlmJudge(
+                    transport=judge_transport,
+                    source_display=source_display,
+                    target_display=target_display,
+                    glossary=glossary,
+                    chunk_size=settings.qa_chunk_size,
+                    max_tokens=1024,
+                    cache=sqlite_cache,
+                    target_lang=settings.target_mc_lang,
+                    judge_model=judge_model,
+                    judge_workers=settings.qa_judge_workers,
+                    progress=progress,
+                )
+
+                # ── Resolve corrector ──
+                corrector: TranslationProvider | None = raw_provider
+                if settings.qa_corrector_model:
+                    try:
+                        corrector = get_translator_service(
+                            provider=settings.provider,
+                            source_lang=source_lang,
+                            target_lang=target_lang,
+                            source_lang_display=source_display,
+                            target_lang_display=target_display,
+                            capitalize=True,
+                            max_retries=3,
+                            model=settings.qa_corrector_model,
+                            glossary=glossary,
+                            chunk_size=1,  # singleton for corrections
+                            max_concurrent_chunks=1,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Inline QA: failed to build corrector with model {}, "
+                            "falling back to translator: {}",
+                            settings.qa_corrector_model,
+                            exc,
+                        )
+
+                raw_provider = InlineQaWrapper(
+                    inner=raw_provider,
+                    judge=judge,
+                    corrector=corrector,
+                    threshold=settings.qa_threshold,
+                    max_attempts=settings.qa_max_attempts,
+                    chunk_size=settings.qa_chunk_size,
+                    progress=progress,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Inline QA: failed to build judge ({}/{}), skipping inline QA: {}",
+                    judge_provider,
+                    judge_model,
+                    exc,
+                )
 
     if settings.no_cache:
         provider: TranslationProvider = raw_provider
@@ -230,6 +270,9 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     ctx.progress.report("title", text="Translating...")
     mods = await stage_translate_async(ctx, mods)
 
+    # ── Collect inline QA stats from wrapper ──
+    _collect_inline_qa_stats(ctx.provider, stats)
+
     ctx.progress.report("title", text="Validating translations...")
     mods = await asyncio.to_thread(stage_validate_outputs, ctx, mods)
 
@@ -256,6 +299,24 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
 def run_pipeline(ctx: PipelineContext, mods: list[Mod]) -> PipelineResult:
     """Execute the full translation pipeline (sync wrapper for CLI)."""
     return asyncio.run(run_pipeline_async(ctx, mods))
+
+
+def _collect_inline_qa_stats(provider: object, stats: OverallStats) -> None:
+    """Walk the provider chain and collect QA stats from InlineQaWrapper."""
+    current = provider
+    while True:
+        if hasattr(current, "consume_run_stats"):
+            qa_stats = current.consume_run_stats()  # type: ignore[union-attr]
+            if qa_stats.get("qa_judged", 0) > 0:
+                stats.qa_enabled = True
+                stats.qa_judged = qa_stats.get("qa_judged", 0)
+                stats.qa_flagged = qa_stats.get("qa_flagged", 0)
+                stats.qa_corrected = qa_stats.get("qa_corrected", 0)
+            return
+        inner = getattr(current, "_inner", None)
+        if inner is None:
+            break
+        current = inner
 
 
 def _accumulate_stats(stats: OverallStats, mods: list[Mod]) -> None:

@@ -21,6 +21,7 @@ class QaRequest(BaseModel):
     max_attempts: int = 2
     chunk_size: int = 25
     judge_workers: int = 2
+    corrector_model: str | None = None
 
 
 class RateLimitRequest(BaseModel):
@@ -77,6 +78,7 @@ class JobRequest(BaseModel):
                 "max_attempts": self.qa.max_attempts,
                 "chunk_size": self.qa.chunk_size,
                 "judge_workers": self.qa.judge_workers,
+                "corrector_model": self.qa.corrector_model,
             },
         }
         if self.model:
@@ -141,6 +143,12 @@ class OverallStatsResponse(BaseModel):
     failed_entries: int
     duration_seconds: float
     mods: list[ModStatsResponse]
+    # QA metrics (only meaningful when qa_enabled)
+    qa_enabled: bool = False
+    qa_judged: int = 0
+    qa_flagged: int = 0
+    qa_corrected: int = 0
+    qa_warnings: int = 0
 
 
 class JobStatusResponse(BaseModel):
