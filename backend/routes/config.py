@@ -82,6 +82,7 @@ def _qa_from_raw(raw: dict[str, Any]) -> QaConfigResponse:
         max_attempts=int(qa_table.get("max_attempts", raw.get("qa_max_attempts", 2))),
         chunk_size=int(qa_table.get("chunk_size", raw.get("qa_chunk_size", 25))),
         judge_workers=int(qa_table.get("judge_workers", raw.get("qa_judge_workers", 2))),
+        corrector_model=qa_table.get("corrector_model", raw.get("qa_corrector_model")),
     )
 
 

@@ -64,6 +64,9 @@ export default function Provider() {
           qaModel: cfg.qa?.judge_model ?? '',
           qaThreshold: cfg.qa?.threshold ?? state.qaThreshold,
           qaMaxAttempts: cfg.qa?.max_attempts ?? state.qaMaxAttempts,
+          qaChunkSize: cfg.qa?.chunk_size ?? state.qaChunkSize,
+          qaJudgeWorkers: cfg.qa?.judge_workers ?? state.qaJudgeWorkers,
+          qaCorrectorModel: cfg.qa?.corrector_model ?? state.qaCorrectorModel,
         })
       })
       .catch(() => {/* no config yet — use defaults */})
