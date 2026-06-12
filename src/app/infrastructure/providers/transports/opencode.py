@@ -31,6 +31,7 @@ OPENCODE_REASONING_MODELS: frozenset[str] = frozenset({
     "glm-5",
     "kimi-k2.5",
     "kimi-k2.6",
+    "mimo-v2.5",
     "mimo-v2.5-pro",
 }) | OPENCODE_DEEPSEEK_MODELS
 

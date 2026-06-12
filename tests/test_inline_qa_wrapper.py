@@ -9,6 +9,7 @@ import pytest
 
 from app.domain.models import TranslationResult, TranslationUnit
 from app.infrastructure.providers.judge import LlmJudge, Verdict
+from app.infrastructure.providers import qa_wrapper as qa_wrapper_module
 from app.infrastructure.providers.qa_wrapper import InlineQaWrapper
 from app.utils.cancellation import cancel_token
 
@@ -16,8 +17,10 @@ from app.utils.cancellation import cancel_token
 @pytest.fixture(autouse=True)
 def _clear_cancel_token() -> None:
     cancel_token.clear()
+    qa_wrapper_module._INLINE_QA_STATUS_EMITTED = False
     yield
     cancel_token.clear()
+    qa_wrapper_module._INLINE_QA_STATUS_EMITTED = False
 
 
 class _RecordingProgress:
@@ -181,3 +184,148 @@ class TestInlineQaWrapper:
 
         assert results[0].translated_text == "Hello brave world"
         assert judge.judge_batch.call_count == 1
+
+    def test_skips_noop_fix_when_corrected_equals_original(self) -> None:
+        units = [TranslationUnit(key="k1", source_text="Same text", file_type="lang")]
+        inner = _MockInner(units)
+        same = "bad-Same text"
+        judge = _make_judge(
+            {
+                "k1": Verdict(
+                    verdict="flag",
+                    score=2,
+                    issue="grammar",
+                    fix=same,
+                ),
+            }
+        )
+        progress = _RecordingProgress()
+        wrapper = InlineQaWrapper(
+            inner,
+            judge,
+            threshold=3,
+            chunk_size=5,
+            progress=progress,
+        )
+
+        asyncio.run(wrapper.translate_batch_async(units))
+
+        fix_events = [e for e, _ in progress.events if e == "qa_inline_fix"]
+        assert fix_events == []
+        summary_events = [data for e, data in progress.events if e == "qa_inline_summary"]
+        assert summary_events == [{"flagged": 1, "total": 1, "corrected": 0, "elapsed": 0.0}]
+
+    def test_correction_events_include_reason(self) -> None:
+        units = [TranslationUnit(key="k1", source_text="Hello", file_type="lang")]
+        inner = _MockInner(units)
+        judge = _make_judge(
+            {
+                "k1": Verdict(
+                    verdict="flag",
+                    score=1,
+                    issue="meaning",
+                    fix="",
+                ),
+            }
+        )
+        corrector = MagicMock()
+        corrector.retranslate_with_feedback.side_effect = [
+            "bad-Hello",
+            "bad-Hello",
+        ]
+        progress = _RecordingProgress()
+        wrapper = InlineQaWrapper(
+            inner,
+            judge,
+            corrector=corrector,
+            threshold=3,
+            max_attempts=2,
+            chunk_size=5,
+            progress=progress,
+        )
+
+        asyncio.run(wrapper.translate_batch_async(units))
+
+        corrections = [data for e, data in progress.events if e == "qa_correction"]
+        assert corrections
+        assert any(c.get("reason") == "unchanged" for c in corrections)
+
+    def test_lint_gate_accepts_fix_without_russian_letters(self) -> None:
+        """Judge fix that removes Russian-only letters is accepted immediately."""
+        units = [TranslationUnit(key="k1", source_text="булыжник", file_type="lang")]
+        inner = _MockInner(units)
+        judge = _make_judge(
+            {
+                "k1": Verdict(
+                    verdict="flag",
+                    score=2,
+                    issue="russism",
+                    fix="бруківка",
+                ),
+            }
+        )
+        # Set target language to uk_UA on the judge mock
+        judge._target_lang = "uk_UA"
+        wrapper = InlineQaWrapper(
+            inner,
+            judge,
+            threshold=3,
+            chunk_size=5,
+        )
+
+        results = asyncio.run(wrapper.translate_batch_async(units))
+        translated = results[0].translated_text
+
+        # The fix should have been accepted (lint-gate), not the original text
+        assert translated == "бруківка"
+        # Judge should only be called once (the initial batch), not re-judged
+        assert judge.judge_batch.call_count == 1
+
+    def test_lint_gate_rejects_unchanged_russian_text(self) -> None:
+        """Fix that still has Russian-only letters goes through re-judge."""
+        from app.infrastructure.providers.qa_wrapper import _lint_gate_accept
+
+        # Fix still has 'ы' → lint gate rejects (no improvement)
+        assert _lint_gate_accept("булыжник", "булыжник", "uk_UA") is False
+        # Fix removes Russian letter → lint gate accepts
+        assert _lint_gate_accept("бруківка", "булыжник", "uk_UA") is True
+        # Non-UA lang → lint gate always False
+        assert _lint_gate_accept("clean", "dirty", "en_US") is False
+        # Original has no Russian letters → lint gate doesn't apply
+        assert _lint_gate_accept("чистий", "чистий", "uk_UA") is False
+
+    def test_unchanged_breaks_early(self) -> None:
+        """Corrector returning unchanged text stops after first attempt."""
+        units = [TranslationUnit(key="k1", source_text="Hello", file_type="lang")]
+        inner = _MockInner(units)
+        judge = _make_judge(
+            {
+                "k1": Verdict(
+                    verdict="flag",
+                    score=1,
+                    issue="meaning",
+                    fix="",
+                ),
+            }
+        )
+        corrector = MagicMock()
+        # Return same text every time — should stop after first attempt
+        corrector.retranslate_with_feedback.side_effect = [
+            "bad-Hello",  # attempt 1: unchanged
+            "better-Hello",   # attempt 2: should never be called
+        ]
+        progress = _RecordingProgress()
+        wrapper = InlineQaWrapper(
+            inner,
+            judge,
+            corrector=corrector,
+            threshold=3,
+            max_attempts=3,
+            chunk_size=5,
+            progress=progress,
+        )
+
+        asyncio.run(wrapper.translate_batch_async(units))
+
+        # Should only have been called once (broke on "unchanged")
+        assert corrector.retranslate_with_feedback.call_count == 1

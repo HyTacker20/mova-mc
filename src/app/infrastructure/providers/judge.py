@@ -16,6 +16,7 @@ from typing import Any, Protocol
 from loguru import logger
 
 from ...application.batching import chunk_list
+from ...application.ports import ProgressSink
 from ...utils.cancellation import cancel_token
 from ...utils.retry_logic import global_rate_limiter
 from .glossary import get_relevant_terms
@@ -96,22 +97,39 @@ def parse_judge_response(response: str) -> dict[str, dict[str, Any]] | None:
     # Remove markdown code fences
     text = _CODE_FENCE_RE.sub("", text).strip()
 
-    # Extract JSON object — find first { and last }
+    # Try multiple extraction strategies (reasoning models may prepend text)
+    candidates: list[str] = []
+
+    # Strategy 1: first { to last } (standard)
     first_brace = text.find("{")
     last_brace = text.rfind("}")
     if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-        text = text[first_brace : last_brace + 1]
+        candidates.append(text[first_brace : last_brace + 1])
 
-    # Handle trailing commas before closing braces/ brackets
-    text = _TRAILING_COMMA_RE.sub(r"\1", text)
+    # Strategy 2: last { to last } (JSON at end, reasoning before)
+    if first_brace != -1 and last_brace != -1:
+        last_open = text.rfind("{", 0, last_brace)
+        if last_open > first_brace:
+            candidates.append(text[last_open : last_brace + 1])
 
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, dict):
-            return {str(k): v for k, v in parsed.items() if isinstance(v, dict)}
-    except json.JSONDecodeError:
-        pass
+    if not candidates:
+        return None
 
+    for candidate in candidates:
+        # Handle trailing commas before closing braces/brackets
+        candidate = _TRAILING_COMMA_RE.sub(r"\1", candidate)
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return {str(k): v for k, v in parsed.items() if isinstance(v, dict)}
+        except json.JSONDecodeError:
+            continue
+
+    logger.debug(
+        "parse_judge_response: all strategies failed. "
+        "Text (first 200): {!r}",
+        text[:200],
+    )
     return None
 
 
@@ -143,6 +161,7 @@ class LlmJudge:
         judge_model: str = "",
         judge_workers: int = 1,
         service_name: str = "judge",
+        progress: ProgressSink | None = None,
     ) -> None:
         self._transport = transport
         self._source_display = source_display
@@ -155,6 +174,7 @@ class LlmJudge:
         self._judge_model = judge_model
         self._judge_workers = max(1, judge_workers)
         self._service_name = service_name
+        self._progress = progress
 
     def judge_batch(self, items: list[tuple[str, str, str]]) -> dict[str, Verdict]:
         """Judge a batch of (key, source_text, translated_text) entries.
@@ -269,7 +289,21 @@ class LlmJudge:
             )
             parsed = parse_judge_response(response)
             if parsed is None:
-                logger.warning("Judge: unparseable response for chunk of {} items, defaulting to ok", len(chunk))
+                logger.warning(
+                    "Judge: unparseable response for chunk of {} items, defaulting to ok. "
+                    "Raw response (first 300 chars): {!r}",
+                    len(chunk),
+                    response[:300],
+                )
+                if self._progress is not None:
+                    self._progress.report(
+                        "qa_inline_note",
+                        key="",
+                        message=(
+                            f"judge: could not parse response ({len(chunk)} items) "
+                            "— batch passed without review"
+                        ),
+                    )
                 fallback: dict[str, Verdict] = {key: Verdict("ok") for key, _, _ in chunk}
                 self._store_verdicts(chunk, fallback)
                 return fallback
