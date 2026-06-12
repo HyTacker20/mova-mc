@@ -44,7 +44,30 @@ def _loguru_sink(message: object) -> None:
     level = record["level"].name
     time_str = record["time"].strftime("%H:%M:%S")
     text = f"{level}: {time_str} | {text_body}"
-    entry = {"text": text, "level": level}
+
+    # Determine log category from the logger name for tab filtering.
+    logger_name: str = record["name"]
+    if any(seg in logger_name for seg in (
+        ".providers.qa_wrapper",
+        ".providers.judge",
+        ".stages.qa_refine",
+        ".stages.validate",
+    )):
+        category = "qa"
+    elif any(seg in logger_name for seg in (
+        ".application.stages.translate",
+        ".application.stages.parse",
+        ".application.stages.write",
+        ".application.stages.discover",
+        ".application.stages.unpack",
+        ".application.stages.repack",
+        ".application.pipeline",
+    )):
+        category = "translation"
+    else:
+        category = "general"
+
+    entry = {"text": text, "level": level, "category": category}
     if _loop is None:
         _enqueue(entry)
         return
