@@ -22,6 +22,7 @@ from ...utils.retry_logic import global_rate_limiter
 from .glossary import get_relevant_terms
 from .judge_prompts import JUDGE_PROMPT_VERSION, make_judge_prompt
 from .openai_like import LLMTransport
+from .reasoning_models import strip_thinking_artifacts
 
 # Regex to strip ```json fences
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*$", re.MULTILINE)
@@ -81,6 +82,51 @@ def display_score(verdict: Verdict) -> int:
     return 5 if not verdict.is_flag else 1
 
 
+_MAX_WHY_WORDS = 25
+
+
+def _normalize_verdict_text(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _default_why(issue: str) -> str:
+    _WHY_FALLBACK: dict[str, str] = {
+        "russism": "contains Russian words or surzhyk (mixed Russian/Ukrainian)",
+        "grammar": "grammatical error (case, gender, or agreement)",
+        "meaning": "mistranslation that changes the intended meaning",
+        "terminology": "violates Minecraft mod translation terminology",
+        "untranslated": "text left in the wrong language",
+        "punctuation": "added or removed trailing punctuation",
+        "placeholder": "missing or altered placeholder (%s, %d, §-code)",
+    }
+    return _WHY_FALLBACK.get(issue, f"translation quality issue: {issue}")
+
+
+def verdict_from_entry(entry: dict[str, Any], tgt: str) -> Verdict:
+    """Build a :class:`Verdict` from a parsed judge JSON entry."""
+    if entry.get("v") != "flag":
+        return Verdict("ok")
+
+    fix = str(entry.get("fix") or "")
+    if fix and _normalize_verdict_text(fix) == _normalize_verdict_text(tgt):
+        return Verdict("ok")
+
+    issue = entry.get("issue")
+    issue_str = str(issue) if issue is not None else None
+    why = entry.get("why")
+    why_str = str(why).strip() if why else None
+    if why_str and len(why_str.split()) > _MAX_WHY_WORDS:
+        why_str = _default_why(issue_str or "unknown")
+
+    return Verdict(
+        verdict="flag",
+        score=entry.get("score"),
+        issue=issue_str,
+        why=why_str,
+        fix=fix or None,
+    )
+
+
 def parse_judge_response(response: str) -> dict[str, dict[str, Any]] | None:
     """Parse the JSON response from the judge LLM.
 
@@ -92,7 +138,7 @@ def parse_judge_response(response: str) -> dict[str, dict[str, Any]] | None:
     Returns ``dict[str, dict]`` on success (one entry per input key),
     or ``None`` if parsing fails entirely.
     """
-    text = response.strip()
+    text = strip_thinking_artifacts(response.strip())
 
     # Remove markdown code fences
     text = _CODE_FENCE_RE.sub("", text).strip()
@@ -309,16 +355,10 @@ class LlmJudge:
                 return fallback
 
             verdicts: dict[str, Verdict] = {}
-            for key, _src, _tgt in chunk:
+            for key, _src, tgt in chunk:
                 entry = parsed.get(key, {})
-                if isinstance(entry, dict) and entry.get("v") == "flag":
-                    verdicts[key] = Verdict(
-                        verdict="flag",
-                        score=entry.get("score"),
-                        issue=entry.get("issue"),
-                        why=entry.get("why"),
-                        fix=entry.get("fix"),
-                    )
+                if isinstance(entry, dict):
+                    verdicts[key] = verdict_from_entry(entry, tgt)
                 else:
                     verdicts[key] = Verdict("ok")
             self._store_verdicts(chunk, verdicts)

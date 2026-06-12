@@ -35,6 +35,10 @@ class TestExtractContent:
         comp = _completion("<THINK>\nmulti\nline\n</THINK>Відповідь")
         assert extract_content(comp, transport="T") == "Відповідь"
 
+    def test_strips_lowercase_think_tags(self):
+        comp = _completion("\x3cthink\x3ereasoning\x3c/think\x3eПривіт")
+        assert extract_content(comp, transport="T") == "Привіт"
+
     def test_think_only_content_becomes_empty(self):
         assert extract_content(_completion("<think>only thinking</think>"), transport="T") == ""
 

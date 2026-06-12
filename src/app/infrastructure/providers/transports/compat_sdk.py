@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 from ....core.dotenv_loader import load_dotenv_files
+from ..reasoning_models import ReasoningTask, build_extra_body, scale_max_tokens
 from ._response import extract_content
 
 
@@ -16,6 +17,7 @@ class OpenAICompatTransport:
         api_key: str | None = None,
         *,
         extra_body: dict | None = None,
+        task: ReasoningTask = ReasoningTask.TRANSLATE,
         api_key_env: tuple[str, ...] = ("OPENAICOMPATIBLE_API_KEY", "OPENAI_API_KEY"),
         missing_key_message: str = "OPENAICOMPATIBLE_API_KEY environment variable not set.",
     ) -> None:
@@ -38,7 +40,8 @@ class OpenAICompatTransport:
         self._client = OpenAI(**client_kwargs)
         self._async_client = AsyncOpenAI(**client_kwargs)
         self._model = model
-        self._extra_body = extra_body
+        self._task = task
+        self._extra_body = extra_body if extra_body is not None else build_extra_body(model, task=task)
 
     def _create_kwargs(
         self,
@@ -57,11 +60,13 @@ class OpenAICompatTransport:
         return kwargs
 
     def complete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> str:
-        completion = self._client.chat.completions.create(**self._create_kwargs(messages, temperature, max_tokens))
+        scaled = scale_max_tokens(self._model, max_tokens, task=self._task)
+        completion = self._client.chat.completions.create(**self._create_kwargs(messages, temperature, scaled))
         return extract_content(completion, transport=type(self).__name__)
 
     async def acomplete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> str:
+        scaled = scale_max_tokens(self._model, max_tokens, task=self._task)
         completion = await self._async_client.chat.completions.create(
-            **self._create_kwargs(messages, temperature, max_tokens)
+            **self._create_kwargs(messages, temperature, scaled)
         )
         return extract_content(completion, transport=type(self).__name__)

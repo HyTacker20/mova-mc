@@ -93,3 +93,6 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+markers = [
+    "opencode_live: live OpenCode Go API probe (requires OPENCODE_GO_API_KEY)",
+]

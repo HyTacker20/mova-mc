@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from app.infrastructure.providers.judge import LlmJudge, Verdict, parse_judge_response
+from app.infrastructure.providers.judge import LlmJudge, Verdict, parse_judge_response, verdict_from_entry
 
 # ── parse_judge_response ────────────────────────────────────────────────
 
@@ -44,6 +44,28 @@ class TestParseJudgeResponse:
 
 
 # ── Verdict ──────────────────────────────────────────────────────────────
+
+
+class TestVerdictFromEntry:
+    def test_fix_equals_tgt_is_ok(self) -> None:
+        entry = {
+            "v": "flag",
+            "issue": "grammar",
+            "why": "wrong",
+            "fix": "трансформована",
+        }
+        assert verdict_from_entry(entry, "трансформована").verdict == "ok"
+
+    def test_fix_differs_stays_flag(self) -> None:
+        entry = {
+            "v": "flag",
+            "issue": "grammar",
+            "why": "рід",
+            "fix": "Крем'яна сокира",
+        }
+        v = verdict_from_entry(entry, "Крем'яний сокира")
+        assert v.is_flag
+        assert v.fix == "Крем'яна сокира"
 
 
 class TestVerdict:
@@ -153,7 +175,8 @@ class TestLlmJudge:
         transport = _FakeTransport([json.dumps({"k": {"v": "ok"}})])
         judge = LlmJudge(transport=transport, source_display="English", target_display="Ukrainian", max_tokens=4096)
         judge.judge_batch([("k", "a", "b")])
-        assert transport.last_max_tokens == 4096
+        # Single-item chunk: max(256, min(4096, 72 * 1)) == 256
+        assert transport.last_max_tokens == 256
 
     def test_glossary_injection(self) -> None:
         """Glossary terms are included in the system prompt."""

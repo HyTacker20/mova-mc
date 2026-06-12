@@ -118,7 +118,12 @@ def _register_builtins() -> None:
         return _build_openai_like("opencode", **kwargs)
 
 
-def build_transport(provider: str, model: str | None = None) -> LLMTransport:
+def build_transport(
+    provider: str,
+    model: str | None = None,
+    *,
+    task: str | None = None,
+) -> LLMTransport:
     """Build and return a configured ``LLMTransport`` for the given *provider*.
 
     Resolves the model via :func:`_resolve_model` and selects the appropriate
@@ -129,26 +134,28 @@ def build_transport(provider: str, model: str | None = None) -> LLMTransport:
     same transport selection logic without building a full translator.
     """
     from .openai_like import LLMTransport  # noqa: F401
+    from .reasoning_models import ReasoningTask
     from .transports.compat_sdk import OpenAICompatTransport
     from .transports.litellm_sdk import LitellmTransport
     from .transports.openai_sdk import OpenAISDKTransport
     from .transports.opencode import OpenCodeTransport
 
     resolved_model: str = _resolve_model(provider, model)  # type: ignore[arg-type]
+    reasoning_task = ReasoningTask(task) if task else ReasoningTask.TRANSLATE
 
     # Auto-prepend provider prefix for Ollama (LiteLLM requires it)
     if provider == "ollama" and resolved_model and not resolved_model.startswith("ollama/"):
         resolved_model = f"ollama/{resolved_model}"
 
     if provider == "opencode":
-        return OpenCodeTransport(model=resolved_model)
+        return OpenCodeTransport(model=resolved_model, task=reasoning_task)
 
     if provider == "openaicompatible":
         base_url = os.getenv("OPENAICOMPATIBLE_BASE_URL", "")
-        return OpenAICompatTransport(model=resolved_model, base_url=base_url)
+        return OpenAICompatTransport(model=resolved_model, base_url=base_url, task=reasoning_task)
     if provider == "openai":
         try:
-            return OpenAISDKTransport(model=resolved_model)
+            return OpenAISDKTransport(model=resolved_model, task=reasoning_task)
         except (ImportError, ValueError) as e:
             from loguru import logger
 
@@ -157,8 +164,8 @@ def build_transport(provider: str, model: str | None = None) -> LLMTransport:
                 "To avoid this, install: pip install openai",
                 e,
             )
-            return LitellmTransport(model=resolved_model)
-    return LitellmTransport(model=resolved_model)
+            return LitellmTransport(model=resolved_model, task=reasoning_task)
+    return LitellmTransport(model=resolved_model, task=reasoning_task)
 
 
 def _build_openai_like(provider: str, **kwargs: Any) -> TranslationProvider:

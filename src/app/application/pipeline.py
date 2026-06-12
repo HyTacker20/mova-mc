@@ -153,7 +153,11 @@ def build_context(
             judge_provider = settings.qa_judge_provider or settings.provider
             judge_model = settings.qa_judge_model or resolved_model
             try:
-                judge_transport = build_transport(judge_provider, judge_model)
+                judge_transport = build_transport(
+                    judge_provider,
+                    judge_model,
+                    task="judge",
+                )
                 judge = LlmJudge(
                     transport=judge_transport,
                     source_display=source_display,
