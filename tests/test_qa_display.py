@@ -143,9 +143,10 @@ class TestFormatQaEvent:
         )
         assert line is not None
         assert "── ⚠ test · 2/5 · grammar ──" in line
-        # No source/translated/why — should not crash
+        # No source/translated passed — should not crash
         assert "src:" not in line
-        assert "why:" not in line
+        # Fallback why is generated from the issue category
+        assert "why:  grammatical error" in line
 
     # ── qa_inline_judging ──
 
@@ -222,7 +223,8 @@ class TestFormatQaEvent:
 
     # ── qa_correction (multi-line) ──
 
-    def test_correction_simple_judge_fix(self) -> None:
+    def test_correction_simple_judge_fix_suppressed(self) -> None:
+        # Simple judge fixes are suppressed — qa_inline_fix follows with full context
         line = format_qa_event(
             "qa_correction",
             key="item.coffee.name",
@@ -230,7 +232,7 @@ class TestFormatQaEvent:
             attempt=0,
             max_attempts=3,
         )
-        assert "↳ ✓ judge fix applied" in line
+        assert line is None
 
     def test_correction_with_reason_and_change(self) -> None:
         line = format_qa_event(
