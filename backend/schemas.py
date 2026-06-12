@@ -19,7 +19,6 @@ class QaRequest(BaseModel):
     model: str | None = None
     threshold: int = 3
     max_attempts: int = 2
-    streaming: bool = True
     chunk_size: int = 25
     judge_workers: int = 2
 
@@ -76,7 +75,6 @@ class JobRequest(BaseModel):
                 "judge_model": self.qa.model,
                 "threshold": self.qa.threshold,
                 "max_attempts": self.qa.max_attempts,
-                "streaming": self.qa.streaming,
                 "chunk_size": self.qa.chunk_size,
                 "judge_workers": self.qa.judge_workers,
             },

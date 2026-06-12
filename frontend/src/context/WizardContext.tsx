@@ -11,6 +11,8 @@ const INITIAL_PROGRESS: ProgressState = {
   fractionalMods: null,
   completedEntries: 0,
   totalEntries: 0,
+  completedQa: 0,
+  totalQa: 0,
   logs: [],
   translations: [],
   qaEntries: [],
@@ -154,16 +156,28 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       }
       if (event === 'overall_progress') {
         const fractional = data.fractional_mods
+        const totalEntries = Number(data.total_entries ?? 0)
+        const next: ProgressState = {
+          ...p,
+          completedMods: Number(data.completed_mods ?? 0),
+          totalMods: Number(data.total_mods ?? 0),
+          fractionalMods: fractional != null ? Number(fractional) : null,
+          completedEntries: Number(data.completed_entries ?? 0),
+          totalEntries,
+          failed: Number(data.failed_entries ?? 0),
+        }
+        if (state.qaEnabled && totalEntries > 0) {
+          next.totalQa = totalEntries
+        }
+        return { ...state, progress: next }
+      }
+      if (event === 'qa_progress') {
         return {
           ...state,
           progress: {
             ...p,
-            completedMods: Number(data.completed_mods ?? 0),
-            totalMods: Number(data.total_mods ?? 0),
-            fractionalMods: fractional != null ? Number(fractional) : null,
-            completedEntries: Number(data.completed_entries ?? 0),
-            totalEntries: Number(data.total_entries ?? 0),
-            failed: Number(data.failed_entries ?? 0),
+            completedQa: Number(data.done ?? 0),
+            totalQa: Number(data.total ?? p.totalQa),
           },
         }
       }

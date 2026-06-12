@@ -132,8 +132,8 @@ def build_context(
 
     resolved_model = _resolve_model(settings.provider, model)
 
-    # ── Wrap with inline QA (streaming) if enabled ─────────────────
-    if settings.qa_judge and settings.qa_streaming and is_llm:
+    # ── Wrap with inline QA if enabled ─────────────────────────────
+    if settings.qa_judge and is_llm:
         from ..infrastructure.providers.judge import LlmJudge
         from ..infrastructure.providers.qa_wrapper import InlineQaWrapper
         from ..infrastructure.providers.registry import build_transport
@@ -165,7 +165,7 @@ def build_context(
             )
         except Exception:
             logger.warning(
-                "Inline QA: failed to build judge ({}/{}), skipping streaming QA",
+                "Inline QA: failed to build judge ({}/{}), skipping inline QA",
                 judge_provider,
                 judge_model,
             )
@@ -205,7 +205,6 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     """
     from .stages.discover import stage_discover_files
     from .stages.parse import stage_parse_sources
-    from .stages.qa_refine import stage_qa_refine_async
     from .stages.repack import stage_repack_jars
     from .stages.translate import stage_translate_async
     from .stages.unpack import stage_unpack_jars
@@ -230,17 +229,6 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
 
     ctx.progress.report("title", text="Translating...")
     mods = await stage_translate_async(ctx, mods)
-
-    if ctx.settings.qa_judge and ctx.settings.qa_streaming:
-        ctx.progress.report(
-            "qa_inline_status",
-            provider="",
-            model="",
-            message="Inline QA handled corrections — skipping batch QA review",
-        )
-    else:
-        ctx.progress.report("title", text="QA review...")
-        mods = await stage_qa_refine_async(ctx, mods)
 
     ctx.progress.report("title", text="Validating translations...")
     mods = await asyncio.to_thread(stage_validate_outputs, ctx, mods)

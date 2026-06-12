@@ -48,6 +48,9 @@ class TranslateRunStep(Widget):
     TranslateRunStep .progress-block {
         width: 100%; height: auto; margin: 0 0 1 0;
     }
+    TranslateRunStep #qa-progress-block {
+        display: none;
+    }
     TranslateRunStep .progress-block > Label {
         width: 100%; margin: 0 0 0 0; color: $text;
     }
@@ -120,6 +123,14 @@ class TranslateRunStep(Widget):
                 yield Label(t("translate.entries_progress", locale), id="entries-progress-label")
                 yield ProgressBar(
                     id="entries-progress",
+                    total=100,
+                    show_percentage=False,
+                    show_eta=False,
+                )
+            with Vertical(id="qa-progress-block", classes="progress-block"):
+                yield Label(t("translate.qa_progress", locale), id="qa-progress-label")
+                yield ProgressBar(
+                    id="qa-progress",
                     total=100,
                     show_percentage=False,
                     show_eta=False,
@@ -204,6 +215,21 @@ class TranslateRunStep(Widget):
             pct=str(pct),
         )
         self.query_one("#entries-progress-label", Label).update(label)
+
+    def update_qa(self, done: int, total: int) -> None:
+        bar = self.query_one("#qa-progress", ProgressBar)
+        bar.total = max(total, 1)
+        bar.progress = min(done, total)
+        locale = get_locale_from_app(self.app)
+        pct = format_progress_pct(done, total)
+        label = t(
+            "translate.qa_progress_fmt",
+            locale,
+            current=str(done),
+            total=str(total),
+            pct=str(pct),
+        )
+        self.query_one("#qa-progress-label", Label).update(label)
 
     def update_live_stats(self, elapsed_s: float, eta_s: float | None, failed: int) -> None:
         locale = get_locale_from_app(self.app)

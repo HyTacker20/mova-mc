@@ -26,7 +26,6 @@ function buildJobRequest(state: WizardState): JobRequest {
       model: state.qaModel || null,
       threshold: state.qaThreshold,
       max_attempts: state.qaMaxAttempts,
-      streaming: true,
       chunk_size: 25,
       judge_workers: 2,
     },
@@ -223,6 +222,7 @@ export default function TranslationRun() {
   const modsDone = progress.fractionalMods ?? progress.completedMods
   const modsPct = pct(modsDone, progress.totalMods)
   const entriesPct = pct(progress.completedEntries, progress.totalEntries)
+  const qaPct = pct(progress.completedQa, progress.totalQa)
   const eta = estimateEtaSeconds(
     progress.completedEntries,
     progress.totalEntries,
@@ -278,6 +278,23 @@ export default function TranslationRun() {
           <div className="progress-fill progress-fill--entries" style={{ width: `${entriesPct}%` }} />
         </div>
       </div>
+
+      {state.qaEnabled && (
+        <div className="progress-block">
+          <div className="progress-label">
+            <span>QA</span>
+            <span>
+              {progress.completedQa} / {progress.totalQa || progress.totalEntries || '?'}
+            </span>
+          </div>
+          <div className="progress-bar">
+            <div
+              className="progress-fill progress-fill--qa"
+              style={{ width: `${qaPct}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {running && (
         <p className="run-stats">

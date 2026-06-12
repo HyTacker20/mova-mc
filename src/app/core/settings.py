@@ -168,14 +168,6 @@ class Settings:
         self.qa.max_attempts = value
 
     @property
-    def qa_streaming(self) -> bool:
-        return self.qa.streaming
-
-    @qa_streaming.setter
-    def qa_streaming(self, value: bool) -> None:
-        self.qa.streaming = value
-
-    @property
     def qa_chunk_size(self) -> int:
         return self.qa.chunk_size
 

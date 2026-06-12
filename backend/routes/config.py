@@ -46,7 +46,6 @@ class QaConfigResponse(BaseModel):
     judge_model: str | None = None
     threshold: int = 3
     max_attempts: int = 2
-    streaming: bool = True
     chunk_size: int = 25
     judge_workers: int = 2
 
@@ -79,7 +78,6 @@ def _qa_from_raw(raw: dict[str, Any]) -> QaConfigResponse:
         judge_model=qa_table.get("judge_model", raw.get("qa_judge_model")),
         threshold=int(qa_table.get("threshold", raw.get("qa_threshold", 3))),
         max_attempts=int(qa_table.get("max_attempts", raw.get("qa_max_attempts", 2))),
-        streaming=bool(qa_table.get("streaming", raw.get("qa_streaming", True))),
         chunk_size=int(qa_table.get("chunk_size", raw.get("qa_chunk_size", 25))),
         judge_workers=int(qa_table.get("judge_workers", raw.get("qa_judge_workers", 2))),
     )

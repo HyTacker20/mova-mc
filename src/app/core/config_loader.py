@@ -40,7 +40,7 @@ VALID_CONFIG_KEYS = frozenset(
 VALID_MOD_KEYS = frozenset({"include", "exclude"})
 VALID_QA_KEYS = frozenset({
     "judge", "judge_model", "judge_provider", "corrector_model",
-    "threshold", "max_attempts", "streaming", "chunk_size", "judge_workers",
+    "threshold", "max_attempts", "chunk_size", "judge_workers",
 })
 VALID_RATE_LIMIT_KEYS = frozenset({"rpm", "burst"})
 
@@ -70,7 +70,6 @@ def settings_to_config_dict(settings: Any, *, ui_locale: str | None = None) -> d
         "qa_corrector_model": settings.qa_corrector_model,
         "qa_threshold": settings.qa_threshold,
         "qa_max_attempts": settings.qa_max_attempts,
-        "qa_streaming": settings.qa_streaming,
         "qa_chunk_size": settings.qa_chunk_size,
         "qa_judge_workers": settings.qa_judge_workers,
     }
@@ -316,7 +315,6 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
             "corrector_model": "corrector_model",
             "threshold": "threshold",
             "max_attempts": "max_attempts",
-            "streaming": "streaming",
             "chunk_size": "chunk_size",
             "judge_workers": "judge_workers",
         }
@@ -328,7 +326,6 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
             "qa_corrector_model": "corrector_model",
             "qa_threshold": "threshold",
             "qa_max_attempts": "max_attempts",
-            "qa_streaming": "streaming",
             "qa_chunk_size": "chunk_size",
             "qa_judge_workers": "judge_workers",
         }

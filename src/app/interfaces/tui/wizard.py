@@ -28,6 +28,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Container, Horizontal, Vertical
 from textual.message import Message
+from textual.widgets import ProgressBar
 from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widget import Widget
@@ -519,8 +520,6 @@ class WizardScreen(Screen):
                 step.initial_qa_max_attempts = wiz.settings.qa_max_attempts  # type: ignore[attr-defined]
             if hasattr(step, "initial_dry_run"):
                 step.initial_dry_run = wiz.settings.dry_run  # type: ignore[attr-defined]
-            if hasattr(step, "initial_qa_streaming"):
-                step.initial_qa_streaming = wiz.settings.qa_streaming  # type: ignore[attr-defined]
             if hasattr(step, "initial_qa_chunk_size"):
                 step.initial_qa_chunk_size = wiz.settings.qa_chunk_size  # type: ignore[attr-defined]
             if hasattr(step, "initial_qa_judge_workers"):
@@ -595,8 +594,6 @@ class WizardScreen(Screen):
                 wiz.settings.chunk_token_budget = int(data["chunk_token_budget"])
             if "progress_batch_size" in data:
                 wiz.settings.progress_batch_size = int(data["progress_batch_size"])
-            if "qa_streaming" in data:
-                wiz.settings.qa_streaming = bool(data["qa_streaming"])
             if "qa_chunk_size" in data:
                 wiz.settings.qa_chunk_size = int(data["qa_chunk_size"])
             if "qa_judge_workers" in data:
@@ -682,10 +679,12 @@ class WizardScreen(Screen):
         if wiz.settings.output_mode == "replace":
             wiz.settings.translation_path = wiz.settings.mods_path
 
-        # Show/hide QA panel
+        # Show/hide QA panel and progress bar
         try:
             step = self.query_one(TranslateRunStep)
-            step.query_one("#qa-panel").display = wiz.settings.qa_judge
+            qa_visible = wiz.settings.qa_judge
+            step.query_one("#qa-panel").display = qa_visible
+            step.query_one("#qa-progress-block").display = "block" if qa_visible else "none"
         except Exception:
             pass
 
@@ -770,6 +769,13 @@ class WizardScreen(Screen):
             elapsed = time.monotonic() - getattr(self, "_pipeline_start", time.monotonic())
             eta = estimate_eta_seconds(done, total, elapsed)
             step.update_live_stats(elapsed, eta, kw.get("failed_entries", 0))
+            wiz = self.app.wizard_state  # type: ignore[attr-defined]
+            if wiz.settings.qa_judge:
+                qa_bar = step.query_one("#qa-progress", ProgressBar)
+                qa_done = int(qa_bar.progress)
+                step.update_qa(qa_done, total)
+        elif event == "qa_progress":
+            step.update_qa(kw.get("done", 0), kw.get("total", 0))
         elif event == "mod_file_complete":
             name = Path(kw.get("file_path", "")).name
             errors = kw.get("errors", 0)

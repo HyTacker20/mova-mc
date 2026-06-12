@@ -13,7 +13,6 @@ export interface QaConfigResponse {
   judge_model: string | null
   threshold: number
   max_attempts: number
-  streaming: boolean
   chunk_size: number
   judge_workers: number
 }
@@ -48,7 +47,6 @@ export interface QaRequest {
   model: string | null
   threshold: number
   max_attempts: number
-  streaming: boolean
   chunk_size: number
   judge_workers: number
 }
@@ -124,6 +122,8 @@ export interface ProgressState {
   fractionalMods: number | null
   completedEntries: number
   totalEntries: number
+  completedQa: number
+  totalQa: number
   logs: string[]
   translations: { key: string; source: string; translated: string }[]
   qaEntries: QaLiveEntry[]

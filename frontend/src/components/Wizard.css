@@ -292,6 +292,10 @@
   background: var(--success);
 }
 
+.progress-fill--qa {
+  background: var(--warning);
+}
+
 .run-log {
   margin-top: 20px;
   max-height: 220px;

@@ -122,6 +122,8 @@ class InlineQaWrapper:
         self._max_attempts = max_attempts
         self._chunk_size = chunk_size
         self._progress = progress
+        self._qa_queued = 0
+        self._qa_judged = 0
         self._qa_metadata: dict[str, QaMeta] = {}
         self._qa_metadata_lock = threading.Lock()
 
@@ -324,7 +326,9 @@ class InlineQaWrapper:
             else:
                 self._store_qa_meta(key, score, verdict.issue, attempts)
 
+        self._qa_judged += len(batch)
         if self._progress is not None:
+            self._progress.report_qa_progress(self._qa_judged, self._qa_queued)
             self._progress.report(
                 "qa_inline_summary",
                 flagged=flagged_count,
@@ -413,6 +417,9 @@ class InlineQaWrapper:
             tgt = _normalize_trailing_period(source, translated).strip()
             src = source.strip()
             if tgt and tgt != src:
+                self._qa_queued += 1
+                if self._progress is not None:
+                    self._progress.report_qa_progress(self._qa_judged, self._qa_queued)
                 work_queue.put((key, source, tgt))
 
         worker = threading.Thread(

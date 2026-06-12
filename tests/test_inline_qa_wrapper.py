@@ -27,6 +27,9 @@ class _RecordingProgress:
     def report(self, event: str, **data: object) -> None:
         self.events.append((event, dict(data)))
 
+    def report_qa_progress(self, done: int, total: int) -> None:
+        self.events.append(("qa_progress", {"done": done, "total": total}))
+
 
 class _MockInner:
     def __init__(self, units: list[TranslationUnit], *, delay: float = 0.0) -> None:
@@ -106,6 +109,24 @@ class TestInlineQaWrapper:
         assert "qa_inline_judging" in event_names
         assert "qa_verdict" in event_names
         assert "qa_inline_fix" in event_names
+        qa_progress = [data for event, data in progress.events if event == "qa_progress"]
+        assert qa_progress
+        assert qa_progress[-1] == {"done": 1, "total": 1}
+
+    def test_emits_qa_progress_after_batch(self) -> None:
+        units = [
+            TranslationUnit(key="k1", source_text="A", file_type="lang"),
+            TranslationUnit(key="k2", source_text="B", file_type="lang"),
+        ]
+        inner = _MockInner(units)
+        judge = _make_judge()
+        progress = _RecordingProgress()
+        wrapper = InlineQaWrapper(inner, judge, chunk_size=5, progress=progress)
+
+        asyncio.run(wrapper.translate_batch_async(units))
+
+        qa_progress = [data for event, data in progress.events if event == "qa_progress"]
+        assert qa_progress[-1] == {"done": 2, "total": 2}
 
     def test_drains_partial_batch_without_full_chunk(self) -> None:
         units = [

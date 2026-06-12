@@ -143,8 +143,6 @@ class AdvancedStep(Widget):
 
     initial_qa_max_attempts: int = 2
 
-    initial_qa_streaming: bool = True
-
     initial_qa_chunk_size: int = 25
 
     initial_qa_judge_workers: int = 2
@@ -377,12 +375,6 @@ class AdvancedStep(Widget):
             yield Label("QA Model:", classes="field-label", id="qa-model-label")
 
             yield Label("", id="qa-same-info")
-
-            yield HorizontalGroup(
-                Switch(value=self.initial_qa_streaming, id="qa-streaming-switch"),
-                Label("Inline QA during translate"),
-                classes="qa-toggle-row",
-            )
 
             with Container(id="qa-model-container"):
                 yield Select(options=[], id="qa-model-select")
@@ -860,7 +852,6 @@ class AdvancedStep(Widget):
             "qa_judge_model": _clean_select_value(self._get_qa_model()),
             "qa_threshold": _parse_required_int(self.query_one("#qa-threshold-input", Input).value, 3),
             "qa_max_attempts": _parse_required_int(self.query_one("#qa-attempts-input", Input).value, 2),
-            "qa_streaming": self.query_one("#qa-streaming-switch", Switch).value,
             "qa_chunk_size": _parse_required_int(self.query_one("#qa-chunk-size-input", Input).value, 25),
             "qa_judge_workers": _parse_required_int(self.query_one("#qa-judge-workers-input", Input).value, 2),
             **({"rate_limit": rate_limit} if rate_limit else {}),
