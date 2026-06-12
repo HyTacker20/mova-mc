@@ -6,7 +6,11 @@ AI agent reference for the MovaMC project.
 
 A Python tool that translates Minecraft mod files between languages. It unpacks JAR files, finds language files (JSON/LANG/MCFUNCTION), translates their contents via Google Translate or AI providers (OpenAI, Anthropic, Gemini, Ollama, OpenAI-compatible), and repacks them into translated JARs.
 
-Two interfaces: interactive TUI (`mova tui`) and CLI (`mova cli`).
+Primary interfaces: **web UI** (`mova` → browser) and **CLI** (`mova cli`).
+
+> **TUI deprecated:** `mova tui` / `src/app/interfaces/tui/` is **frozen** — no new features or UX fixes.
+> All UI work goes to `frontend/` + `backend/`. The Textual TUI will be **removed** in a future release.
+> See [`src/app/interfaces/tui/DEPRECATED.md`](src/app/interfaces/tui/DEPRECATED.md).
 
 ## Architecture
 
@@ -206,10 +210,10 @@ otherwise `translation_path`.
 
 Single function `get_translator_service()` resolves the correct provider. For LLM providers it accepts `source_lang_display` / `target_lang_display` for human-readable prompt names. Google always receives ISO codes.
 
-### `interfaces/tui/` (Textual)
+### `interfaces/tui/` (Textual) — **deprecated, do not extend**
 
-The interactive TUI uses the **Textual** framework with a single `WizardScreen` and
-pre-mounted step widgets. Entry point: `main.py:main(debug=False)`.
+Legacy terminal UI. **Do not implement new features here** — use the web UI instead.
+Kept only until removal. Entry point: `main.py:main(debug=False)`.
 
 | File | Purpose |
 |---|---|

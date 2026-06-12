@@ -7,13 +7,15 @@
 
 A tool for translating Minecraft mods into multiple languages, automating the localization process for mod developers and translators.
 
+> **Note:** The terminal TUI (`mova tui`) is **deprecated** and will be removed. Use the **web UI** (`mova`) or **CLI** (`mova cli`) instead.
+
 ## Features
 
-- **Automated Translation** — Translate mod JARs via Textual TUI or CLI
+- **Automated Translation** — Translate mod JARs via web UI or CLI
 - **AI-Powered Translation** — OpenAI, Anthropic, Gemini, Ollama, OpenCode Go, OpenAI-Compatible
 - **JAR Pipeline** — Extract, translate LANG/JSON/MCFUNCTION assets, and repack mods
 - **Multiple Translation Services** — Google Translate (free) or AI providers with SQLite translation cache
-- **Batch Processing** — Translate single files, entire mod folders, or batch-select mods in the TUI
+- **Batch Processing** — Translate single files, entire mod folders, or batch-select mods in the web UI
 - **uk_UA QA** — Optional inline LLM judge with tiered fix acceptance for Ukrainian targets
 
 ## Translation Providers
@@ -87,13 +89,13 @@ Supported environment variables:
 
 ## Usage
 
-### Interactive Mode
+### Web UI (recommended)
 
 ```bash
-mova tui
+mova
 ```
 
-Launch the interactive TUI: `mova tui`. The Textual interface guides you through translation settings, mod selection, live progress, and a results summary.
+Opens the browser-based wizard at `http://127.0.0.1:8000` (translation settings, mod selection, live progress, QA panel).
 
 ### Command Line Interface
 
