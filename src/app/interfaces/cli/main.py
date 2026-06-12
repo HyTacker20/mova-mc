@@ -50,11 +50,11 @@ def main() -> None:
             from backend.__main__ import main as web_main
 
             web_main(
-                host=getattr(args, "host", "127.0.0.1"),
-                port=getattr(args, "port", 8000),
-                dev=getattr(args, "dev", False),
-                debug=getattr(args, "debug", False),
-                no_browser=getattr(args, "no_browser", False),
+                host=getattr(args, "host", None),
+                port=getattr(args, "port", None),
+                dev=getattr(args, "dev", None),
+                debug=getattr(args, "debug", None),
+                no_browser=getattr(args, "no_browser", None),
             )
         else:
             _run_translation(args)

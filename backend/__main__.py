@@ -93,14 +93,27 @@ def _start_vite() -> subprocess.Popen:
     )
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+
 def main(
-    host: str = "127.0.0.1",
-    port: int = 8000,
+    host: str | None = None,
+    port: int | None = None,
     *,
-    dev: bool = False,
-    debug: bool = False,
-    no_browser: bool = False,
+    dev: bool | None = None,
+    debug: bool | None = None,
+    no_browser: bool | None = None,
 ) -> None:
+    # ── Resolve from env when caller didn't provide explicit value ──
+    host = host if host is not None else os.environ.get("MOVAMC_HOST", "127.0.0.1")
+    port = port if port is not None else int(os.environ.get("MOVAMC_PORT", "8000"))
+    dev = dev if dev is not None else _env_bool("MOVAMC_DEV", False)
+    debug = debug if debug is not None else _env_bool("MOVAMC_DEBUG", False)
+    no_browser = no_browser if no_browser is not None else _env_bool("MOVAMC_NO_BROWSER", False)
     try:
         import uvicorn
     except ImportError:
@@ -171,3 +184,26 @@ def main(
         if vite_proc is not None:
             vite_proc.terminate()
             vite_proc.wait()
+
+
+if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(prog="mova-web", description="MovaMC web UI server")
+    ap.add_argument("--host", default=None, help="Bind host (env: MOVAMC_HOST)")
+    ap.add_argument("--port", type=int, default=None, help="Listen port (env: MOVAMC_PORT)")
+    ap.add_argument("--dev", action="store_const", const=True, default=None,
+                    help="Dev mode + CORS (env: MOVAMC_DEV)")
+    ap.add_argument("--debug", action="store_const", const=True, default=None,
+                    help="Debug logging (env: MOVAMC_DEBUG)")
+    ap.add_argument("--no-browser", action="store_const", const=True, default=None,
+                    help="Skip browser (env: MOVAMC_NO_BROWSER)")
+    ns = ap.parse_args()
+
+    main(
+        host=ns.host,
+        port=ns.port,
+        dev=ns.dev,
+        debug=ns.debug,
+        no_browser=ns.no_browser,
+    )
