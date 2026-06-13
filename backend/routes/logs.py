@@ -21,6 +21,14 @@ _log_history: deque[dict] = deque(maxlen=500)
 _loop: asyncio.AbstractEventLoop | None = None
 
 
+def reset_state() -> None:
+    """Reset module-level state (for test isolation)."""
+    global _log_queue, _log_history, _loop
+    _log_queue = asyncio.Queue(maxsize=256)
+    _log_history = deque(maxlen=500)
+    _loop = None
+
+
 def _enqueue(entry: dict) -> None:
     """Append to history and push to the SSE queue (event-loop thread only)."""
     _log_history.append(entry)
@@ -117,11 +125,19 @@ def detach_log_sink() -> None:
     _loop = None
 
 
-async def _event_stream() -> AsyncGenerator[str, None]:
-    """Yield new log lines as SSE events."""
+async def _event_stream(request: Request) -> AsyncGenerator[str, None]:
+    """Yield new log lines as SSE events.
+
+    Replays recent history first, then streams live entries.  Exits when
+    the client disconnects or the connection times out.
+    """
     for entry in list(_log_history):
+        if await request.is_disconnected():
+            return
         yield f"data: {json.dumps(entry)}\n\n"
     while True:
+        if await request.is_disconnected():
+            break
         try:
             entry = await asyncio.wait_for(_log_queue.get(), timeout=25.0)
             yield f"data: {json.dumps(entry)}\n\n"
@@ -136,7 +152,7 @@ async def stream_logs(request: Request) -> StreamingResponse:
     Connect with ``new EventSource('/api/logs/stream')``.
     """
     return StreamingResponse(
-        _event_stream(),
+        _event_stream(request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

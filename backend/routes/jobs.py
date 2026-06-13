@@ -24,6 +24,19 @@ _bridges: dict[str, SseBridge] = {}
 _background_tasks: set[asyncio.Task[None]] = set()
 
 
+def reset_state() -> None:
+    """Reset module-level state (for test isolation)."""
+    global job_registry, _bridges, _background_tasks
+    job_registry = JobRegistry()
+    _bridges.clear()
+    _background_tasks.clear()
+
+
+def _cleanup_job(job_id: str) -> None:
+    """Remove bridge and other resources for a completed job."""
+    _bridges.pop(job_id, None)
+
+
 @router.post("/jobs", response_model=JobCreatedResponse, status_code=201)
 async def create_job(req: JobRequest) -> JobCreatedResponse:
     """Create and immediately start a translation job."""
@@ -46,7 +59,7 @@ async def create_job(req: JobRequest) -> JobCreatedResponse:
 
     job = TranslationJob(settings=settings, selected_mods=selected)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     bridge = SseBridge(loop)
     job.reporter.subscribe(bridge.on_event)
 
@@ -63,6 +76,7 @@ async def create_job(req: JobRequest) -> JobCreatedResponse:
             # Flush progress events scheduled from worker-thread stages.
             await asyncio.sleep(0)
             bridge.close()
+            _cleanup_job(job.id)
 
     task = asyncio.create_task(_run_and_close(), name=f"job-{job.id[:8]}")
     _background_tasks.add(task)

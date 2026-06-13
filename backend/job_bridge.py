@@ -13,7 +13,7 @@ import threading
 from collections import deque
 from typing import Any
 
-_MAX_HISTORY = 10_000
+_MAX_HISTORY = 2_000
 
 
 class SseBridge:
