@@ -173,12 +173,6 @@ def fake_provider() -> MagicMock:
     provider.translate_unit.side_effect = lambda unit: TranslationResult(
         unit=unit, translated_text=f"tr({unit.source_text})", success=True
     )
-    provider.translate_batch.side_effect = (
-        lambda units: [
-            TranslationResult(unit=u, translated_text=f"tr({u.source_text})", success=True)
-            for u in units
-        ]
-    )
     return provider
 
 
@@ -315,8 +309,8 @@ class TestCachingProvider:
         assert all(r.success and not r.cached for r in results1)
 
         # Second call should be cached
-        fake_provider.translate_batch.reset_mock()
+        fake_provider.translate_unit.reset_mock()
         results2 = caching.translate_batch(units)
         assert len(results2) == 2
         assert all(r.cached for r in results2)
-        fake_provider.translate_batch.assert_not_called()
+        fake_provider.translate_unit.assert_not_called()

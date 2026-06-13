@@ -620,11 +620,6 @@ class InlineQaWrapper:
     def translate_unit(self, unit: TranslationUnit) -> TranslationResult:
         return self._inner.translate_unit(unit)
 
-    def translate_batch(
-        self, units: list[TranslationUnit]
-    ) -> list[TranslationResult]:
-        return self._inner.translate_batch(units)
-
     async def translate_async(self, text: str) -> str:
         return await self._inner.translate_async(text)
 

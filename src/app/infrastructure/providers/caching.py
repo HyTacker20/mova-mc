@@ -96,11 +96,11 @@ class CachingProvider:
         logger.debug(f"[cache] translate_batch: {cached_count}/{len(units)} cached, {len(uncached_units)} uncached")
 
         if uncached_units:
-            new_results = self._inner.translate_batch(uncached_units)
-            for idx, r in zip(uncached_indices, new_results, strict=True):
-                if r.success and r.translated_text:
-                    self._cache.set(self._cache_key(r.unit.source_text), r.translated_text)
-                results[idx] = r
+            for idx, unit in zip(uncached_indices, uncached_units, strict=True):
+                result = self._inner.translate_unit(unit)
+                if result.success and result.translated_text:
+                    self._cache.set(self._cache_key(result.unit.source_text), result.translated_text)
+                results[idx] = result
 
         return [r for r in results if r is not None]
 

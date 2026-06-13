@@ -18,7 +18,8 @@ class TranslationProvider(Protocol):
 
     Each provider must implement translate() for single strings and
     translate_unit() for domain-model-aware translation with error tracking.
-    translate_batch() handles bulk translation with structured results.
+    translate_batch_async() handles bulk translation with structured results
+    and an optional per-entry callback.
 
     Async variants (translate_async, translate_unit_async,
     translate_batch_async) are used by the async pipeline.
@@ -29,9 +30,6 @@ class TranslationProvider(Protocol):
 
     def translate_unit(self, unit: TranslationUnit) -> TranslationResult:
         """Translate a TranslationUnit, returning a structured result."""
-
-    def translate_batch(self, units: list[TranslationUnit]) -> list[TranslationResult]:
-        """Translate multiple TranslationUnits, returning structured results."""
 
     async def translate_async(self, text: str) -> str:
         """Async single-text translation. Returns original on failure."""
