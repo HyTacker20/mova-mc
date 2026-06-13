@@ -1520,7 +1520,6 @@ dependencies = [
     { name = "openai" },
     { name = "python-dotenv" },
     { name = "python-multipart" },
-    { name = "rarfile" },
     { name = "rich" },
     { name = "textual" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
@@ -1542,6 +1541,9 @@ dev = [
     { name = "pytest-mock" },
     { name = "ruff" },
 ]
+rar = [
+    { name = "rarfile" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1554,7 +1556,6 @@ requires-dist = [
     { name = "openai", specifier = ">=1.0.0" },
     { name = "python-dotenv", specifier = ">=0.19.0" },
     { name = "python-multipart", specifier = ">=0.0.9" },
-    { name = "rarfile", specifier = ">=4.0" },
     { name = "rich", specifier = ">=12.0.0" },
     { name = "textual", specifier = ">=1.0.0" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
@@ -1574,6 +1575,7 @@ dev = [
     { name = "pytest-mock", specifier = ">=3.14" },
     { name = "ruff", specifier = ">=0.6" },
 ]
+rar = [{ name = "rarfile", specifier = ">=4.0" }]
 
 [[package]]
 name = "multidict"
