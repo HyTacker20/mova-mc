@@ -37,8 +37,13 @@ class TestCatalog:
 
 
 class TestMods:
-    def test_nonexistent_path_returns_404(self, client: TestClient) -> None:
+    def test_path_outside_allowed_roots_returns_400(self, client: TestClient) -> None:
         resp = client.get("/api/mods", params={"path": "/does/not/exist/ever"})
+        assert resp.status_code == 400
+
+    def test_nonexistent_path_returns_404(self, client: TestClient, tmp_path) -> None:
+        nonexistent = tmp_path / "nonexistent_dir"
+        resp = client.get("/api/mods", params={"path": str(nonexistent)})
         assert resp.status_code == 404
 
     def test_empty_dir_returns_empty_list(self, client: TestClient, tmp_path) -> None:

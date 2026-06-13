@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from loguru import logger
 from pydantic import BaseModel
 
 from app.core.config_loader import (
@@ -15,6 +16,30 @@ from app.core.config_loader import (
 )
 
 router = APIRouter()
+
+# Allow-list for config file locations.  Config files must live under one of
+# these roots.  This prevents path-traversal attacks where an attacker
+# controls the `path` or `config_path` query/body parameter.
+_ALLOWED_ROOTS: tuple[Path, ...] = (
+    Path.home().resolve(),
+    Path.cwd().resolve(),
+)
+
+
+def _validate_path_within_root(p: Path) -> Path:
+    """Resolve *p* and verify it stays within an allowed directory tree.
+
+    Raises :exc:`ValueError` when the resolved absolute path escapes every
+    configured *base* root.
+    """
+    resolved = p.resolve()
+    for base in _ALLOWED_ROOTS:
+        try:
+            resolved.relative_to(base)
+            return resolved
+        except ValueError:
+            continue
+    raise ValueError(f"Path {resolved} is outside all allowed directories: {', '.join(str(b) for b in _ALLOWED_ROOTS)}")
 
 
 class ConfigPayload(BaseModel):
@@ -34,7 +59,7 @@ class ConfigPayload(BaseModel):
     no_cache: bool | None = None
     hint_lang: str | None = None
     # QA section (nested; passed as flat keys too)
-    qa: dict | None = None
+    qa: dict[str, Any] | None = None
     # Explicit path to the config file (from GET /api/config response).
     # When provided, saves go directly to this file — no discovery needed.
     config_path: str | None = None
@@ -88,11 +113,14 @@ def _qa_from_raw(raw: dict[str, Any]) -> QaConfigResponse:
 
 
 def _resolve_path(mods_path: str) -> Path:
-    """Resolve a relative path against CWD to get an absolute directory."""
+    """Resolve a relative path against CWD and validate it is safe."""
     p = Path(mods_path)
     if not p.is_absolute():
         p = Path.cwd() / p
-    return p
+    try:
+        return _validate_path_within_root(p)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/config", response_model=ConfigResponse)
@@ -143,12 +171,15 @@ def post_config(payload: ConfigPayload) -> dict[str, str]:
     to the same file that was loaded).  Otherwise falls back to
     *mods_path* or CWD.
     """
-    if payload.config_path:
-        config_file = Path(payload.config_path)
-    elif payload.mods_path:
-        config_file = _resolve_path(payload.mods_path) / "movamc.toml"
-    else:
-        config_file = Path.cwd() / "movamc.toml"
+    try:
+        if payload.config_path:
+            config_file = _validate_path_within_root(Path(payload.config_path))
+        elif payload.mods_path:
+            config_file = _resolve_path(payload.mods_path) / "movamc.toml"
+        else:
+            config_file = Path.cwd() / "movamc.toml"
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     existing: Path | None = config_file if config_file.is_file() else None
 
@@ -158,6 +189,10 @@ def post_config(payload: ConfigPayload) -> dict[str, str]:
         try:
             data = load_config(existing)
         except Exception:
+            logger.warning(
+                "Failed to load existing config at {} — it will be overwritten with only the new payload.",
+                existing,
+            )
             pass
 
     # Merge in new values
