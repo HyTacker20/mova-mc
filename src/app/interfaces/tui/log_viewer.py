@@ -114,9 +114,7 @@ class LogViewer(ModalScreen):
         tmp = ""
         if sys.platform == "win32":
             try:
-                with tempfile.NamedTemporaryFile(
-                    mode="w", encoding="utf-8", suffix=".txt", delete=False
-                ) as f:
+                with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".txt", delete=False) as f:
                     f.write(text)
                     tmp = f.name
                 subprocess.run(
@@ -139,6 +137,7 @@ class LogViewer(ModalScreen):
         if not ok:
             try:
                 import pyperclip  # type: ignore[import-untyped]
+
                 pyperclip.copy(text)
                 ok = True
             except (ImportError, Exception):
@@ -146,6 +145,7 @@ class LogViewer(ModalScreen):
         if not ok:
             try:
                 import base64
+
                 encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
                 print(f"\x1b]52;c;{encoded}\a", end="", flush=True)
                 ok = True

@@ -36,9 +36,7 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
         cancel_token.raise_if_set()
 
         mod_file_count = len(mod.lang_files)
-        mod_entry_count = sum(
-            1 for f in mod.lang_files for u in f.units if isinstance(u, TranslationUnit)
-        )
+        mod_entry_count = sum(1 for f in mod.lang_files for u in f.units if isinstance(u, TranslationUnit))
         ctx.progress.report_mod_start(mod.name, mod_file_count, mod_entry_count)
         translated_files: list[LangFile] = []
         mod_translated = 0
@@ -69,9 +67,7 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
                 file_start = time.monotonic()
 
                 # Pre-compute total entries in this mod for fractional Mods bar
-                total_in_mod = sum(
-                    1 for f in mod.lang_files for u in f.units if isinstance(u, TranslationUnit)
-                )
+                total_in_mod = sum(1 for f in mod.lang_files for u in f.units if isinstance(u, TranslationUnit))
                 entries_done_in_mod: int = 0
                 progress_batch = max(1, ctx.settings.progress_batch_size)
 
@@ -93,10 +89,7 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
                     entries_done_in_mod += 1
                     cumulative = _base + entries_done_in_mod
                     is_last = entries_done_in_mod >= _total_in_mod
-                    should_report_bars = (
-                        entries_done_in_mod % progress_batch == 0
-                        or is_last
-                    )
+                    should_report_bars = entries_done_in_mod % progress_batch == 0 or is_last
 
                     _ctx.progress.report(
                         "translated_entry",

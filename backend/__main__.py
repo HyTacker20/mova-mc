@@ -60,7 +60,10 @@ def _kill_port(port: int) -> None:
     try:
         result = subprocess.run(
             ["netstat", "-ano"],
-            capture_output=True, text=True, check=False, timeout=5,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
         )
     except (subprocess.TimeoutExpired, OSError):
         return
@@ -76,7 +79,9 @@ def _kill_port(port: int) -> None:
         pid = parts[4]
         subprocess.run(
             ["taskkill", "/F", "/PID", pid],
-            capture_output=True, check=False, timeout=5,
+            capture_output=True,
+            check=False,
+            timeout=5,
         )
 
 
@@ -167,8 +172,10 @@ def main(
         if dev:
             uvicorn.run(
                 "backend.app:create_app",
-                host=host, port=port,
-                log_level="info", reload=True,
+                host=host,
+                port=port,
+                log_level="info",
+                reload=True,
                 reload_dirs=["src", "backend"],
                 factory=True,
             )
@@ -192,12 +199,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(prog="mova-web", description="MovaMC web UI server")
     ap.add_argument("--host", default=None, help="Bind host (env: MOVAMC_HOST)")
     ap.add_argument("--port", type=int, default=None, help="Listen port (env: MOVAMC_PORT)")
-    ap.add_argument("--dev", action="store_const", const=True, default=None,
-                    help="Dev mode + CORS (env: MOVAMC_DEV)")
-    ap.add_argument("--debug", action="store_const", const=True, default=None,
-                    help="Debug logging (env: MOVAMC_DEBUG)")
-    ap.add_argument("--no-browser", action="store_const", const=True, default=None,
-                    help="Skip browser (env: MOVAMC_NO_BROWSER)")
+    ap.add_argument("--dev", action="store_const", const=True, default=None, help="Dev mode + CORS (env: MOVAMC_DEV)")
+    ap.add_argument("--debug", action="store_const", const=True, default=None, help="Debug logging (env: MOVAMC_DEBUG)")
+    ap.add_argument(
+        "--no-browser", action="store_const", const=True, default=None, help="Skip browser (env: MOVAMC_NO_BROWSER)"
+    )
     ns = ap.parse_args()
 
     main(

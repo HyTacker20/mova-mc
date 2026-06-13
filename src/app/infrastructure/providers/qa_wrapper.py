@@ -39,6 +39,7 @@ _RUSSIAN_ONLY_LETTERS_RE = re.compile(r"[ёъыэЁЪЫЭ]")
 # Tier 1 accepts fixes that (a) pass lint AND (b) pass structural sanity.
 # Fixes that fail either check go to Tier 2 (re-judge).
 
+
 def _is_safe_fix(original_translation: str, fix: str) -> bool:
     """Return True if *fix* is a structurally safe edit of *original_translation*.
 
@@ -280,15 +281,17 @@ class InlineQaWrapper:
 
             if _is_safe_fix(translated, fix):
                 logger.debug("Inline QA: accepted safe judge fix for {!r}…", source[:60])
-                self._report_correction(key, accepted=True, attempt=0,
-                    source=source, original=translated, corrected=fix, why=verdict.why)
+                self._report_correction(
+                    key, accepted=True, attempt=0, source=source, original=translated, corrected=fix, why=verdict.why
+                )
                 return fix, 0
 
             # Lint gate: accept fix that removes Russian-only letters
             if _lint_gate_accept(fix, translated, target_lang):
                 logger.debug("Inline QA: lint-gate accepted judge fix for {!r}…", source[:60])
-                self._report_correction(key, accepted=True, attempt=0,
-                    source=source, original=translated, corrected=fix, why=verdict.why)
+                self._report_correction(
+                    key, accepted=True, attempt=0, source=source, original=translated, corrected=fix, why=verdict.why
+                )
                 return fix, 0
 
             logger.debug("Inline QA: re-judging judge fix for {!r}…", source[:60])
@@ -297,24 +300,38 @@ class InlineQaWrapper:
                     re_verdicts = self._judge.judge_batch([(f"re:{key}", source, fix)])
                     re_v = re_verdicts.get(f"re:{key}")
                     if re_v is not None and not re_v.is_flag:
-                        self._report_correction(key, accepted=True, attempt=0,
-                            source=source, original=translated, corrected=fix, why=verdict.why)
+                        self._report_correction(
+                            key,
+                            accepted=True,
+                            attempt=0,
+                            source=source,
+                            original=translated,
+                            corrected=fix,
+                            why=verdict.why,
+                        )
                         return fix, 0
                     # No explanation → re-judge is unreliable, accept the fix
                     if re_v is not None and not (getattr(re_v, "why", None) or "").strip():
                         logger.info(
-                            "QA re-judge judge-fix accepted (no explanation) | "
-                            "key={} why={!r}",
-                            key, getattr(re_v, "why", None),
+                            "QA re-judge judge-fix accepted (no explanation) | key={} why={!r}",
+                            key,
+                            getattr(re_v, "why", None),
                         )
-                        self._report_correction(key, accepted=True, attempt=0,
+                        self._report_correction(
+                            key,
+                            accepted=True,
+                            attempt=0,
                             reason="re-judge no-why",
-                            source=source, original=translated, corrected=fix)
+                            source=source,
+                            original=translated,
+                            corrected=fix,
+                        )
                         return fix, 0
                     logger.info(
-                        "QA re-judge judge-fix | key={} src={!r} fix={!r} "
-                        "→ v={} score={} issue={} why={!r}",
-                        key, source[:80], fix[:80],
+                        "QA re-judge judge-fix | key={} src={!r} fix={!r} → v={} score={} issue={} why={!r}",
+                        key,
+                        source[:80],
+                        fix[:80],
                         getattr(re_v, "verdict", "?"),
                         getattr(re_v, "score", "?"),
                         getattr(re_v, "issue", "?"),
@@ -328,27 +345,38 @@ class InlineQaWrapper:
                             key=key,
                             message=f"re-judge failed, accepting fix: {exc}",
                         )
-                    self._report_correction(key, accepted=True, attempt=0,
+                    self._report_correction(
+                        key,
+                        accepted=True,
+                        attempt=0,
                         reason="re-judge error",
-                        source=source, original=translated, corrected=fix)
+                        source=source,
+                        original=translated,
+                        corrected=fix,
+                    )
                     return fix, 0
                 # Re-judge rejected the fix — fall through to corrector
-                self._report_correction(key, accepted=False, attempt=0,
+                self._report_correction(
+                    key,
+                    accepted=False,
+                    attempt=0,
                     reason="re-judge rejected",
-                    source=source, original=translated, why=verdict.why)
+                    source=source,
+                    original=translated,
+                    why=verdict.why,
+                )
                 logger.debug(
                     "Inline QA: re-judge rejected fix for {!r}, falling through to corrector",
                     source[:60],
                 )
             else:
-                self._report_correction(key, accepted=True, attempt=0,
-                    source=source, original=translated, corrected=fix, why=verdict.why)
+                self._report_correction(
+                    key, accepted=True, attempt=0, source=source, original=translated, corrected=fix, why=verdict.why
+                )
                 return fix, 0
 
         # ── Tier 2: corrector (retranslate with feedback) ──────────
-        if self._corrector is not None and hasattr(
-            self._corrector, "retranslate_with_feedback"
-        ):
+        if self._corrector is not None and hasattr(self._corrector, "retranslate_with_feedback"):
             prev_tgt = translated
             while attempts < self._max_attempts:
                 attempts += 1
@@ -366,7 +394,10 @@ class InlineQaWrapper:
                 except Exception as exc:
                     logger.warning(
                         "Inline QA: corrector attempt {}/{} failed for {!r}: {}",
-                        attempts, self._max_attempts, source[:60], exc,
+                        attempts,
+                        self._max_attempts,
+                        source[:60],
+                        exc,
                     )
                     if self._progress is not None:
                         self._progress.report(
@@ -386,29 +417,44 @@ class InlineQaWrapper:
 
                 if not corrected.strip():
                     self._report_correction(
-                        key, accepted=False, attempt=attempts, reason="empty",
-                        source=source, original=prev_tgt,
+                        key,
+                        accepted=False,
+                        attempt=attempts,
+                        reason="empty",
+                        source=source,
+                        original=prev_tgt,
                     )
                     continue
 
                 if corrected.strip() == prev_tgt.strip():
                     self._report_correction(
-                        key, accepted=False, attempt=attempts, reason="unchanged",
-                        source=source, original=prev_tgt, why=verdict.why,
+                        key,
+                        accepted=False,
+                        attempt=attempts,
+                        reason="unchanged",
+                        source=source,
+                        original=prev_tgt,
+                        why=verdict.why,
                     )
                     break  # subsequent attempts with same prompt are futile
 
                 logger.info(
-                    "QA corrector attempt {}/{} | key={} src={!r} "
-                    "→ corrected={!r}",
-                    attempts, self._max_attempts, key, source[:80],
+                    "QA corrector attempt {}/{} | key={} src={!r} → corrected={!r}",
+                    attempts,
+                    self._max_attempts,
+                    key,
+                    source[:80],
                     corrected.strip()[:120],
                 )
 
                 if not validate_placeholders(source, corrected):
                     self._report_correction(
-                        key, accepted=False, attempt=attempts, reason="placeholders",
-                        source=source, original=prev_tgt,
+                        key,
+                        accepted=False,
+                        attempt=attempts,
+                        reason="placeholders",
+                        source=source,
+                        original=prev_tgt,
                     )
                     continue
 
@@ -418,38 +464,58 @@ class InlineQaWrapper:
                         "Inline QA: lint-gate accepted corrector fix for {!r}…",
                         source[:60],
                     )
-                    self._report_correction(key, accepted=True, attempt=attempts,
-                        source=source, original=prev_tgt, corrected=corrected.strip(), why=verdict.why)
+                    self._report_correction(
+                        key,
+                        accepted=True,
+                        attempt=attempts,
+                        source=source,
+                        original=prev_tgt,
+                        corrected=corrected.strip(),
+                        why=verdict.why,
+                    )
                     return corrected.strip(), attempts
 
                 if not re_judge:
                     return corrected.strip(), attempts
 
                 try:
-                    re_verdicts = self._judge.judge_batch(
-                        [(f"re:{key}", source, corrected.strip())]
-                    )
+                    re_verdicts = self._judge.judge_batch([(f"re:{key}", source, corrected.strip())])
                     re_v = re_verdicts.get(f"re:{key}")
                     if re_v is not None and not re_v.is_flag:
-                        self._report_correction(key, accepted=True, attempt=attempts,
-                            source=source, original=prev_tgt, corrected=corrected.strip())
+                        self._report_correction(
+                            key,
+                            accepted=True,
+                            attempt=attempts,
+                            source=source,
+                            original=prev_tgt,
+                            corrected=corrected.strip(),
+                        )
                         return corrected.strip(), attempts
                     # No explanation → re-judge is unreliable, accept the correction
                     if re_v is not None and not (getattr(re_v, "why", None) or "").strip():
                         logger.info(
-                            "QA re-judge corrector accepted (no explanation) | "
-                            "key={} attempt={} why={!r}",
-                            key, attempts, getattr(re_v, "why", None),
+                            "QA re-judge corrector accepted (no explanation) | key={} attempt={} why={!r}",
+                            key,
+                            attempts,
+                            getattr(re_v, "why", None),
                         )
                         self._report_correction(
-                            key, accepted=True, attempt=attempts, reason="re-judge no-why",
-                            source=source, original=prev_tgt, corrected=corrected.strip(),
+                            key,
+                            accepted=True,
+                            attempt=attempts,
+                            reason="re-judge no-why",
+                            source=source,
+                            original=prev_tgt,
+                            corrected=corrected.strip(),
                         )
                         return corrected.strip(), attempts
                     logger.info(
                         "QA re-judge corrector | key={} src={!r} attempt={} "
                         "corrected={!r} → v={} score={} issue={} why={!r}",
-                        key, source[:80], attempts, corrected.strip()[:80],
+                        key,
+                        source[:80],
+                        attempts,
+                        corrected.strip()[:80],
                         getattr(re_v, "verdict", "?"),
                         getattr(re_v, "score", "?"),
                         getattr(re_v, "issue", "?"),
@@ -458,7 +524,8 @@ class InlineQaWrapper:
                 except Exception as exc:
                     logger.warning(
                         "Inline QA: post-correction re-judge failed for {!r}: {}",
-                        source[:60], exc,
+                        source[:60],
+                        exc,
                     )
                     if self._progress is not None:
                         self._progress.report(
@@ -467,22 +534,30 @@ class InlineQaWrapper:
                             message=f"post-correction re-judge failed, accepting: {exc}",
                         )
                     self._report_correction(
-                        key, accepted=True, attempt=attempts, reason="re-judge error",
-                        source=source, original=prev_tgt, corrected=corrected.strip(),
+                        key,
+                        accepted=True,
+                        attempt=attempts,
+                        reason="re-judge error",
+                        source=source,
+                        original=prev_tgt,
+                        corrected=corrected.strip(),
                     )
                     return corrected.strip(), attempts
 
                 self._report_correction(
-                    key, accepted=False, attempt=attempts, reason="re-judge rejected",
-                    source=source, original=prev_tgt, why=verdict.why,
+                    key,
+                    accepted=False,
+                    attempt=attempts,
+                    reason="re-judge rejected",
+                    source=source,
+                    original=prev_tgt,
+                    why=verdict.why,
                 )
 
         return None, attempts
 
     def _needs_correction(self, verdict: Verdict) -> bool:
-        return verdict.is_flag and not (
-            verdict.score is not None and verdict.score > self._threshold
-        )
+        return verdict.is_flag and not (verdict.score is not None and verdict.score > self._threshold)
 
     def _process_batch(
         self,
@@ -623,9 +698,7 @@ class InlineQaWrapper:
     async def translate_async(self, text: str) -> str:
         return await self._inner.translate_async(text)
 
-    async def translate_unit_async(
-        self, unit: TranslationUnit
-    ) -> TranslationResult:
+    async def translate_unit_async(self, unit: TranslationUnit) -> TranslationResult:
         return await self._inner.translate_unit_async(unit)
 
     async def translate_batch_async(

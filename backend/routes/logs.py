@@ -37,7 +37,7 @@ def _enqueue(entry: dict) -> None:
 
 def _loguru_sink(message: object) -> None:
     """Non-blocking enqueue for the loguru callback sink."""
-    record = message.record  # type: ignore[union-attr]
+    record = message.record  # type: ignore[union-attr, attr-defined]
     text_body = str(record["message"]).strip()
     if not text_body:
         return
@@ -46,23 +46,29 @@ def _loguru_sink(message: object) -> None:
 
     # Determine log category from the logger name for tab filtering.
     logger_name: str = record["name"]
-    is_qa = any(seg in logger_name for seg in (
-        ".utils.qa_log",
-        ".providers.qa_wrapper",
-        ".providers.judge",
-        ".stages.validate",
-    ))
-    is_translation = not is_qa and any(seg in logger_name for seg in (
-        ".dev_progress_log",
-        ".infrastructure.filesystem",
-        ".application.stages.translate",
-        ".application.stages.parse",
-        ".application.stages.write",
-        ".application.stages.discover",
-        ".application.stages.unpack",
-        ".application.stages.repack",
-        ".application.pipeline",
-    ))
+    is_qa = any(
+        seg in logger_name
+        for seg in (
+            ".utils.qa_log",
+            ".providers.qa_wrapper",
+            ".providers.judge",
+            ".stages.validate",
+        )
+    )
+    is_translation = not is_qa and any(
+        seg in logger_name
+        for seg in (
+            ".dev_progress_log",
+            ".infrastructure.filesystem",
+            ".application.stages.translate",
+            ".application.stages.parse",
+            ".application.stages.write",
+            ".application.stages.discover",
+            ".application.stages.unpack",
+            ".application.stages.repack",
+            ".application.pipeline",
+        )
+    )
 
     if is_qa:
         category = "qa"

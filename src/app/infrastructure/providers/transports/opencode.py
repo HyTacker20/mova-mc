@@ -11,14 +11,16 @@ from .compat_sdk import OpenAICompatTransport
 
 OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1"
 
-OPENCODE_ANTHROPIC_MODELS: frozenset[str] = frozenset({
-    "minimax-m3",
-    "minimax-m2.7",
-    "minimax-m2.5",
-    "qwen3.7-max",
-    "qwen3.7-plus",
-    "qwen3.6-plus",
-})
+OPENCODE_ANTHROPIC_MODELS: frozenset[str] = frozenset(
+    {
+        "minimax-m3",
+        "minimax-m2.7",
+        "minimax-m2.5",
+        "qwen3.7-max",
+        "qwen3.7-plus",
+        "qwen3.6-plus",
+    }
+)
 
 
 def normalize_opencode_model(model: str) -> str:

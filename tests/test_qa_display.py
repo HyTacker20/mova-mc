@@ -49,9 +49,7 @@ class TestFormatTextChangePreview:
 
 class TestFormatProviderModel:
     def test_strips_duplicate_provider_prefix(self) -> None:
-        assert format_provider_model("ollama", "ollama/translategemma:12b") == (
-            "ollama/translategemma:12b"
-        )
+        assert format_provider_model("ollama", "ollama/translategemma:12b") == ("ollama/translategemma:12b")
 
     def test_joins_when_model_has_no_prefix(self) -> None:
         assert format_provider_model("openai", "gpt-4o-mini") == "openai/gpt-4o-mini"

@@ -90,10 +90,12 @@ class TestSqliteCache:
 
     def test_get_verdicts_batch(self, tmp_path: Path) -> None:
         cache = SqliteCache(str(tmp_path / "verdicts.db"))
-        cache.set_verdicts({
-            "k1": ("ok", None, None, 0),
-            "k2": ("flag", 1, "term", 0),
-        })
+        cache.set_verdicts(
+            {
+                "k1": ("ok", None, None, 0),
+                "k2": ("flag", 1, "term", 0),
+            }
+        )
         rows = cache.get_verdicts(["k1", "k2", "missing"])
         assert rows["k1"] == ("ok", None, None, 0)
         assert rows["k2"] == ("flag", 1, "term", 0)
@@ -208,7 +210,10 @@ class TestCachingProvider:
         fake_provider.translate.side_effect = None
         fake_provider.translate.return_value = ""
         caching = CachingDecorator(
-            fake_provider, fake_cache, source_lang="en", target_lang="es",
+            fake_provider,
+            fake_cache,
+            source_lang="en",
+            target_lang="es",
         )
         result = caching.translate("Hello")
         assert result == ""
@@ -223,8 +228,13 @@ class TestCachingProvider:
         # is before the no_cache flag). Actually, looking at the code —
         # no_cache is NOT checked in the translate method. Let's verify.
         caching = CachingDecorator(
-            fake_provider, fake_cache, source_lang="en", target_lang="es",
-            provider_name="test", model="m1", no_cache=True,
+            fake_provider,
+            fake_cache,
+            source_lang="en",
+            target_lang="es",
+            provider_name="test",
+            model="m1",
+            no_cache=True,
         )
         # First call writes to cache (no_cache doesn't prevent writes)
         caching.translate("Hello")
@@ -261,7 +271,9 @@ class TestCachingProvider:
     def test_translate_unit_failure_not_cached(self, fake_cache: _FakeCache, fake_provider: MagicMock) -> None:
         fake_provider.translate_unit.side_effect = None
         fake_provider.translate_unit.return_value = TranslationResult(
-            unit=_make_unit("k", "T"), translated_text="", success=False,
+            unit=_make_unit("k", "T"),
+            translated_text="",
+            success=False,
         )
         caching = _make_caching(fake_cache, fake_provider)
         unit = _make_unit("k", "T")
@@ -273,14 +285,13 @@ class TestCachingProvider:
         assert fake_provider.translate_unit.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_translate_batch_async_preserves_order(self, fake_cache: _FakeCache, fake_provider: MagicMock) -> None:
+    async def test_translate_batch_async_preserves_order(
+        self, fake_cache: _FakeCache, fake_provider: MagicMock
+    ) -> None:
         from unittest.mock import AsyncMock
 
         async def batch_async(units, *, on_entry=None):
-            return [
-                TranslationResult(unit=u, translated_text=f"tr({u.source_text})", success=True)
-                for u in units
-            ]
+            return [TranslationResult(unit=u, translated_text=f"tr({u.source_text})", success=True) for u in units]
 
         fake_provider.translate_batch_async = AsyncMock(side_effect=batch_async)
         caching = _make_caching(fake_cache, fake_provider)

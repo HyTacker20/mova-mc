@@ -67,7 +67,7 @@ warn_unused_configs = true
 ignore_missing_imports = false
 
 [[tool.mypy.overrides]]
-module = ["deep_translator.*", "litellm.*", "textual.*", "tomli_w.*", "rich.*", "loguru.*", "dotenv.*", "openai.*", "fastapi.*", "uvicorn.*", "starlette.*", "pydantic.*"]
+module = ["deep_translator.*", "litellm.*", "textual.*", "tomli_w.*", "rich.*", "loguru.*", "dotenv.*", "openai.*", "fastapi.*", "uvicorn.*", "starlette.*", "pydantic.*", "rarfile.*"]
 ignore_missing_imports = true
 
 [tool.coverage.report]

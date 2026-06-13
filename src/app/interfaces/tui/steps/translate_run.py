@@ -180,9 +180,7 @@ class TranslateRunStep(Widget):
     def set_current_file(self, file_path: str) -> None:
         locale = get_locale_from_app(self.app)
         name = Path(file_path).name
-        self.query_one("#translate-file", Label).update(
-            t("translate.current_file", locale, name=name)
-        )
+        self.query_one("#translate-file", Label).update(t("translate.current_file", locale, name=name))
 
     def update_mods(self, completed: int, total: int, *, fractional: float | None = None) -> None:
         bar = self.query_one("#mods-progress", ProgressBar)
@@ -241,9 +239,7 @@ class TranslateRunStep(Widget):
             eta_part = t("translate.stats_eta_unknown", locale)
         elapsed_part = t("translate.stats_elapsed", locale, time=elapsed_text)
         failed_part = t("translate.stats_failed", locale, count=str(failed))
-        self.query_one("#translate-stats", Label).update(
-            f"{elapsed_part}  ·  {eta_part}  ·  {failed_part}"
-        )
+        self.query_one("#translate-stats", Label).update(f"{elapsed_part}  ·  {eta_part}  ·  {failed_part}")
 
     def add_log(self, line: str) -> None:
         self._log_lines.append(line)

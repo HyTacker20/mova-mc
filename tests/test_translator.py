@@ -5,6 +5,7 @@ import pytest
 from app.exceptions import TranslationServiceError
 from app.infrastructure.providers.factory import get_translator_service
 
+
 class TestTranslatorService:
     def test_init_google(self):
         service = get_translator_service("google", "en", "uk", capitalize=True)

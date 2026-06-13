@@ -11,8 +11,10 @@ from app.infrastructure.providers.openai_like import OpenAILikeProvider
 
 _GOOGLE_PROVIDERS = ["new_google"]
 
+
 def _make_google_provider(_key: str) -> GoogleProvider:
     return GoogleProvider(source_lang="en", target_lang="es", capitalize=False)
+
 
 def _make_llm_provider() -> OpenAILikeProvider:
     transport = MagicMock()
@@ -26,6 +28,7 @@ def _make_llm_provider() -> OpenAILikeProvider:
         max_retries=0,
         chunk_size=3,
     )
+
 
 class TestGoogleProviderContract:
     @pytest.mark.parametrize("provider_key", _GOOGLE_PROVIDERS)
@@ -45,6 +48,7 @@ class TestGoogleProviderContract:
         assert result.translated_text == "hello"
         assert result.success is False
         assert result.error == "fail"
+
 
 class TestLLMProviderContract:
     def test_translate_single(self):
@@ -114,6 +118,7 @@ class TestLLMProviderContract:
         result = p._translate_chunk([("k1", "hello"), ("k2", "world")])
         assert result == {"k1": "hello", "k2": "world"}
 
+
 class TestTranslationModelContract:
     def test_translation_unit_creation(self):
         unit = TranslationUnit(key="test.key", source_text="Hello", file_type="json")
@@ -142,6 +147,7 @@ class TestTranslationModelContract:
         result = TranslationResult(unit=unit, translated_text="src", success=False, error="timeout")
         assert not result.success
         assert result.error == "timeout"
+
 
 class TestTokenBucketContract:
     def test_acquire_immediate(self):

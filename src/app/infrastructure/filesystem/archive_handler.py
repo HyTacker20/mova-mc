@@ -23,9 +23,7 @@ _UNRAR_PATHS: tuple[str, ...] = (
     "C:\\Program Files (x86)\\WinRAR\\UnRAR.exe",
 )
 
-_RAR_BACKEND_MSG = (
-    "Install WinRAR / unrar and ensure UnRAR.exe is on PATH (or set UNRAR_TOOL)."
-)
+_RAR_BACKEND_MSG = "Install WinRAR / unrar and ensure UnRAR.exe is on PATH (or set UNRAR_TOOL)."
 
 
 class ArchiveOpenError(Exception):
@@ -70,9 +68,7 @@ def _ensure_rar_backend() -> None:
     try:
         import rarfile  # type: ignore[import-untyped]
     except ImportError as exc:
-        raise RarBackendUnavailableError(
-            f"rarfile package is not installed. {_RAR_BACKEND_MSG}"
-        ) from exc
+        raise RarBackendUnavailableError(f"rarfile package is not installed. {_RAR_BACKEND_MSG}") from exc
 
     tool = _find_unrar()
     if tool:
@@ -81,9 +77,7 @@ def _ensure_rar_backend() -> None:
     try:
         rarfile.tool_setup()
     except Exception as exc:
-        raise RarBackendUnavailableError(
-            f"Cannot find unrar/UnRAR.exe backend. {_RAR_BACKEND_MSG}"
-        ) from exc
+        raise RarBackendUnavailableError(f"Cannot find unrar/UnRAR.exe backend. {_RAR_BACKEND_MSG}") from exc
 
 
 class _Archive(Protocol):

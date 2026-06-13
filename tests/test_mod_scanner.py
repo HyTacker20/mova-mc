@@ -196,9 +196,7 @@ class TestModScanner:
         # en_US.lang — also source language, 2 entries
         (assets / "en_US.lang").write_text("item.test=Test\nitem.other=Other\n", encoding="utf-8")
         # uk_UA.json — non-source, should be excluded (3 entries)
-        (assets / "uk_UA.json").write_text(
-            json.dumps({"item.a": "А", "item.b": "Б", "item.c": "В"}), encoding="utf-8"
-        )
+        (assets / "uk_UA.json").write_text(json.dumps({"item.a": "А", "item.b": "Б", "item.c": "В"}), encoding="utf-8")
         # ru_RU.lang — non-source, should be excluded (1 entry)
         (assets / "ru_RU.lang").write_text("item.x=Икс\n", encoding="utf-8")
 

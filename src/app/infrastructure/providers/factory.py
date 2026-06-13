@@ -39,8 +39,7 @@ def get_translator_service(
 
     if factory is None:
         raise ValueError(
-            f"Unsupported translation provider: {provider}. "
-            f"Supported: {', '.join(sorted(PROVIDER_FACTORIES))}"
+            f"Unsupported translation provider: {provider}. Supported: {', '.join(sorted(PROVIDER_FACTORIES))}"
         )
 
     logger.debug("Building provider '{}' via registry", provider_lower)

@@ -211,8 +211,7 @@ def stage_discover_files(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
             effective_source = fallback_lang
             lang_files = fallback_files + mcfunction_files
             log_msg = (
-                f"No {source_lang} files for {mod.name}"
-                f" — fell back to {fallback_lang} ({len(lang_files)} file(s))"
+                f"No {source_lang} files for {mod.name} — fell back to {fallback_lang} ({len(lang_files)} file(s))"
             )
         else:
             effective_source = source_lang

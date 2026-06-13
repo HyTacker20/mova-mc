@@ -843,9 +843,7 @@ class AdvancedStep(Widget):
             "output_mode": self.query_one("#output-mode-select", Select).value,
             "chunk_mode": chunk_mode,
             "chunk_size": chunk_size,
-            "chunk_token_budget": _parse_required_int(
-                self.query_one("#chunk-token-budget-input", Input).value, 3500
-            ),
+            "chunk_token_budget": _parse_required_int(self.query_one("#chunk-token-budget-input", Input).value, 3500),
             "progress_batch_size": _parse_required_int(self.query_one("#progress-batch-input", Input).value, 10),
             "qa_judge": self.query_one("#qa-judge-switch", Switch).value,
             "qa_judge_provider": self._get_qa_provider(),

@@ -28,13 +28,15 @@ class TestChunkModeSettings:
         assert _resolve_translation_chunk_size(settings) == 10
 
     def test_rate_limit_config_from_toml_section(self) -> None:
-        settings = Settings(config_data={
-            "rate_limit": {
-                "rpm": 300,
-                "burst": 20,
-                "judge": {"rpm": 120, "burst": 5},
-            },
-        })
+        settings = Settings(
+            config_data={
+                "rate_limit": {
+                    "rpm": 300,
+                    "burst": 20,
+                    "judge": {"rpm": 120, "burst": 5},
+                },
+            }
+        )
         assert settings.rate_limit_rpm == 300.0
         assert settings.rate_limit_burst == 20.0
         assert settings.rate_limit_services["judge"]["rpm"] == 120.0

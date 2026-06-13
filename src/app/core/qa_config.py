@@ -56,21 +56,13 @@ class QaConfig:
 
     def __post_init__(self) -> None:
         if self.threshold < 1 or self.threshold > 5:
-            raise ValueError(
-                f"qa_threshold must be 1-5, got {self.threshold}"
-            )
+            raise ValueError(f"qa_threshold must be 1-5, got {self.threshold}")
         if self.max_attempts < 0:
-            raise ValueError(
-                f"qa_max_attempts must be >= 0, got {self.max_attempts}"
-            )
+            raise ValueError(f"qa_max_attempts must be >= 0, got {self.max_attempts}")
         if self.chunk_size < 1:
-            raise ValueError(
-                f"qa_chunk_size must be >= 1, got {self.chunk_size}"
-            )
+            raise ValueError(f"qa_chunk_size must be >= 1, got {self.chunk_size}")
         if self.judge_workers < 1:
-            raise ValueError(
-                f"qa_judge_workers must be >= 1, got {self.judge_workers}"
-            )
+            raise ValueError(f"qa_judge_workers must be >= 1, got {self.judge_workers}")
 
     # -- factories -------------------------------------------------------
 

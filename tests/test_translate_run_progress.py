@@ -38,7 +38,6 @@ class TestFormatting:
 async def test_translate_run_step_has_stats_widgets() -> None:
     """TranslateRunStep mounts stats and file labels."""
     from textual.app import App
-    from textual.widgets import ProgressBar
 
     from app.interfaces.tui.steps.translate_run import TranslateRunStep
 

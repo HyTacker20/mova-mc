@@ -77,11 +77,7 @@ class TranslationApp(App):
 
         screen = self.screen
         focused = screen.focused if hasattr(screen, "focused") else None
-        focused_info = (
-            f"focused={type(focused).__name__}[{focused.id}]"
-            if focused is not None
-            else "focused=None"
-        )
+        focused_info = f"focused={type(focused).__name__}[{focused.id}]" if focused is not None else "focused=None"
 
         # Introspect both binding chains
         chain_repr: list[str] | str = "ERR"
@@ -109,8 +105,7 @@ class TranslationApp(App):
             modal_repr = f"modal_error={exc}"
 
         logger.debug(
-            "App.key_escape() — Escape UNHANDLED. "
-            "screen={}, {}, binding_chain=[{}], modal_chain=[{}]",
+            "App.key_escape() — Escape UNHANDLED. screen={}, {}, binding_chain=[{}], modal_chain=[{}]",
             type(screen).__name__,
             focused_info,
             chain_repr,

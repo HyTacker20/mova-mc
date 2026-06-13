@@ -46,6 +46,7 @@ class QaConfigResponse(BaseModel):
     judge: bool = False
     judge_provider: str | None = None
     judge_model: str | None = None
+    corrector_model: str | None = None
     threshold: int = 3
     max_attempts: int = 2
     chunk_size: int = 25

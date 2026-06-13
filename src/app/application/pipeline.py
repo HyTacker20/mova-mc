@@ -191,8 +191,7 @@ def build_context(
                         )
                     except Exception as exc:
                         logger.warning(
-                            "Inline QA: failed to build corrector with model {}, "
-                            "falling back to translator: {}",
+                            "Inline QA: failed to build corrector with model {}, falling back to translator: {}",
                             settings.qa_corrector_model,
                             exc,
                         )
@@ -240,6 +239,7 @@ def build_context(
 
 
 # ── Sync pipeline runner ───────────────────────────────────────────
+
 
 async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineResult:
     """Async version of :func:`run_pipeline`.
@@ -359,5 +359,3 @@ def _build_file_stats(lang_file: LangFile) -> FileStats:
     file_stats.entries_translated = translated
     file_stats.entries_failed = failed
     return file_stats
-
-

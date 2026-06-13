@@ -163,11 +163,14 @@ def build_argument_parser() -> ArgumentParser:
     web_parser = subparsers.add_parser("web", help="Launch browser-based web UI")
     web_parser.add_argument("--host", default=None, help="Bind host (env: MOVAMC_HOST)")
     web_parser.add_argument("--port", type=int, default=None, help="Listen port (env: MOVAMC_PORT)")
-    web_parser.add_argument("--dev", action="store_const", const=True, default=None,
-                            help="Dev mode + CORS (env: MOVAMC_DEV)")
-    web_parser.add_argument("-d", "--debug", action="store_const", const=True, default=None,
-                            help="Debug logging (env: MOVAMC_DEBUG)")
-    web_parser.add_argument("--no-browser", action="store_const", const=True, default=None,
-                            help="Skip browser (env: MOVAMC_NO_BROWSER)")
+    web_parser.add_argument(
+        "--dev", action="store_const", const=True, default=None, help="Dev mode + CORS (env: MOVAMC_DEV)"
+    )
+    web_parser.add_argument(
+        "-d", "--debug", action="store_const", const=True, default=None, help="Debug logging (env: MOVAMC_DEBUG)"
+    )
+    web_parser.add_argument(
+        "--no-browser", action="store_const", const=True, default=None, help="Skip browser (env: MOVAMC_NO_BROWSER)"
+    )
 
     return parser

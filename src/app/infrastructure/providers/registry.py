@@ -51,14 +51,31 @@ def register_provider(
     return decorator
 
 
-AI_PROVIDERS: frozenset[str] = frozenset({
-    "openai", "anthropic", "gemini", "ollama", "litellm", "openaicompatible", "opencode",
-})
+AI_PROVIDERS: frozenset[str] = frozenset(
+    {
+        "openai",
+        "anthropic",
+        "gemini",
+        "ollama",
+        "litellm",
+        "openaicompatible",
+        "opencode",
+    }
+)
 """Provider names that use LLM-based translation (as opposed to Google)."""
 
-ALL_PROVIDERS: frozenset[str] = frozenset({
-    "google", "openai", "anthropic", "gemini", "ollama", "litellm", "openaicompatible", "opencode",
-})
+ALL_PROVIDERS: frozenset[str] = frozenset(
+    {
+        "google",
+        "openai",
+        "anthropic",
+        "gemini",
+        "ollama",
+        "litellm",
+        "openaicompatible",
+        "opencode",
+    }
+)
 """Every known built-in provider name."""
 
 
@@ -68,6 +85,7 @@ def _register_builtins() -> None:
     Called once at module init to populate the registry with the
     providers shipped with mova-mc.
     """
+
     # Google ------------------------------------------------------------
     @register_provider("google", label="Google Translate")
     def _build_google(**kwargs: Any) -> TranslationProvider:
@@ -282,12 +300,14 @@ def check_provider_available(provider: str) -> tuple[bool, str]:
         openai_ok = False
         try:
             import openai  # noqa: F401
+
             openai_ok = True
         except ImportError:
             pass
         litellm_ok = False
         try:
             import litellm
+
             litellm_ok = True
         except ImportError:
             pass
@@ -301,6 +321,7 @@ def check_provider_available(provider: str) -> tuple[bool, str]:
     litellm_ok = False
     try:
         import litellm  # noqa: F401
+
         litellm_ok = True
     except ImportError:
         pass

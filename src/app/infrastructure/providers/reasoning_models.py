@@ -17,24 +17,30 @@ _KIMI_K2_RE = re.compile(r"kimi[-_]?k2", re.IGNORECASE)
 _GLM_RE = re.compile(r"glm[-_]?", re.IGNORECASE)
 _MIMO_RE = re.compile(r"mimo[-_]?v", re.IGNORECASE)
 
-DEEPSEEK_V4_MODELS: frozenset[str] = frozenset({
-    "deepseek-v4-pro",
-    "deepseek-v4-flash",
-})
+DEEPSEEK_V4_MODELS: frozenset[str] = frozenset(
+    {
+        "deepseek-v4-pro",
+        "deepseek-v4-flash",
+    }
+)
 
-KIMI_K2_MODELS: frozenset[str] = frozenset({
-    "kimi-k2.5",
-    "kimi-k2.6",
-})
+KIMI_K2_MODELS: frozenset[str] = frozenset(
+    {
+        "kimi-k2.5",
+        "kimi-k2.6",
+    }
+)
 
 # Models that may spend output budget on internal reasoning when thinking
 # cannot be disabled via the API.
-REASONING_TOKEN_BUMP_MODELS: frozenset[str] = frozenset({
-    "glm-5.1",
-    "glm-5",
-    "kimi-k2.5",
-    "kimi-k2.6",
-})
+REASONING_TOKEN_BUMP_MODELS: frozenset[str] = frozenset(
+    {
+        "glm-5.1",
+        "glm-5",
+        "kimi-k2.5",
+        "kimi-k2.6",
+    }
+)
 
 _MIN_REASONING_TOKENS = 8192
 

@@ -38,9 +38,7 @@ percent_placeholder = st.builds(
     fmt=_percent_fmt,
 )
 
-minecraft_color = st.sampled_from(
-    [f"§{c}" for c in "0123456789abcdefklmnoqr"]
-)
+minecraft_color = st.sampled_from([f"§{c}" for c in "0123456789abcdefklmnoqr"])
 
 brace_placeholder = st.text(
     alphabet=st.characters(min_codepoint=97, max_codepoint=122),
@@ -110,9 +108,7 @@ def test_validate_fails_when_placeholder_dropped(placeholders: list[str]) -> Non
     text = " ".join(placeholders)
     dropped = placeholders[:-1]  # drop last placeholder
     without = " ".join(dropped)
-    assert not validate_placeholders(text, without), (
-        f"Should fail: {text!r} -> {without!r}"
-    )
+    assert not validate_placeholders(text, without), f"Should fail: {text!r} -> {without!r}"
 
 
 # ── Tests: languages ────────────────────────────────────────────────
@@ -179,10 +175,15 @@ def test_file_stats_invariants(
     st.lists(
         st.builds(
             lambda t, tr, fa: FileStats(
-                path=f"{t}.json", file_type="json",
-                entries_total=t, entries_translated=tr, entries_failed=fa,
+                path=f"{t}.json",
+                file_type="json",
+                entries_total=t,
+                entries_translated=tr,
+                entries_failed=fa,
             ),
-            t=_uint, tr=_uint, fa=_uint,
+            t=_uint,
+            tr=_uint,
+            fa=_uint,
         ).filter(lambda fs: fs.entries_translated + fs.entries_failed <= fs.entries_total),
         min_size=0,
         max_size=5,
@@ -208,12 +209,17 @@ def test_mod_stats_aggregation(files: list[FileStats]) -> None:
     st.lists(
         st.builds(
             lambda name, skipped, t, tr, fa: ModStats(
-                name=name, skipped=skipped,
-                total_entries=t, translated_entries=tr, failed_entries=fa,
+                name=name,
+                skipped=skipped,
+                total_entries=t,
+                translated_entries=tr,
+                failed_entries=fa,
             ),
             name=st.text(min_size=1, max_size=20),
             skipped=st.booleans(),
-            t=_uint, tr=_uint, fa=_uint,
+            t=_uint,
+            tr=_uint,
+            fa=_uint,
         ).filter(lambda ms: ms.translated_entries + ms.failed_entries <= ms.total_entries),
         min_size=0,
         max_size=5,
@@ -242,10 +248,15 @@ def test_overall_stats_aggregation(mods: list[ModStats]) -> None:
 @given(
     st.builds(
         lambda t, tr, fa: FileStats(
-            path="test.json", file_type="json",
-            entries_total=t, entries_translated=tr, entries_failed=fa,
+            path="test.json",
+            file_type="json",
+            entries_total=t,
+            entries_translated=tr,
+            entries_failed=fa,
         ),
-        t=_uint, tr=_uint, fa=_uint,
+        t=_uint,
+        tr=_uint,
+        fa=_uint,
     ).filter(lambda fs: fs.entries_translated + fs.entries_failed > fs.entries_total),
 )
 def test_file_stats_can_overflow(fs: FileStats) -> None:

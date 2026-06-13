@@ -38,10 +38,18 @@ VALID_CONFIG_KEYS = frozenset(
     }
 )
 VALID_MOD_KEYS = frozenset({"include", "exclude"})
-VALID_QA_KEYS = frozenset({
-    "judge", "judge_model", "judge_provider", "corrector_model",
-    "threshold", "max_attempts", "chunk_size", "judge_workers",
-})
+VALID_QA_KEYS = frozenset(
+    {
+        "judge",
+        "judge_model",
+        "judge_provider",
+        "corrector_model",
+        "threshold",
+        "max_attempts",
+        "chunk_size",
+        "judge_workers",
+    }
+)
 VALID_RATE_LIMIT_KEYS = frozenset({"rpm", "burst"})
 
 
@@ -86,6 +94,7 @@ def settings_to_config_dict(settings: Any, *, ui_locale: str | None = None) -> d
     if rate_limit:
         data["rate_limit"] = rate_limit
     return data
+
 
 CONFIG_TEMPLATE = """# MovaMC configuration
 # This file is auto-discovered when placed next to your mods.
@@ -179,7 +188,16 @@ def load_config(config_path: Path) -> dict[str, Any]:
                 except (ValueError, TypeError):
                     logger.warning(f"Config key 'workers' must be an integer, got: {type(value).__name__}")
                     continue
-            elif key in ("chunk_size", "progress_batch_size", "chunk_token_budget", "chunk_max_text_length") and value is not None:
+            elif (
+                key
+                in (
+                    "chunk_size",
+                    "progress_batch_size",
+                    "chunk_token_budget",
+                    "chunk_max_text_length",
+                )
+                and value is not None
+            ):
                 try:
                     config[key] = int(value)
                 except (ValueError, TypeError):
@@ -349,10 +367,7 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
     # Normalise prev the same way (strip empty tables) for a fair comparison.
     prev_normalised = {k: v for k, v in prev.items() if v}
     if prev_normalised and toml_output == prev_normalised:
-        logger.info(
-            f"Saved {target.name} →\n"
-            "  (no changes — file was identical)"
-        )
+        logger.info(f"Saved {target.name} →\n  (no changes — file was identical)")
         return target
 
     with target.open("wb") as f:
@@ -382,11 +397,7 @@ def _log_config_delta(prev: dict[str, Any], curr: dict[str, Any], target: Path) 
 
     added = {k: v for k, v in new_flat.items() if k not in old_flat}
     removed = {k: v for k, v in old_flat.items() if k not in new_flat}
-    changed = {
-        k: (old_flat[k], new_flat[k])
-        for k in new_flat
-        if k in old_flat and old_flat[k] != new_flat[k]
-    }
+    changed = {k: (old_flat[k], new_flat[k]) for k in new_flat if k in old_flat and old_flat[k] != new_flat[k]}
 
     lines: list[str] = [f"Saved {target.name} →"]
     if added:

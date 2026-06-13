@@ -34,14 +34,19 @@ class VerdictCache(Protocol):
     def get_verdict(self, key: str) -> tuple[str, int | None, str | None, int] | None: ...
 
     def set_verdict(
-        self, key: str, verdict: str, score: int | None = None,
-        issue: str | None = None, attempts: int = 0,
+        self,
+        key: str,
+        verdict: str,
+        score: int | None = None,
+        issue: str | None = None,
+        attempts: int = 0,
     ) -> None: ...
 
     def get_verdicts(self, keys: list[str]) -> dict[str, tuple[str, int | None, str | None, int]]: ...
 
     def set_verdicts(
-        self, entries: dict[str, tuple[str, int | None, str | None, int]],
+        self,
+        entries: dict[str, tuple[str, int | None, str | None, int]],
     ) -> None: ...
 
 
@@ -172,8 +177,7 @@ def parse_judge_response(response: str) -> dict[str, dict[str, Any]] | None:
             continue
 
     logger.debug(
-        "parse_judge_response: all strategies failed. "
-        "Text (first 200): {!r}",
+        "parse_judge_response: all strategies failed. Text (first 200): {!r}",
         text[:200],
     )
     return None
@@ -244,9 +248,7 @@ class LlmJudge:
                 cached_rows = self._cache.get_verdicts(list(key_to_vkey.values()))
             else:
                 cached_rows = {
-                    vk: row
-                    for vk in key_to_vkey.values()
-                    if (row := self._cache.get_verdict(vk)) is not None
+                    vk: row for vk in key_to_vkey.values() if (row := self._cache.get_verdict(vk)) is not None
                 }
             vkey_to_item = {v: k for k, v in key_to_vkey.items()}
             for vkey, row in cached_rows.items():
@@ -279,10 +281,7 @@ class LlmJudge:
                 results.update(chunk_results)
         else:
             with ThreadPoolExecutor(max_workers=workers) as executor:
-                future_map = {
-                    executor.submit(self._judge_chunk, chunk, system_prompt): chunk
-                    for chunk in chunks
-                }
+                future_map = {executor.submit(self._judge_chunk, chunk, system_prompt): chunk for chunk in chunks}
                 for future in as_completed(future_map):
                     cancel_token.raise_if_set()
                     chunk_results = future.result()
@@ -345,10 +344,7 @@ class LlmJudge:
                     self._progress.report(
                         "qa_inline_note",
                         key="",
-                        message=(
-                            f"judge: could not parse response ({len(chunk)} items) "
-                            "— batch passed without review"
-                        ),
+                        message=(f"judge: could not parse response ({len(chunk)} items) — batch passed without review"),
                     )
                 fallback: dict[str, Verdict] = {key: Verdict("ok") for key, _, _ in chunk}
                 self._store_verdicts(chunk, fallback)

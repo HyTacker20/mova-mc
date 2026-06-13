@@ -101,20 +101,14 @@ class TranslationsViewer(ModalScreen):
 
                     mod_lines.append(f"  [bold]{key}[/]")
                     if unit.success:
-                        mod_lines.append(
-                            f"    [white]{src}[/]  [green]→[/]  [bold white]{tgt}[/]"
-                        )
+                        mod_lines.append(f"    [white]{src}[/]  [green]→[/]  [bold white]{tgt}[/]")
                     else:
-                        mod_lines.append(
-                            f"    [white]{src}[/]  [green]→[/]  [red]{tgt}[/]"
-                        )
+                        mod_lines.append(f"    [white]{src}[/]  [green]→[/]  [red]{tgt}[/]")
                     mod_lines.extend(format_qa_rich_lines(unit))
                     mod_entries += 1
 
             if mod_entries > 0:
-                log.write(
-                    f"\n[bold yellow]{t('translations.mod_header', locale, name=mod.name, count=mod_entries)}[/]"
-                )
+                log.write(f"\n[bold yellow]{t('translations.mod_header', locale, name=mod.name, count=mod_entries)}[/]")
                 for line in mod_lines:
                     log.write(line)
                 total_entries += mod_entries

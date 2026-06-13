@@ -53,11 +53,11 @@ class CachingProvider:
         cached = self._cache.get(key)
         if cached is not None:
             preview = text[:60] + "..." if len(text) > 60 else text
-            logger.debug(f"[cache] HIT for \"{preview}\"")
+            logger.debug(f'[cache] HIT for "{preview}"')
             return cached
 
         preview = text[:60] + "..." if len(text) > 60 else text
-        logger.debug(f"[cache] MISS for \"{preview}\"")
+        logger.debug(f'[cache] MISS for "{preview}"')
         result = self._inner.translate(text)
         if result:
             self._cache.set(key, result)
@@ -118,7 +118,7 @@ class CachingProvider:
         key = self._cache_key(source_text)
         self._cache.set(key, corrected_text)
         preview = source_text[:60] + "..." if len(source_text) > 60 else source_text
-        logger.debug(f"[cache] RECACHE for \"{preview}\": \"{corrected_text[:60]}...\"")
+        logger.debug(f'[cache] RECACHE for "{preview}": "{corrected_text[:60]}..."')
 
     # ── Async methods ───────────────────────────────────────────────
 

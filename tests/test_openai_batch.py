@@ -33,10 +33,7 @@ def _make_provider(**kwargs: object) -> OpenAILikeProvider:
 @pytest.mark.asyncio
 async def test_translate_batch_async_uses_chunks() -> None:
     provider = _make_provider(chunk_mode="chunk", chunk_size=2)
-    units = [
-        TranslationUnit(key=f"k{i}", source_text=f"text{i}", file_type="json")
-        for i in range(4)
-    ]
+    units = [TranslationUnit(key=f"k{i}", source_text=f"text{i}", file_type="json") for i in range(4)]
     results = await provider.translate_batch_async(units)
     assert len(results) == 4
     assert all(r.success for r in results)
@@ -73,14 +70,9 @@ async def test_auto_mode_token_budget_chunks() -> None:
     provider = _make_provider(chunk_mode="auto", chunk_token_budget=80, chunk_size=25)
     long_text = "word " * 30
     provider._transport.acomplete = AsyncMock(
-        side_effect=lambda messages, **kw: json.dumps(
-            {k: f"tr_{k}" for k in json.loads(messages[1]["content"])}
-        )
+        side_effect=lambda messages, **kw: json.dumps({k: f"tr_{k}" for k in json.loads(messages[1]["content"])})
     )
-    units = [
-        TranslationUnit(key=f"k{i}", source_text=long_text, file_type="json")
-        for i in range(6)
-    ]
+    units = [TranslationUnit(key=f"k{i}", source_text=long_text, file_type="json") for i in range(6)]
     results = await provider.translate_batch_async(units)
     assert len(results) == 6
     assert provider._transport.acomplete.await_count >= 2

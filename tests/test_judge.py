@@ -120,12 +120,22 @@ class _RaisingTransport:
 class TestLlmJudge:
     def test_judge_batch_maps_verdicts(self) -> None:
         """Correct Verdict mapping from canned JSON response."""
-        transport = _FakeTransport([
-            json.dumps({
-                "key1": {"v": "ok"},
-                "key2": {"v": "flag", "score": 2, "issue": "grammar", "why": "рід не узгоджено", "fix": "Крем'яна"},
-            })
-        ])
+        transport = _FakeTransport(
+            [
+                json.dumps(
+                    {
+                        "key1": {"v": "ok"},
+                        "key2": {
+                            "v": "flag",
+                            "score": 2,
+                            "issue": "grammar",
+                            "why": "рід не узгоджено",
+                            "fix": "Крем'яна",
+                        },
+                    }
+                )
+            ]
+        )
         judge = LlmJudge(transport=transport, source_display="English", target_display="Ukrainian")
         items = [("key1", "Stone pickaxe", "Кам'яний кирка"), ("key2", "Stone axe", "Крем'яний сокира")]
         results = judge.judge_batch(items)
@@ -135,10 +145,12 @@ class TestLlmJudge:
 
     def test_judge_batch_chunking(self) -> None:
         """Multiple chunks when item count exceeds chunk_size."""
-        transport = _FakeTransport([
-            json.dumps({"k1": {"v": "ok"}, "k2": {"v": "ok"}}),
-            json.dumps({"k3": {"v": "ok"}}),
-        ])
+        transport = _FakeTransport(
+            [
+                json.dumps({"k1": {"v": "ok"}, "k2": {"v": "ok"}}),
+                json.dumps({"k3": {"v": "ok"}}),
+            ]
+        )
         judge = LlmJudge(transport=transport, source_display="English", target_display="Ukrainian", chunk_size=2)
         items = [("k1", "a", "b"), ("k2", "c", "d"), ("k3", "e", "f")]
         results = judge.judge_batch(items)
@@ -217,10 +229,12 @@ class TestLlmJudge:
         cache.close()
 
     def test_parallel_judge_workers(self) -> None:
-        transport = _FakeTransport([
-            json.dumps({"k1": {"v": "ok"}, "k2": {"v": "ok"}}),
-            json.dumps({"k3": {"v": "ok"}}),
-        ])
+        transport = _FakeTransport(
+            [
+                json.dumps({"k1": {"v": "ok"}, "k2": {"v": "ok"}}),
+                json.dumps({"k3": {"v": "ok"}}),
+            ]
+        )
         judge = LlmJudge(
             transport=transport,
             source_display="English",
@@ -237,10 +251,12 @@ class TestLlmJudge:
         from app.infrastructure.cache.sqlite_cache import SqliteCache
 
         cache = SqliteCache(str(tmp_path / "parallel_judge.db"))
-        transport = _FakeTransport([
-            json.dumps({"k1": {"v": "ok"}, "k2": {"v": "ok"}}),
-            json.dumps({"k3": {"v": "flag", "score": 2, "issue": "grammar"}}),
-        ])
+        transport = _FakeTransport(
+            [
+                json.dumps({"k1": {"v": "ok"}, "k2": {"v": "ok"}}),
+                json.dumps({"k3": {"v": "flag", "score": 2, "issue": "grammar"}}),
+            ]
+        )
         judge = LlmJudge(
             transport=transport,
             source_display="English",
@@ -264,12 +280,16 @@ class TestLlmJudge:
 
 def test_flag_selection_at_threshold() -> None:
     """Flag if score <= threshold, ok if score > threshold."""
-    transport = _FakeTransport([
-        json.dumps({
-            "a": {"v": "flag", "score": 2},
-            "b": {"v": "flag", "score": 4},
-        })
-    ])
+    transport = _FakeTransport(
+        [
+            json.dumps(
+                {
+                    "a": {"v": "flag", "score": 2},
+                    "b": {"v": "flag", "score": 4},
+                }
+            )
+        ]
+    )
     judge = LlmJudge(transport=transport, source_display="English", target_display="Ukrainian")
     items = [("a", "src", "tgt"), ("b", "src2", "tgt2")]
     results = judge.judge_batch(items)

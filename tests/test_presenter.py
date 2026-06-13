@@ -82,9 +82,11 @@ class TestFormatCliSummary:
         assert any("5" in line for line in lines)
 
     def test_shows_skipped_mods(self) -> None:
-        stats = _make_stats([
-            {"name": "skipped_mod.jar", "entries": 0, "files": 0, "ms": 0, "skipped": True},
-        ])
+        stats = _make_stats(
+            [
+                {"name": "skipped_mod.jar", "entries": 0, "files": 0, "ms": 0, "skipped": True},
+            ]
+        )
         lines = format_cli_summary_lines(stats)
         assert any("SKIPPED" in line for line in lines)
 
@@ -102,10 +104,12 @@ class TestFormatCliSummary:
         assert any("Failed: 0" in line for line in lines)
 
     def test_multiple_mods_total_row(self) -> None:
-        stats = _make_stats([
-            {"name": "a.jar", "entries": 3, "files": 1, "ms": 100},
-            {"name": "b.jar", "entries": 7, "files": 2, "ms": 200},
-        ])
+        stats = _make_stats(
+            [
+                {"name": "a.jar", "entries": 3, "files": 1, "ms": 100},
+                {"name": "b.jar", "entries": 7, "files": 2, "ms": 200},
+            ]
+        )
         lines = format_cli_summary_lines(stats)
         totals = [line for line in lines if "TOTAL" in line]
         assert len(totals) == 1
@@ -147,10 +151,12 @@ class TestExportStatsJson:
         assert out.exists()
 
     def test_export_contains_all_mods(self, tmp_path: Path) -> None:
-        stats = _make_stats([
-            {"name": "a.jar", "entries": 5, "files": 1, "ms": 100},
-            {"name": "b.jar", "entries": 3, "files": 2, "ms": 200},
-        ])
+        stats = _make_stats(
+            [
+                {"name": "a.jar", "entries": 5, "files": 1, "ms": 100},
+                {"name": "b.jar", "entries": 3, "files": 2, "ms": 200},
+            ]
+        )
         out = tmp_path / "stats.json"
         export_stats_json(stats, str(out))
         data = json.loads(out.read_text(encoding="utf-8"))

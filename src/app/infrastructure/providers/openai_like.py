@@ -156,7 +156,7 @@ class OpenAILikeProvider:
 
         transport_name = self._transport.__class__.__name__
         src_log = text.replace("\n", "\\n")
-        logger.debug(f"[{transport_name}] request: \"{src_log}\"")
+        logger.debug(f'[{transport_name}] request: "{src_log}"')
 
         @self._retry
         def _do_translate(t: str, hint: str | None = hint_text) -> str:
@@ -193,9 +193,7 @@ class OpenAILikeProvider:
             else:
                 raise
 
-            logger.warning(
-                "Full-text translation failed, splitting by paragraphs for: {}...", text[:60]
-            )
+            logger.warning("Full-text translation failed, splitting by paragraphs for: {}...", text[:60])
             paragraphs = [p.strip() for p in text.split(sep) if p.strip()]
             translated_parts: list[str] = []
             for para in paragraphs:
@@ -206,7 +204,7 @@ class OpenAILikeProvider:
             result = sep.join(translated_parts)
 
         tgt_log = result.replace("\n", "\\n")
-        logger.debug(f"[{transport_name}] response: \"{tgt_log}\"")
+        logger.debug(f'[{transport_name}] response: "{tgt_log}"')
         return result  # type: ignore[no-any-return]
 
     def translate(self, text: str) -> str:
@@ -361,9 +359,7 @@ class OpenAILikeProvider:
                 for key, text in chunk:
                     unit = unit_map[key]
                     if key in chunk_result:
-                        results[key] = TranslationResult(
-                            unit=unit, translated_text=chunk_result[key], success=True
-                        )
+                        results[key] = TranslationResult(unit=unit, translated_text=chunk_result[key], success=True)
                     else:
                         results[key] = TranslationResult(
                             unit=unit,
@@ -373,8 +369,7 @@ class OpenAILikeProvider:
                         )
 
         return [
-            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False))
-            for u in units
+            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False)) for u in units
         ]
 
     # ── Async translate ───────────────────────────────────────────────
@@ -553,6 +548,5 @@ class OpenAILikeProvider:
                 )
 
         return [
-            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False))
-            for u in units
+            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False)) for u in units
         ]

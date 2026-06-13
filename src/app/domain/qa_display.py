@@ -85,9 +85,7 @@ def format_qa_rich_lines(result: TranslationResult) -> list[str]:
         lines.append(f"    [yellow]⚡ {message}[/]")
 
     if result.qa_score is not None:
-        score_color = (
-            "green" if result.qa_score >= 4 else "yellow" if result.qa_score >= 2 else "red"
-        )
+        score_color = "green" if result.qa_score >= 4 else "yellow" if result.qa_score >= 2 else "red"
         qa_info = f"[{score_color}]★ {result.qa_score}/5[/]"
         if result.qa_issue:
             qa_info += f" [dim]({result.qa_issue})[/]"

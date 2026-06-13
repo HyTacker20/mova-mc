@@ -144,7 +144,7 @@ async def _fetch_gemini(api_key: str) -> list[str]:
             name: str = m.get("name", "")
             # names look like "models/gemini-2.0-flash" → "gemini/gemini-2.0-flash"
             if name.startswith("models/"):
-                short = name[len("models/"):]
+                short = name[len("models/") :]
                 # Only include generateContent-supported models
                 supported_actions = m.get("supportedGenerationMethods", [])
                 if "generateContent" in supported_actions:

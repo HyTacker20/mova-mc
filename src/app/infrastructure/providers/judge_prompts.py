@@ -64,7 +64,7 @@ JUDGE_LANG_SPECIFIC: dict[str, str] = {
         "Source is Russian, target is Ukrainian.  Apply these EXTRA rules:\n"
         "\n"
         "RUSSIAN-ONLY LETTERS (automatic flag):\n"
-        "- ANY of ы, ё, ъ, э in <tgt> → FLAG immediately (issue=\"russism\").\n"
+        '- ANY of ы, ё, ъ, э in <tgt> → FLAG immediately (issue="russism").\n'
         "  These letters do not exist in the Ukrainian alphabet.\n"
         "\n"
         "WHEN WRITING A FIX:\n"

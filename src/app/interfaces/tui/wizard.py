@@ -28,11 +28,10 @@ from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Container, Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import ProgressBar
 from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import Button, Footer, Label
+from textual.widgets import Button, Footer, Label, ProgressBar
 
 from ...core.config_loader import find_config_file, load_config
 from ...core.mod_scanner import ModInfo, ModScanner
@@ -108,6 +107,7 @@ def _extract_widget_text(widget: Widget) -> str:
     # ── SelectionList → selected items ─────────────────────────
     try:
         from textual.widgets import SelectionList
+
         if isinstance(widget, SelectionList):
             items: list[str] = []
             for i in sorted(widget.selected):
@@ -121,6 +121,7 @@ def _extract_widget_text(widget: Widget) -> str:
     # ── RadioSet / RadioButton ────────────────────────────────
     try:
         from textual.widgets import RadioButton, RadioSet
+
         if isinstance(widget, RadioButton):
             return str(widget.label if hasattr(widget, "label") else "")
         if isinstance(widget, RadioSet):
@@ -133,6 +134,7 @@ def _extract_widget_text(widget: Widget) -> str:
     # ── DataTable → cell under cursor (best-effort) ────────────
     try:
         from textual.widgets import DataTable
+
         if isinstance(widget, DataTable):
             if widget.cursor_cell != (0, 0):
                 row, col = widget.cursor_cell
@@ -150,11 +152,13 @@ def _strip_markup(text: str) -> str:
     """Remove Textual/Rich markup tags and return plain text."""
     try:
         from rich.text import Text
+
         return Text.from_markup(text).plain
     except ImportError:
         pass
     # Fallback: basic tag stripping
     import re
+
     return re.sub(r"\[/?[^\]]*\]", "", text)
 
 
@@ -624,9 +628,11 @@ class WizardScreen(Screen):
     def go_back(self) -> None:
         """Go to previous step (or back to mods from summary)."""
         from loguru import logger
+
         logger.debug(
             "WizardScreen.go_back() called, current_index={}, STEPS_len={}",
-            self.current_index, len(self.STEPS),
+            self.current_index,
+            len(self.STEPS),
         )
         if self._pipeline_running and self.current_index == 5:
             locale = get_locale_from_app(self.app)
@@ -781,9 +787,7 @@ class WizardScreen(Screen):
             errors = kw.get("errors", 0)
             duration_ms = kw.get("duration_ms", 0)
             err_part = f", {errors} failed" if errors else ""
-            step.add_log(
-                f"[dim]  {name}: done in {duration_ms / 1000:.1f}s{err_part}[/]"
-            )
+            step.add_log(f"[dim]  {name}: done in {duration_ms / 1000:.1f}s{err_part}[/]")
         elif event == "mod_complete":
             mod_name = kw.get("mod_name", "")
             translated = kw.get("translated", 0)
@@ -791,9 +795,7 @@ class WizardScreen(Screen):
             failed = kw.get("failed", 0)
             if total > 0:
                 fail_part = f", {failed} failed" if failed else ""
-                step.add_log(
-                    f"[bold green]✓ {mod_name} done ({translated}/{total}{fail_part})[/]"
-                )
+                step.add_log(f"[bold green]✓ {mod_name} done ({translated}/{total}{fail_part})[/]")
             else:
                 step.add_log(f"[bold green]✓ {mod_name} done[/]")
         elif event == "translated_entry":
@@ -809,10 +811,7 @@ class WizardScreen(Screen):
             from ...domain.qa_display import format_provider_model
 
             label = format_provider_model(kw.get("provider", ""), kw.get("model", ""))
-            step.add_qa_log(
-                f"[bold cyan]───── ◆ Reviewing {kw['total']} entries via "
-                f"{label} ─────[/]"
-            )
+            step.add_qa_log(f"[bold cyan]───── ◆ Reviewing {kw['total']} entries via {label} ─────[/]")
         elif event == "qa_verdict":
             icon = "⚠" if kw.get("is_flagged") else "✓"
             score = kw.get("score", 0)
@@ -839,10 +838,7 @@ class WizardScreen(Screen):
         elif event == "qa_done":
             flagged = kw.get("flagged", 0)
             corrected = kw.get("corrected", 0)
-            step.add_qa_log(
-                f"[bold green]───── ✓ QA complete: {flagged} flagged, "
-                f"{corrected} corrected ─────[/]"
-            )
+            step.add_qa_log(f"[bold green]───── ✓ QA complete: {flagged} flagged, {corrected} corrected ─────[/]")
         elif event == "qa_inline_status":
             message = kw.get("message")
             if message:
@@ -853,40 +849,30 @@ class WizardScreen(Screen):
                 provider = kw.get("provider", "")
                 model = kw.get("model", "")
                 label = format_provider_model(provider, model)
-                step.add_qa_log(
-                    f"[bold cyan]───── Inline QA active ({label}) ─────[/]"
-                )
+                step.add_qa_log(f"[bold cyan]───── Inline QA active ({label}) ─────[/]")
         elif event == "qa_inline_judging":
             count = kw.get("count", 0)
             chunk_size = kw.get("chunk_size", 0)
-            step.add_qa_log(
-                f"[dim cyan]→ judging {count} item(s) (chunk={chunk_size})[/]"
-            )
+            step.add_qa_log(f"[dim cyan]→ judging {count} item(s) (chunk={chunk_size})[/]")
         elif event == "qa_inline_fix":
             key = kw.get("key", "?")
             orig = kw.get("original", "")
             fixed = kw.get("fixed", "")
             orig_disp = orig.replace("\n", "\\n")
             fixed_disp = fixed.replace("\n", "\\n")
-            step.add_qa_log(
-                f"  [green]✓[/] [bold]{key}[/]: [white]{orig_disp}[/] "
-                f"→ [bold green]{fixed_disp}[/]"
-            )
+            step.add_qa_log(f"  [green]✓[/] [bold]{key}[/]: [white]{orig_disp}[/] → [bold green]{fixed_disp}[/]")
         elif event == "qa_inline_summary":
             flagged = kw.get("flagged", 0)
             total = kw.get("total", 0)
             corrected = kw.get("corrected", 0)
             elapsed = kw.get("elapsed", 0.0)
             step.add_qa_log(
-                f"[bold yellow]← {flagged}/{total} flagged, "
-                f"{corrected}/{flagged} corrected[/] [dim]({elapsed:.1f}s)[/]"
+                f"[bold yellow]← {flagged}/{total} flagged, {corrected}/{flagged} corrected[/] [dim]({elapsed:.1f}s)[/]"
             )
         elif event == "qa_inline_error":
             message = kw.get("message", "")
             elapsed = kw.get("elapsed", 0.0)
-            step.add_qa_log(
-                f"[bold red]✗ judge failed[/] [dim]({elapsed:.1f}s): {message}[/]"
-            )
+            step.add_qa_log(f"[bold red]✗ judge failed[/] [dim]({elapsed:.1f}s): {message}[/]")
 
     # ── Message handlers ──────────────────────────────────────────
 
@@ -1009,9 +995,7 @@ class WizardScreen(Screen):
         if sys.platform == "win32":
             try:
                 # Use PowerShell Set-Clipboard (Unicode-safe)
-                with tempfile.NamedTemporaryFile(
-                    mode="w", encoding="utf-8", suffix=".txt", delete=False
-                ) as f:
+                with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".txt", delete=False) as f:
                     f.write(text)
                     tmp = f.name
                 subprocess.run(
@@ -1034,6 +1018,7 @@ class WizardScreen(Screen):
         if not ok:
             try:
                 import pyperclip  # type: ignore[import-untyped]
+
                 pyperclip.copy(text)
                 ok = True
             except (ImportError, Exception):
@@ -1041,6 +1026,7 @@ class WizardScreen(Screen):
         if not ok:
             try:
                 import base64
+
                 encoded = base64.b64encode(text.encode("utf-8")).decode("utf-8")
                 print(f"\x1b]52;c;{encoded}\a", end="", flush=True)
                 ok = True

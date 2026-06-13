@@ -25,9 +25,7 @@ def main() -> None:
     try:
         # Default to web UI when no subcommand is given
         if len(sys.argv) == 1 or (
-            len(sys.argv) > 1
-            and sys.argv[1] not in _KNOWN_COMMANDS
-            and sys.argv[1] not in _HELP_FLAGS
+            len(sys.argv) > 1 and sys.argv[1] not in _KNOWN_COMMANDS and sys.argv[1] not in _HELP_FLAGS
         ):
             sys.argv.insert(1, "web")
 

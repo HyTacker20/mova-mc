@@ -55,9 +55,12 @@ def _echo_provider() -> OpenAILikeProvider:
     transport = MagicMock()
     transport.complete.side_effect = lambda messages, **_kw: messages[-1]["content"]
     return OpenAILikeProvider(
-        source_lang="en", target_lang="es",
-        transport=transport, service_name="e2e",
-        capitalize=False, max_retries=0,
+        source_lang="en",
+        target_lang="es",
+        transport=transport,
+        service_name="e2e",
+        capitalize=False,
+        max_retries=0,
     )
 
 

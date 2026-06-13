@@ -3,10 +3,12 @@ from unittest.mock import patch
 from app.domain.models import TranslationUnit
 from app.infrastructure.providers.google import GoogleProvider
 
+
 def _mock_translate_fn(text: str) -> str:
     if text == "fail":
         raise RuntimeError("translation failed")
     return f"tr_{text}"
+
 
 class TestGoogleProvider:
     def test_translate_empty_string(self):
@@ -29,6 +31,7 @@ class TestGoogleProvider:
         assert result.translated_text == "hello"
         assert result.success is False
         assert result.error == "translation failed"
+
 
 def _patch_translate(provider, fn):
     return patch.object(provider, "translate", side_effect=fn)

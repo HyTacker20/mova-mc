@@ -54,9 +54,7 @@ class _MockInner:
             if callable(on_entry):
                 on_entry(unit.key, unit.source_text, translated)
             self.call_log.append(f"translated-{unit.key}")
-            results.append(
-                TranslationResult(unit=unit, translated_text=translated, success=True)
-            )
+            results.append(TranslationResult(unit=unit, translated_text=translated, success=True))
         return results
 
 
@@ -147,10 +145,7 @@ class TestInlineQaWrapper:
         assert len(batch) == 2
 
     def test_judges_during_translation_when_chunk_fills(self) -> None:
-        units = [
-            TranslationUnit(key=f"k{i}", source_text=f"text{i}", file_type="lang")
-            for i in range(6)
-        ]
+        units = [TranslationUnit(key=f"k{i}", source_text=f"text{i}", file_type="lang") for i in range(6)]
         inner = _MockInner(units, delay=0.05)
         call_log: list[str] = []
         judge = _make_judge(call_log=call_log)
@@ -160,9 +155,7 @@ class TestInlineQaWrapper:
 
         assert call_log.count("judge") >= 1
         first_judge_idx = call_log.index("judge")
-        last_translate_idx = max(
-            i for i, entry in enumerate(inner.call_log) if entry.startswith("translated-")
-        )
+        last_translate_idx = max(i for i, entry in enumerate(inner.call_log) if entry.startswith("translated-"))
         assert first_judge_idx < last_translate_idx
 
     def test_skips_rejudge_for_structurally_safe_fix(self) -> None:
@@ -312,7 +305,7 @@ class TestInlineQaWrapper:
         # Return same text every time — should stop after first attempt
         corrector.retranslate_with_feedback.side_effect = [
             "bad-Hello",  # attempt 1: unchanged
-            "better-Hello",   # attempt 2: should never be called
+            "better-Hello",  # attempt 2: should never be called
         ]
         progress = _RecordingProgress()
         wrapper = InlineQaWrapper(

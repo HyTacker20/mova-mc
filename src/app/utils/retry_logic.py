@@ -246,9 +246,7 @@ class TranslationRateLimiter:
             if burst is not None:
                 self._default_burst = burst
             if services:
-                self._service_overrides = {
-                    str(k).lower(): v for k, v in services.items()
-                }
+                self._service_overrides = {str(k).lower(): v for k, v in services.items()}
             self._buckets.clear()
 
     def _resolve_limits(self, service: str) -> tuple[float, float]:

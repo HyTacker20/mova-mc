@@ -43,7 +43,7 @@ class GoogleProvider:
             return text
 
         src_preview = text[:80] + "..." if len(text) > 80 else text
-        logger.debug(f"[Google Translate] request: \"{src_preview}\"")
+        logger.debug(f'[Google Translate] request: "{src_preview}"')
 
         @self._retry
         def _do_translate(t: str) -> str:
@@ -55,7 +55,7 @@ class GoogleProvider:
 
         result = _do_translate(text)  # type: ignore[no-any-return]
         tgt_preview = result[:80] + "..." if result and len(result) > 80 else result
-        logger.debug(f"[Google Translate] response: \"{tgt_preview}\"")
+        logger.debug(f'[Google Translate] response: "{tgt_preview}"')
         return result  # type: ignore[no-any-return]
 
     def translate(self, text: str) -> str:

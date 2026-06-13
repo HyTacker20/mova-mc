@@ -312,11 +312,7 @@ class Settings:
         if hasattr(cli_args, "mods_list") and cli_args.mods_list:
             try:
                 with Path(cli_args.mods_list).open(encoding="utf-8") as f:
-                    self.selected_mods = [
-                        line.strip()
-                        for line in f
-                        if line.strip() and not line.startswith("#")
-                    ]
+                    self.selected_mods = [line.strip() for line in f if line.strip() and not line.startswith("#")]
             except OSError:
                 pass
 

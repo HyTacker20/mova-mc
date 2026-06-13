@@ -177,10 +177,7 @@ def format_qa_event(event: str, **kw: Any) -> str | None:
         elapsed = kw.get("elapsed", 0.0)
         if flagged == 0 and corrected == 0:
             return None
-        return (
-            f"← batch · {flagged}/{total} flagged, {corrected} corrected "
-            f"({elapsed:.1f}s)"
-        )
+        return f"← batch · {flagged}/{total} flagged, {corrected} corrected ({elapsed:.1f}s)"
 
     if event == "qa_inline_error":
         message = kw.get("message", "")
