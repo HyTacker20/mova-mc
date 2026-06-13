@@ -67,12 +67,7 @@ def main() -> None:
 
 
 def _resolve_provider(args) -> str:
-    provider = getattr(args, "provider", "google")
-    if getattr(args, "ai", False):
-        logger.warning("--ai flag is deprecated, use --provider openai instead")
-        provider = "openai"
-        args.ai = False
-    return provider
+    return getattr(args, "provider", "google")
 
 
 def _run_translation(args) -> None:

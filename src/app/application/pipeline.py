@@ -311,7 +311,7 @@ def _collect_inline_qa_stats(provider: object, stats: OverallStats) -> None:
     while True:
         if hasattr(current, "consume_run_stats"):
             qa_stats = current.consume_run_stats()  # type: ignore[union-attr]
-            if qa_stats.get("qa_judged", 0) > 0:
+            if isinstance(qa_stats, dict) and qa_stats.get("qa_judged", 0) > 0:
                 stats.qa_enabled = True
                 stats.qa_judged = qa_stats.get("qa_judged", 0)
                 stats.qa_flagged = qa_stats.get("qa_flagged", 0)
