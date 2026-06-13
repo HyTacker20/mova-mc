@@ -120,7 +120,7 @@ workers = 4
 # hint_lang = ""
 
 # Output mode: "replace" (overwrite originals) or "separate" (keep both)
-# output_mode = "replace"
+# output_mode = "separate"
 
 [mods]
 # Glob patterns for mods to include (default: all mods)
