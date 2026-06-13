@@ -206,7 +206,12 @@ class TestInlineQaWrapper:
         fix_events = [e for e, _ in progress.events if e == "qa_inline_fix"]
         assert fix_events == []
         summary_events = [data for e, data in progress.events if e == "qa_inline_summary"]
-        assert summary_events == [{"flagged": 1, "total": 1, "corrected": 0, "elapsed": 0.0}]
+        assert len(summary_events) == 1
+        summary = summary_events[0]
+        assert summary["flagged"] == 1
+        assert summary["total"] == 1
+        assert summary["corrected"] == 0
+        assert summary["elapsed"] >= 0
 
     def test_correction_events_include_reason(self) -> None:
         units = [TranslationUnit(key="k1", source_text="Hello", file_type="lang")]

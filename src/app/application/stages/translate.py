@@ -255,98 +255,98 @@ def _dump_translations(ctx: PipelineContext, mods: list[Mod]) -> None:
 
     Only called when debug mode is enabled. Saves to translation_path.
     """
-    out_dir = Path(ctx.settings.translation_path)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = out_dir / f"translation_report_{ctx.settings.target_mc_lang}_{ts}.txt"
+    try:
+        out_dir = Path(ctx.settings.translation_path)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_path = out_dir / f"translation_report_{ctx.settings.target_mc_lang}_{ts}.txt"
 
-    lines: list[str] = []
-    _add = lines.append
+        lines: list[str] = []
+        _add = lines.append
 
-    _add("=" * 60)
-    _add("  TRANSLATION QUALITY REPORT")
-    _add("=" * 60)
-    _add(f"  Source:      {ctx.settings.source_mc_lang}")
-    _add(f"  Target:      {ctx.settings.target_mc_lang}")
-    _add(f"  Provider:    {ctx.settings.provider}")
-    _add(f"  Date:        {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    _add(f"  Dry run:     {ctx.settings.dry_run}")
-    _add(f"  Workers:     {ctx.settings.max_workers}")
-    _add("=" * 60)
-    _add("")
-
-    total_entries = 0
-    total_failed = 0
-    total_cached = 0
-
-    for mod in mods:
-        if not mod.selected:
-            continue
-
-        mod_entries = 0
-        mod_failed = 0
-        _add(f"───── Mod: {mod.name} ─────")
+        _add("=" * 60)
+        _add("  TRANSLATION QUALITY REPORT")
+        _add("=" * 60)
+        _add(f"  Source:      {ctx.settings.source_mc_lang}")
+        _add(f"  Target:      {ctx.settings.target_mc_lang}")
+        _add(f"  Provider:    {ctx.settings.provider}")
+        _add(f"  Date:        {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        _add(f"  Dry run:     {ctx.settings.dry_run}")
+        _add(f"  Workers:     {ctx.settings.max_workers}")
+        _add("=" * 60)
         _add("")
 
-        for lang_file in mod.lang_files:
-            results = [u for u in lang_file.units if isinstance(u, TranslationResult)]
-            if not results:
+        total_entries = 0
+        total_failed = 0
+        total_cached = 0
+
+        for mod in mods:
+            if not mod.selected:
                 continue
 
-            _add(f"  File: {lang_file.source_path.name}")
-            _add(f"       → {lang_file.target_path.name}")
-            _add(f"       ({len(results)} entries)")
+            mod_entries = 0
+            mod_failed = 0
+            _add(f"───── Mod: {mod.name} ─────")
             _add("")
 
-            for r in results:
-                source = r.unit.source_text
-                translated = r.translated_text
-                key = r.unit.key
-                cache_tag = " [cached]" if r.cached else ""
+            for lang_file in mod.lang_files:
+                results = [u for u in lang_file.units if isinstance(u, TranslationResult)]
+                if not results:
+                    continue
 
-                _add(f"  [{key}]{cache_tag}")
-                _add(f"    {ctx.settings.source_mc_lang}: {source}")
-                _add(f"    {ctx.settings.target_mc_lang}: {translated}")
-                if not r.success:
-                    _add(f"    ⚠ FAILED{(' — ' + r.error) if r.error else ''}")
-                if r.qa_warnings:
-                    for w in r.qa_warnings:
-                        _add(f"    ⚑ QA: {w.get('message', w)}")
-                if r.qa_score is not None:
-                    qa_tag = f" [score={r.qa_score}]"
-                    if r.qa_issue:
-                        qa_tag += f" ({r.qa_issue})"
-                    if r.qa_attempts:
-                        qa_tag += f" attempts={r.qa_attempts}"
-                    _add(f"    ★{qa_tag}")
+                _add(f"  File: {lang_file.source_path.name}")
+                _add(f"       → {lang_file.target_path.name}")
+                _add(f"       ({len(results)} entries)")
                 _add("")
 
-                total_entries += 1
-                mod_entries += 1
-                if not r.success:
-                    total_failed += 1
-                    mod_failed += 1
-                if r.cached:
-                    total_cached += 1
+                for r in results:
+                    source = r.unit.source_text
+                    translated = r.translated_text
+                    key = r.unit.key
+                    cache_tag = " [cached]" if r.cached else ""
 
-            if lang_file.file_type != "mcfunction":
-                _add("  ── end of file ──")
+                    _add(f"  [{key}]{cache_tag}")
+                    _add(f"    {ctx.settings.source_mc_lang}: {source}")
+                    _add(f"    {ctx.settings.target_mc_lang}: {translated}")
+                    if not r.success:
+                        _add(f"    ⚠ FAILED{(' — ' + r.error) if r.error else ''}")
+                    if r.qa_warnings:
+                        for w in r.qa_warnings:
+                            _add(f"    ⚑ QA: {w.get('message', w)}")
+                    if r.qa_score is not None:
+                        qa_tag = f" [score={r.qa_score}]"
+                        if r.qa_issue:
+                            qa_tag += f" ({r.qa_issue})"
+                        if r.qa_attempts:
+                            qa_tag += f" attempts={r.qa_attempts}"
+                        _add(f"    ★{qa_tag}")
+                    _add("")
+
+                    total_entries += 1
+                    mod_entries += 1
+                    if not r.success:
+                        total_failed += 1
+                        mod_failed += 1
+                    if r.cached:
+                        total_cached += 1
+
+                if lang_file.file_type != "mcfunction":
+                    _add("  ── end of file ──")
+                    _add("")
+
+            if mod_entries > 0:
+                _add(f"  Mod summary: {mod_entries} entries, {mod_failed} failed")
                 _add("")
 
-        if mod_entries > 0:
-            _add(f"  Mod summary: {mod_entries} entries, {mod_failed} failed")
-            _add("")
+        _add("=" * 60)
+        _add("  GLOBAL SUMMARY")
+        _add("=" * 60)
+        _add(f"  Total entries:    {total_entries}")
+        _add(f"  Failed:           {total_failed}")
+        _add(f"  Cached:           {total_cached}")
+        _add(f"  Success rate:     {(total_entries - total_failed) / max(total_entries, 1) * 100:.1f}%")
+        _add("=" * 60)
 
-    _add("=" * 60)
-    _add("  GLOBAL SUMMARY")
-    _add("=" * 60)
-    _add(f"  Total entries:    {total_entries}")
-    _add(f"  Failed:           {total_failed}")
-    _add(f"  Cached:           {total_cached}")
-    _add(f"  Success rate:     {(total_entries - total_failed) / max(total_entries, 1) * 100:.1f}%")
-    _add("=" * 60)
-
-    try:
         out_path.write_text("\n".join(lines), encoding="utf-8")
         logger.info(f"Translation report saved: {out_path}")
     except OSError as e:
