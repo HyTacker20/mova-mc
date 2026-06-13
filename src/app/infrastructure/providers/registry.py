@@ -126,7 +126,7 @@ def build_transport(
 ) -> LLMTransport:
     """Build and return a configured ``LLMTransport`` for the given *provider*.
 
-    Resolves the model via :func:`_resolve_model` and selects the appropriate
+    Resolves the model via :func:`resolve_model` and selects the appropriate
     transport class (``OpenAICompatTransport`` / ``OpenAISDKTransport`` /
     ``LitellmTransport``).
 
@@ -140,7 +140,7 @@ def build_transport(
     from .transports.openai_sdk import OpenAISDKTransport
     from .transports.opencode import OpenCodeTransport
 
-    resolved_model: str = _resolve_model(provider, model)  # type: ignore[arg-type]
+    resolved_model: str = resolve_model(provider, model)  # type: ignore[arg-type]
     reasoning_task = ReasoningTask(task) if task else ReasoningTask.TRANSLATE
 
     # Auto-prepend provider prefix for Ollama (LiteLLM requires it)
@@ -172,7 +172,7 @@ def _build_openai_like(provider: str, **kwargs: Any) -> TranslationProvider:
     """Build an OpenAILikeProvider for the given *provider* name."""
     from .openai_like import OpenAILikeProvider
 
-    resolved_model = _resolve_model(provider, kwargs.get("model"))
+    resolved_model = resolve_model(provider, kwargs.get("model"))
     transport = build_transport(provider, resolved_model)
     resolved_chunk_size = kwargs.get("chunk_size")
     if resolved_chunk_size is None:
@@ -196,7 +196,7 @@ def _build_openai_like(provider: str, **kwargs: Any) -> TranslationProvider:
     )
 
 
-def _resolve_model(provider: str, explicit: str | None = None) -> str:
+def resolve_model(provider: str, explicit: str | None = None) -> str:
     if explicit:
         if provider == "opencode":
             from .transports.opencode import normalize_opencode_model

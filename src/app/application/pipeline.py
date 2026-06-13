@@ -85,7 +85,7 @@ def build_context(
     from ..infrastructure.providers.factory import get_translator_service
     from ..infrastructure.providers.glossary import load_merged_glossary
     from ..infrastructure.providers.prompts import PROMPT_VERSION
-    from ..infrastructure.providers.registry import _resolve_model
+    from ..infrastructure.providers.registry import resolve_model
 
     _configure_rate_limits(settings)
 
@@ -130,7 +130,7 @@ def build_context(
         chunk_mode=settings.chunk_mode,
     )
 
-    resolved_model = _resolve_model(settings.provider, model)
+    resolved_model = resolve_model(settings.provider, model)
 
     # ── Wrap with inline QA if enabled ─────────────────────────────
     if settings.qa_judge:
