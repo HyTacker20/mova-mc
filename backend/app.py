@@ -6,6 +6,7 @@ In production: this server also serves the pre-built SPA from ``static/``.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -20,6 +21,19 @@ from backend.routes.logs import router as logs_router
 from backend.routes.mods import router as mods_router
 
 _STATIC_DIR = Path(__file__).parent / "static"
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Startup: configure logging and attach the loguru→SSE sink.
+    Shutdown: detach the sink."""
+    from app.logging_config import is_logging_configured, setup_logging
+
+    if not is_logging_configured():
+        setup_logging(console_level="INFO")
+    attach_log_sink()
+    yield
+    detach_log_sink()
 
 
 def create_app(*, dev: bool = False) -> FastAPI:
@@ -47,12 +61,14 @@ def create_app(*, dev: bool = False) -> FastAPI:
         docs_url="/api/docs",
         redoc_url=None,
         openapi_url="/api/openapi.json",
+        lifespan=_lifespan,
     )
 
     if dev:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+            allow_credentials=False,
             allow_methods=["*"],
             allow_headers=["*"],
         )
@@ -62,18 +78,6 @@ def create_app(*, dev: bool = False) -> FastAPI:
     app.include_router(mods_router, prefix="/api")
     app.include_router(jobs_router, prefix="/api")
     app.include_router(logs_router, prefix="/api")
-
-    @app.on_event("startup")
-    async def _startup() -> None:
-        from app.logging_config import is_logging_configured, setup_logging
-
-        if not is_logging_configured():
-            setup_logging(console_level="INFO")
-        attach_log_sink()
-
-    @app.on_event("shutdown")
-    async def _shutdown() -> None:
-        detach_log_sink()
 
     # In dev mode Vite serves the frontend (with HMR); only mount static
     # files in production mode.
