@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api/client'
 import LiveResultsPanels from '../LiveResultsPanels'
 import { useWizard } from '../../context/WizardContext'
+import { friendlyError } from '../../utils/errors'
 import type { JobRequest, WizardState } from '../../types'
 
 function buildJobRequest(state: WizardState): JobRequest {
@@ -102,10 +103,10 @@ export default function TranslationRun() {
           dispatch({ type: 'JOB_ERROR', error: 'Translation cancelled' })
           return
         }
-        dispatch({ type: 'JOB_ERROR', error: job.error ?? `Job ended with status: ${job.status}` })
+        dispatch({ type: 'JOB_ERROR', error: friendlyError(job.error ?? `Job ended with status: ${job.status}`) })
       } catch (err) {
         if (!cancelled) {
-          dispatch({ type: 'JOB_ERROR', error: String((err as Error).message ?? err) })
+          dispatch({ type: 'JOB_ERROR', error: friendlyError(String((err as Error).message ?? err)) })
         }
       }
     }
@@ -136,7 +137,7 @@ export default function TranslationRun() {
         }
       } catch (err) {
         if (!cancelled) {
-          const msg = String((err as Error).message ?? err)
+          const msg = friendlyError(String((err as Error).message ?? err))
           setStartError(msg)
           dispatch({ type: 'JOB_ERROR', error: msg })
         }
@@ -158,7 +159,7 @@ export default function TranslationRun() {
     try {
       await api.cancelJob(state.jobId)
     } catch (err) {
-      setStartError(String((err as Error).message ?? err))
+      setStartError(friendlyError(String((err as Error).message ?? err)))
     } finally {
       setCancelling(false)
     }

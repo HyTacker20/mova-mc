@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useWizard } from '../../context/WizardContext'
 import { api } from '../../api/client'
+import { friendlyError } from '../../utils/errors'
 import type { ModInfo } from '../../types'
 
 function formatBytes(bytes: number): string {
@@ -24,7 +25,7 @@ export default function Mods() {
         setMods(r.mods)
         setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name)))
       })
-      .catch(e => setError(String(e.message ?? e)))
+      .catch(e => setError(friendlyError(String(e.message ?? e))))
       .finally(() => setLoading(false))
   }, [])
 
@@ -115,7 +116,7 @@ export default function Mods() {
                 setMods(r.mods)
                 setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name)))
               })
-              .catch(e => setError(String(e.message ?? e)))
+              .catch(e => setError(friendlyError(String(e.message ?? e))))
               .finally(() => setLoading(false))
           }}
         >

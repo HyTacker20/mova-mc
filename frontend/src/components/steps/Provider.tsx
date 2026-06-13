@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useWizard } from '../../context/WizardContext'
 import { api } from '../../api/client'
+import { friendlyError } from '../../utils/errors'
 import type { ConfigResponse, ProviderInfo } from '../../types'
 
 export default function Provider() {
@@ -20,7 +21,7 @@ export default function Provider() {
   useEffect(() => {
     api.getProviders()
       .then(r => setProviders(r.providers))
-      .catch(() => setLoadError('Could not load providers. Check your backend connection.'))
+      .catch(() => setLoadError(friendlyError('Failed to fetch')))
       .finally(() => setLoading(false))
   }, [])
 
