@@ -26,7 +26,7 @@ htmlcov/
 
 # IDE specific files
 .idea/
-.vscode/
+# .vscode/
 *.swp
 *.swo
 
@@ -50,3 +50,12 @@ movamc.toml
 /.omo/
 openspec/
 .hermes/
+
+# Web UI
+frontend/node_modules/
+backend/static/*
+!backend/static/.gitkeep
+.claude/
+.opencode/
+.impeccable/
+.cursor/

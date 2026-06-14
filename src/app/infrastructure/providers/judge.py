@@ -16,10 +16,13 @@ from typing import Any, Protocol
 from loguru import logger
 
 from ...application.batching import chunk_list
+from ...application.ports import ProgressSink
+from ...utils.cancellation import cancel_token
 from ...utils.retry_logic import global_rate_limiter
 from .glossary import get_relevant_terms
 from .judge_prompts import JUDGE_PROMPT_VERSION, make_judge_prompt
 from .openai_like import LLMTransport
+from .reasoning_models import strip_thinking_artifacts
 
 # Regex to strip ```json fences
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*$", re.MULTILINE)
@@ -31,14 +34,19 @@ class VerdictCache(Protocol):
     def get_verdict(self, key: str) -> tuple[str, int | None, str | None, int] | None: ...
 
     def set_verdict(
-        self, key: str, verdict: str, score: int | None = None,
-        issue: str | None = None, attempts: int = 0,
+        self,
+        key: str,
+        verdict: str,
+        score: int | None = None,
+        issue: str | None = None,
+        attempts: int = 0,
     ) -> None: ...
 
     def get_verdicts(self, keys: list[str]) -> dict[str, tuple[str, int | None, str | None, int]]: ...
 
     def set_verdicts(
-        self, entries: dict[str, tuple[str, int | None, str | None, int]],
+        self,
+        entries: dict[str, tuple[str, int | None, str | None, int]],
     ) -> None: ...
 
 
@@ -79,6 +87,51 @@ def display_score(verdict: Verdict) -> int:
     return 5 if not verdict.is_flag else 1
 
 
+_MAX_WHY_WORDS = 25
+
+
+def _normalize_verdict_text(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _default_why(issue: str) -> str:
+    _WHY_FALLBACK: dict[str, str] = {
+        "russism": "contains Russian words or surzhyk (mixed Russian/Ukrainian)",
+        "grammar": "grammatical error (case, gender, or agreement)",
+        "meaning": "mistranslation that changes the intended meaning",
+        "terminology": "violates Minecraft mod translation terminology",
+        "untranslated": "text left in the wrong language",
+        "punctuation": "added or removed trailing punctuation",
+        "placeholder": "missing or altered placeholder (%s, %d, §-code)",
+    }
+    return _WHY_FALLBACK.get(issue, f"translation quality issue: {issue}")
+
+
+def verdict_from_entry(entry: dict[str, Any], tgt: str) -> Verdict:
+    """Build a :class:`Verdict` from a parsed judge JSON entry."""
+    if entry.get("v") != "flag":
+        return Verdict("ok")
+
+    fix = str(entry.get("fix") or "")
+    if fix and _normalize_verdict_text(fix) == _normalize_verdict_text(tgt):
+        return Verdict("ok")
+
+    issue = entry.get("issue")
+    issue_str = str(issue) if issue is not None else None
+    why = entry.get("why")
+    why_str = str(why).strip() if why else None
+    if why_str and len(why_str.split()) > _MAX_WHY_WORDS:
+        why_str = _default_why(issue_str or "unknown")
+
+    return Verdict(
+        verdict="flag",
+        score=entry.get("score"),
+        issue=issue_str,
+        why=why_str,
+        fix=fix or None,
+    )
+
+
 def parse_judge_response(response: str) -> dict[str, dict[str, Any]] | None:
     """Parse the JSON response from the judge LLM.
 
@@ -90,27 +143,43 @@ def parse_judge_response(response: str) -> dict[str, dict[str, Any]] | None:
     Returns ``dict[str, dict]`` on success (one entry per input key),
     or ``None`` if parsing fails entirely.
     """
-    text = response.strip()
+    text = strip_thinking_artifacts(response.strip())
 
     # Remove markdown code fences
     text = _CODE_FENCE_RE.sub("", text).strip()
 
-    # Extract JSON object — find first { and last }
+    # Try multiple extraction strategies (reasoning models may prepend text)
+    candidates: list[str] = []
+
+    # Strategy 1: first { to last } (standard)
     first_brace = text.find("{")
     last_brace = text.rfind("}")
     if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-        text = text[first_brace : last_brace + 1]
+        candidates.append(text[first_brace : last_brace + 1])
 
-    # Handle trailing commas before closing braces/ brackets
-    text = _TRAILING_COMMA_RE.sub(r"\1", text)
+    # Strategy 2: last { to last } (JSON at end, reasoning before)
+    if first_brace != -1 and last_brace != -1:
+        last_open = text.rfind("{", 0, last_brace)
+        if last_open > first_brace:
+            candidates.append(text[last_open : last_brace + 1])
 
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, dict):
-            return {str(k): v for k, v in parsed.items() if isinstance(v, dict)}
-    except json.JSONDecodeError:
-        pass
+    if not candidates:
+        return None
 
+    for candidate in candidates:
+        # Handle trailing commas before closing braces/brackets
+        candidate = _TRAILING_COMMA_RE.sub(r"\1", candidate)
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return {str(k): v for k, v in parsed.items() if isinstance(v, dict)}
+        except json.JSONDecodeError:
+            continue
+
+    logger.debug(
+        "parse_judge_response: all strategies failed. Text (first 200): {!r}",
+        text[:200],
+    )
     return None
 
 
@@ -142,6 +211,7 @@ class LlmJudge:
         judge_model: str = "",
         judge_workers: int = 1,
         service_name: str = "judge",
+        progress: ProgressSink | None = None,
     ) -> None:
         self._transport = transport
         self._source_display = source_display
@@ -154,6 +224,7 @@ class LlmJudge:
         self._judge_model = judge_model
         self._judge_workers = max(1, judge_workers)
         self._service_name = service_name
+        self._progress = progress
 
     def judge_batch(self, items: list[tuple[str, str, str]]) -> dict[str, Verdict]:
         """Judge a batch of (key, source_text, translated_text) entries.
@@ -177,9 +248,7 @@ class LlmJudge:
                 cached_rows = self._cache.get_verdicts(list(key_to_vkey.values()))
             else:
                 cached_rows = {
-                    vk: row
-                    for vk in key_to_vkey.values()
-                    if (row := self._cache.get_verdict(vk)) is not None
+                    vk: row for vk in key_to_vkey.values() if (row := self._cache.get_verdict(vk)) is not None
                 }
             vkey_to_item = {v: k for k, v in key_to_vkey.items()}
             for vkey, row in cached_rows.items():
@@ -207,15 +276,14 @@ class LlmJudge:
 
         if workers <= 1:
             for chunk in chunks:
+                cancel_token.raise_if_set()
                 chunk_results = self._judge_chunk(chunk, system_prompt)
                 results.update(chunk_results)
         else:
             with ThreadPoolExecutor(max_workers=workers) as executor:
-                future_map = {
-                    executor.submit(self._judge_chunk, chunk, system_prompt): chunk
-                    for chunk in chunks
-                }
+                future_map = {executor.submit(self._judge_chunk, chunk, system_prompt): chunk for chunk in chunks}
                 for future in as_completed(future_map):
+                    cancel_token.raise_if_set()
                     chunk_results = future.result()
                     results.update(chunk_results)
 
@@ -252,6 +320,8 @@ class LlmJudge:
         for key, src, tgt in chunk:
             payload[key] = {"src": src, "tgt": tgt}
 
+        chunk_tokens = max(256, min(self._max_tokens, 72 * len(chunk)))
+
         try:
             global_rate_limiter.apply_service_delay(self._service_name)
             response = self._transport.complete(
@@ -260,26 +330,31 @@ class LlmJudge:
                     {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                 ],
                 temperature=0.0,
-                max_tokens=self._max_tokens,
+                max_tokens=chunk_tokens,
             )
             parsed = parse_judge_response(response)
             if parsed is None:
-                logger.warning("Judge: unparseable response for chunk of {} items, defaulting to ok", len(chunk))
+                logger.warning(
+                    "Judge: unparseable response for chunk of {} items, defaulting to ok. "
+                    "Raw response (first 300 chars): {!r}",
+                    len(chunk),
+                    response[:300],
+                )
+                if self._progress is not None:
+                    self._progress.report(
+                        "qa_inline_note",
+                        key="",
+                        message=(f"judge: could not parse response ({len(chunk)} items) — batch passed without review"),
+                    )
                 fallback: dict[str, Verdict] = {key: Verdict("ok") for key, _, _ in chunk}
                 self._store_verdicts(chunk, fallback)
                 return fallback
 
             verdicts: dict[str, Verdict] = {}
-            for key, _src, _tgt in chunk:
+            for key, _src, tgt in chunk:
                 entry = parsed.get(key, {})
-                if isinstance(entry, dict) and entry.get("v") == "flag":
-                    verdicts[key] = Verdict(
-                        verdict="flag",
-                        score=entry.get("score"),
-                        issue=entry.get("issue"),
-                        why=entry.get("why"),
-                        fix=entry.get("fix"),
-                    )
+                if isinstance(entry, dict):
+                    verdicts[key] = verdict_from_entry(entry, tgt)
                 else:
                     verdicts[key] = Verdict("ok")
             self._store_verdicts(chunk, verdicts)

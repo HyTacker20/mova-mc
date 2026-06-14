@@ -59,17 +59,21 @@ class TestScaleOpencodeMaxTokens:
 
 class TestSplitAnthropicMessages:
     def test_splits_system_and_user(self):
-        system, conversation = split_anthropic_messages([
-            {"role": "system", "content": "You are a translator."},
-            {"role": "user", "content": "Translate: hello"},
-        ])
+        system, conversation = split_anthropic_messages(
+            [
+                {"role": "system", "content": "You are a translator."},
+                {"role": "user", "content": "Translate: hello"},
+            ]
+        )
         assert system == "You are a translator."
         assert conversation == [{"role": "user", "content": "Translate: hello"}]
 
     def test_no_system(self):
-        system, conversation = split_anthropic_messages([
-            {"role": "user", "content": "hello"},
-        ])
+        system, conversation = split_anthropic_messages(
+            [
+                {"role": "user", "content": "hello"},
+            ]
+        )
         assert system is None
         assert conversation == [{"role": "user", "content": "hello"}]
 

@@ -5,10 +5,12 @@ import pytest
 from app.exceptions import TranslationServiceError
 from app.infrastructure.providers.openai_like import OpenAILikeProvider
 
+
 def _mock_translate_fn(text: str) -> str:
     if text == "fail":
         raise RuntimeError("API error")
     return f"ai_{text}"
+
 
 class TestOpenAICompatProvider:
     def test_init_with_transport(self):
@@ -63,4 +65,3 @@ class TestOpenAICompatProvider:
         )
         result = provider.translate("Hello")
         assert result == "Hola"
-

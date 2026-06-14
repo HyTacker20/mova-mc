@@ -6,6 +6,7 @@ Implementations live in infrastructure/.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
 from ..domain.models import TranslationResult, TranslationUnit
@@ -17,7 +18,8 @@ class TranslationProvider(Protocol):
 
     Each provider must implement translate() for single strings and
     translate_unit() for domain-model-aware translation with error tracking.
-    translate_batch() handles bulk translation with structured results.
+    translate_batch_async() handles bulk translation with structured results
+    and an optional per-entry callback.
 
     Async variants (translate_async, translate_unit_async,
     translate_batch_async) are used by the async pipeline.
@@ -29,9 +31,6 @@ class TranslationProvider(Protocol):
     def translate_unit(self, unit: TranslationUnit) -> TranslationResult:
         """Translate a TranslationUnit, returning a structured result."""
 
-    def translate_batch(self, units: list[TranslationUnit]) -> list[TranslationResult]:
-        """Translate multiple TranslationUnits, returning structured results."""
-
     async def translate_async(self, text: str) -> str:
         """Async single-text translation. Returns original on failure."""
 
@@ -39,7 +38,10 @@ class TranslationProvider(Protocol):
         """Async TranslationUnit translation with structured result."""
 
     async def translate_batch_async(
-        self, units: list[TranslationUnit]
+        self,
+        units: list[TranslationUnit],
+        *,
+        on_entry: Callable[[str, str, str], None] | None = None,
     ) -> list[TranslationResult]:
         """Async batch translation with structured results."""
 
@@ -104,12 +106,9 @@ class ProgressSink(Protocol):
     def report_repack_complete(self, total: int) -> None: ...
 
     # ── QA phase ────────────────────────────────────────────────────
+    def report_qa_progress(self, done: int, total: int) -> None: ...
     def report_qa_start(self, total: int, provider: str, model: str) -> None: ...
-    def report_qa_verdict(
-        self, key: str, score: int, is_flagged: bool, issue: str | None = None
-    ) -> None: ...
-    def report_qa_correction(
-        self, key: str, accepted: bool, attempt: int, max_attempts: int
-    ) -> None: ...
+    def report_qa_verdict(self, key: str, score: int, is_flagged: bool, issue: str | None = None) -> None: ...
+    def report_qa_correction(self, key: str, accepted: bool, attempt: int, max_attempts: int) -> None: ...
     def report_qa_done(self, flagged: int, corrected: int) -> None: ...
     def report_qa_warning(self, key: str, message: str) -> None: ...

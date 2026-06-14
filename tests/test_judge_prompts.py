@@ -65,9 +65,7 @@ def test_make_judge_prompt_no_lang_rules_for_unrelated_pair() -> None:
 
 def test_make_judge_prompt_lang_rules_with_glossary() -> None:
     """Lang-specific rules are injected BEFORE glossary snippet."""
-    prompt = make_judge_prompt(
-        "Russian", "Ukrainian", glossary_terms="Use this terminology: Cobblestone→Бруківка."
-    )
+    prompt = make_judge_prompt("Russian", "Ukrainian", glossary_terms="Use this terminology: Cobblestone→Бруківка.")
     rules_pos = prompt.index("ru→uk specific rules")
     glossary_pos = prompt.index("Use this terminology")
     assert rules_pos < glossary_pos

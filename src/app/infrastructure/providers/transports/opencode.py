@@ -5,36 +5,22 @@ from __future__ import annotations
 import os
 
 from ....core.dotenv_loader import load_dotenv_files
+from ..reasoning_models import ReasoningTask, build_extra_body, scale_max_tokens
 from .anthropic_compat import AnthropicCompatTransport
 from .compat_sdk import OpenAICompatTransport
 
 OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1"
 
-OPENCODE_ANTHROPIC_MODELS: frozenset[str] = frozenset({
-    "minimax-m3",
-    "minimax-m2.7",
-    "minimax-m2.5",
-    "qwen3.7-max",
-    "qwen3.7-plus",
-    "qwen3.6-plus",
-})
-
-# DeepSeek V4 models enable thinking by default; disable for translation/QA tasks.
-OPENCODE_DEEPSEEK_MODELS: frozenset[str] = frozenset({
-    "deepseek-v4-pro",
-    "deepseek-v4-flash",
-})
-
-# Other OpenCode models that may spend output budget on internal reasoning.
-OPENCODE_REASONING_MODELS: frozenset[str] = frozenset({
-    "glm-5.1",
-    "glm-5",
-    "kimi-k2.5",
-    "kimi-k2.6",
-    "mimo-v2.5-pro",
-}) | OPENCODE_DEEPSEEK_MODELS
-
-_OPENCODE_MIN_REASONING_TOKENS = 8192
+OPENCODE_ANTHROPIC_MODELS: frozenset[str] = frozenset(
+    {
+        "minimax-m3",
+        "minimax-m2.7",
+        "minimax-m2.5",
+        "qwen3.7-max",
+        "qwen3.7-plus",
+        "qwen3.6-plus",
+    }
+)
 
 
 def normalize_opencode_model(model: str) -> str:
@@ -59,7 +45,7 @@ def normalize_opencode_model(model: str) -> str:
     # Strip "opencode-go/" prefix (used in OpenCode config files).
     prefix = "opencode-go/"
     if normalized.lower().startswith(prefix):
-        normalized = normalized[len(prefix):]
+        normalized = normalized[len(prefix) :]
 
     # Strip OpenRouter-style provider prefix (e.g. "deepseek/", "openai/").
     # OpenCode Go model IDs never contain slashes -- if there is one,
@@ -77,21 +63,14 @@ def uses_anthropic_endpoint(model: str) -> bool:
     return normalize_opencode_model(model).lower() in OPENCODE_ANTHROPIC_MODELS
 
 
-def _openai_extra_body(model: str) -> dict | None:
-    """Return provider-specific extra_body for OpenAI-compatible OpenCode models."""
-    if model.lower() in OPENCODE_DEEPSEEK_MODELS:
-        return {"thinking": {"type": "disabled"}}
-    return None
-
-
-def scale_opencode_max_tokens(model: str, max_tokens: int) -> int:
+def scale_opencode_max_tokens(
+    model: str,
+    max_tokens: int,
+    *,
+    task: ReasoningTask = ReasoningTask.TRANSLATE,
+) -> int:
     """Raise token budget for reasoning-capable models when thinking cannot be disabled."""
-    normalized = normalize_opencode_model(model).lower()
-    if normalized in OPENCODE_DEEPSEEK_MODELS:
-        return max_tokens
-    if normalized in OPENCODE_REASONING_MODELS:
-        return max(max_tokens, _OPENCODE_MIN_REASONING_TOKENS)
-    return max_tokens
+    return scale_max_tokens(model, max_tokens, task=task)
 
 
 class OpenCodeTransport:
@@ -104,6 +83,8 @@ class OpenCodeTransport:
         model: str,
         api_key: str | None = None,
         base_url: str | None = None,
+        *,
+        task: ReasoningTask = ReasoningTask.TRANSLATE,
     ) -> None:
         load_dotenv_files()
         resolved_key = api_key or os.getenv("OPENCODE_GO_API_KEY") or ""
@@ -111,6 +92,7 @@ class OpenCodeTransport:
             raise ValueError("OPENCODE_GO_API_KEY environment variable not set.")
         resolved_url = base_url or os.getenv("OPENCODE_GO_BASE_URL") or OPENCODE_GO_BASE_URL
         self._model = normalize_opencode_model(model)
+        self._task = task
 
         if uses_anthropic_endpoint(self._model):
             self._inner = AnthropicCompatTransport(
@@ -123,13 +105,13 @@ class OpenCodeTransport:
                 model=self._model,
                 base_url=resolved_url,
                 api_key=resolved_key,
-                extra_body=_openai_extra_body(self._model),
+                extra_body=build_extra_body(self._model, task=task),
             )
 
     def complete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> str:
-        scaled = scale_opencode_max_tokens(self._model, max_tokens)
+        scaled = scale_opencode_max_tokens(self._model, max_tokens, task=self._task)
         return self._inner.complete(messages, temperature, scaled)
 
     async def acomplete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> str:
-        scaled = scale_opencode_max_tokens(self._model, max_tokens)
+        scaled = scale_opencode_max_tokens(self._model, max_tokens, task=self._task)
         return await self._inner.acomplete(messages, temperature, scaled)

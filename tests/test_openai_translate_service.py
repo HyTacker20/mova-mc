@@ -6,10 +6,12 @@ from app.domain.models import TranslationUnit
 from app.exceptions import TranslationServiceError
 from app.infrastructure.providers.openai_like import OpenAILikeProvider
 
+
 def _mock_translate_fn(text: str) -> str:
     if text == "fail":
         raise RuntimeError("API error")
     return f"ai_{text}"
+
 
 def _make_provider(capitalize: bool = False, chunk_size: int = 0) -> OpenAILikeProvider:
     transport = MagicMock()
@@ -25,6 +27,7 @@ def _make_provider(capitalize: bool = False, chunk_size: int = 0) -> OpenAILikeP
         max_retries=0,
         chunk_size=chunk_size,
     )
+
 
 class TestOpenAILikeProvider:
     def test_init_with_transport(self):

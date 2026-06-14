@@ -17,14 +17,19 @@ from .presenter import export_stats_json, print_cli_summary
 JAR = ".jar"
 
 
+_KNOWN_COMMANDS = frozenset({"cli", "tui", "init", "web"})
+_HELP_FLAGS = frozenset({"-h", "--help"})
+
+
 def main() -> None:
     try:
+        # Default to web UI when no subcommand is given
+        if len(sys.argv) == 1 or (
+            len(sys.argv) > 1 and sys.argv[1] not in _KNOWN_COMMANDS and sys.argv[1] not in _HELP_FLAGS
+        ):
+            sys.argv.insert(1, "web")
+
         parser = build_argument_parser()
-
-        if len(sys.argv) == 1:
-            parser.print_help()
-            return
-
         args = parser.parse_args()
 
         if getattr(args, "command", None) == "init":
@@ -34,11 +39,21 @@ def main() -> None:
             logger.info(f"Config template created at: {path}")
             return
 
-        if getattr(args, "command", None) == "app":
+        if getattr(args, "command", None) == "tui":
             from ..tui.main import main as tui_main
 
             debug = getattr(args, "debug", False)
             tui_main(debug=debug)
+        elif getattr(args, "command", None) == "web":
+            from backend.__main__ import main as web_main
+
+            web_main(
+                host=getattr(args, "host", None),
+                port=getattr(args, "port", None),
+                dev=getattr(args, "dev", None),
+                debug=getattr(args, "debug", None),
+                no_browser=getattr(args, "no_browser", None),
+            )
         else:
             _run_translation(args)
     except KeyboardInterrupt:
@@ -50,12 +65,7 @@ def main() -> None:
 
 
 def _resolve_provider(args) -> str:
-    provider = getattr(args, "provider", "google")
-    if getattr(args, "ai", False):
-        logger.warning("--ai flag is deprecated, use --provider openai instead")
-        provider = "openai"
-        args.ai = False
-    return provider
+    return getattr(args, "provider", "google")
 
 
 def _run_translation(args) -> None:
@@ -82,7 +92,7 @@ def _run_translation(args) -> None:
     settings = Settings(cli_args=args, config_data=config_data)
     settings.debug = getattr(args, "debug", False)
 
-    scanner = ModScanner(settings.mods_path)
+    scanner = ModScanner(settings.mods_path, source_lang=settings.source_mc_lang)
     reporter = ProgressReporter()
     scanner.reporter = reporter
 

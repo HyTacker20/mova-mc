@@ -30,6 +30,8 @@ class Settings:
         self.max_workers = 4
         self.chunk_mode: str = "auto"
         self.chunk_size: int | None = None
+        self.chunk_token_budget: int = 3500
+        self.chunk_max_text_length: int = 200
         self.progress_batch_size: int = 10
 
         # -- paths -------------------------------------------------------
@@ -166,14 +168,6 @@ class Settings:
         self.qa.max_attempts = value
 
     @property
-    def qa_streaming(self) -> bool:
-        return self.qa.streaming
-
-    @qa_streaming.setter
-    def qa_streaming(self, value: bool) -> None:
-        self.qa.streaming = value
-
-    @property
     def qa_chunk_size(self) -> int:
         return self.qa.chunk_size
 
@@ -237,6 +231,10 @@ class Settings:
             self.chunk_size = int(config_data["chunk_size"])
         if "progress_batch_size" in config_data:
             self.progress_batch_size = int(config_data["progress_batch_size"])
+        if "chunk_token_budget" in config_data:
+            self.chunk_token_budget = int(config_data["chunk_token_budget"])
+        if "chunk_max_text_length" in config_data:
+            self.chunk_max_text_length = int(config_data["chunk_max_text_length"])
 
         # Rate limits
         rate_limit_config = config_data.get("rate_limit", {})
@@ -277,6 +275,15 @@ class Settings:
         if hasattr(cli_args, "workers"):
             self.max_workers = cli_args.workers
 
+        if hasattr(cli_args, "chunk_mode") and cli_args.chunk_mode:
+            self.chunk_mode = cli_args.chunk_mode
+
+        if hasattr(cli_args, "chunk_size") and cli_args.chunk_size is not None:
+            self.chunk_size = int(cli_args.chunk_size)
+
+        if hasattr(cli_args, "chunk_token_budget") and cli_args.chunk_token_budget is not None:
+            self.chunk_token_budget = int(cli_args.chunk_token_budget)
+
         if hasattr(cli_args, "dry_run"):
             self.dry_run = cli_args.dry_run
 
@@ -305,11 +312,7 @@ class Settings:
         if hasattr(cli_args, "mods_list") and cli_args.mods_list:
             try:
                 with Path(cli_args.mods_list).open(encoding="utf-8") as f:
-                    self.selected_mods = [
-                        line.strip()
-                        for line in f
-                        if line.strip() and not line.startswith("#")
-                    ]
+                    self.selected_mods = [line.strip() for line in f if line.strip() and not line.startswith("#")]
             except OSError:
                 pass
 

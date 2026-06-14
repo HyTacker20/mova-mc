@@ -35,9 +35,7 @@ class PathConfig:
     def validate(self) -> None:
         """Raise ``ValueError`` on invalid configuration."""
         if self.output_mode not in ("separate", "replace"):
-            raise ValueError(
-                f"output_mode must be 'separate' or 'replace', got {self.output_mode!r}"
-            )
+            raise ValueError(f"output_mode must be 'separate' or 'replace', got {self.output_mode!r}")
         # Basic sanity — these are user-facing paths, not temp dirs.
         if not self.mods_path:
             raise ValueError("mods_path must not be empty")

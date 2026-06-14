@@ -48,6 +48,9 @@ class TranslateRunStep(Widget):
     TranslateRunStep .progress-block {
         width: 100%; height: auto; margin: 0 0 1 0;
     }
+    TranslateRunStep #qa-progress-block {
+        display: none;
+    }
     TranslateRunStep .progress-block > Label {
         width: 100%; margin: 0 0 0 0; color: $text;
     }
@@ -124,6 +127,14 @@ class TranslateRunStep(Widget):
                     show_percentage=False,
                     show_eta=False,
                 )
+            with Vertical(id="qa-progress-block", classes="progress-block"):
+                yield Label(t("translate.qa_progress", locale), id="qa-progress-label")
+                yield ProgressBar(
+                    id="qa-progress",
+                    total=100,
+                    show_percentage=False,
+                    show_eta=False,
+                )
         with Horizontal(id="log-area"):
             with Vertical(id="trans-panel"):
                 yield Label(t("translate.log_label", locale), id="trans-label")
@@ -169,9 +180,7 @@ class TranslateRunStep(Widget):
     def set_current_file(self, file_path: str) -> None:
         locale = get_locale_from_app(self.app)
         name = Path(file_path).name
-        self.query_one("#translate-file", Label).update(
-            t("translate.current_file", locale, name=name)
-        )
+        self.query_one("#translate-file", Label).update(t("translate.current_file", locale, name=name))
 
     def update_mods(self, completed: int, total: int, *, fractional: float | None = None) -> None:
         bar = self.query_one("#mods-progress", ProgressBar)
@@ -205,6 +214,21 @@ class TranslateRunStep(Widget):
         )
         self.query_one("#entries-progress-label", Label).update(label)
 
+    def update_qa(self, done: int, total: int) -> None:
+        bar = self.query_one("#qa-progress", ProgressBar)
+        bar.total = max(total, 1)
+        bar.progress = min(done, total)
+        locale = get_locale_from_app(self.app)
+        pct = format_progress_pct(done, total)
+        label = t(
+            "translate.qa_progress_fmt",
+            locale,
+            current=str(done),
+            total=str(total),
+            pct=str(pct),
+        )
+        self.query_one("#qa-progress-label", Label).update(label)
+
     def update_live_stats(self, elapsed_s: float, eta_s: float | None, failed: int) -> None:
         locale = get_locale_from_app(self.app)
         elapsed_text = format_duration_seconds(elapsed_s)
@@ -215,9 +239,7 @@ class TranslateRunStep(Widget):
             eta_part = t("translate.stats_eta_unknown", locale)
         elapsed_part = t("translate.stats_elapsed", locale, time=elapsed_text)
         failed_part = t("translate.stats_failed", locale, count=str(failed))
-        self.query_one("#translate-stats", Label).update(
-            f"{elapsed_part}  ·  {eta_part}  ·  {failed_part}"
-        )
+        self.query_one("#translate-stats", Label).update(f"{elapsed_part}  ·  {eta_part}  ·  {failed_part}")
 
     def add_log(self, line: str) -> None:
         self._log_lines.append(line)

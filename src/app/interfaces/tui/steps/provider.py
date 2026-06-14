@@ -361,8 +361,7 @@ class ProviderStep(Widget):
                 base_url=base_url,
                 force_refresh=True,
             )
-            logger.debug("[ProviderStep] _fetch_and_update({}) -> {} models",
-                         provider, len(models))
+            logger.debug("[ProviderStep] _fetch_and_update({}) -> {} models", provider, len(models))
             if not self._can_update_models():
                 logger.debug("[ProviderStep] Widget not mounted, skipping")
                 return

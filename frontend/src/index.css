@@ -1,0 +1,298 @@
+:root {
+  /* ── Campfire palette — DESIGN.md ──────────────────────────── */
+  --bg:             oklch(0.08 0 0);       /* deep charcoal, pure black */
+  --surface:        oklch(0.12 0 0);       /* cards, panels */
+  --surface2:       oklch(0.16 0 0);       /* input backgrounds, hover states */
+  --border:         oklch(0.22 0 0);       /* subtle borders, dividers */
+  --border-focus:   oklch(0.62 0.16 35);   /* focus ring — matches primary */
+  --primary:        oklch(0.62 0.16 35);   /* warm amber-ember */
+  --primary-dim:    oklch(0.48 0.13 33);   /* primary hover/active — deeper ember */
+  --accent:         oklch(0.58 0.14 75);   /* secondary brand — warm gold */
+  --text:           oklch(0.93 0 0);       /* body text — near-white */
+  --text-muted:     oklch(0.68 0 0);       /* secondary text, labels — ≥4.5:1 vs bg */
+  --success:        oklch(0.62 0.16 150);  /* green — functional only */
+  --warning:        oklch(0.70 0.16 80);   /* warm yellow */
+  --error:          oklch(0.52 0.19 25);   /* warm red */
+
+  --radius: 6px;
+  --radius-card: 8px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Consolas', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+a { color: var(--primary); }
+
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+button {
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 18px;
+  transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Primary — filled amber, white text */
+button.btn-primary {
+  background: var(--primary);
+  color: var(--bg);
+  font-weight: 600;
+  border: 1px solid var(--primary);
+}
+
+button.btn-primary:not(:disabled):hover {
+  background: var(--primary-dim);
+  border-color: var(--primary-dim);
+}
+
+button.btn-primary:not(:disabled):active {
+  background: oklch(0.42 0.12 32);
+}
+
+/* Ghost — transparent, muted */
+button.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+button.btn-ghost:not(:disabled):hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+/* Danger — filled red */
+button.btn-danger {
+  background: var(--error);
+  color: var(--text);
+  font-weight: 600;
+}
+
+button.btn-danger:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+/* Small utility buttons */
+button.btn-sm {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+/* ── Inputs & Selects ──────────────────────────────────────── */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+select,
+textarea {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 7px 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--border-focus);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888aa8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+select option {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+/* ── Checkbox ──────────────────────────────────────────────── */
+input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Labels & Fields ───────────────────────────────────────── */
+label {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.row > * {
+  flex: 1;
+}
+
+/* ── Messages ──────────────────────────────────────────────── */
+.error-msg {
+  color: var(--error);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.info-box {
+  padding: 10px 14px;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ── Checkbox rows (for Advanced settings) ─────────────────── */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  margin-bottom: 10px;
+  font-weight: 400;
+}
+
+.check-row small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 18px 0;
+}
+
+/* ── Loading skeleton ──────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+.skeleton-line {
+  height: 14px;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.skeleton-line:last-child {
+  width: 60%;
+}
+
+.skeleton-select {
+  height: 36px;
+  margin-bottom: 14px;
+  width: 100%;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-focus);
+}
+
+/* ── Reduced motion ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

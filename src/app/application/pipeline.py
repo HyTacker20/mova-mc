@@ -16,9 +16,9 @@ from ..infrastructure.providers.registry import AI_PROVIDERS
 
 
 def _resolve_translation_chunk_size(settings: Settings) -> int | None:
-    """Return chunk_size for LLM providers: 0 = per-item, None = provider default."""
+    """Return chunk_size for LLM providers: 1 = per-item, None = provider default."""
     if settings.chunk_mode == "item":
-        return 0
+        return 1
     if settings.chunk_size is not None:
         return settings.chunk_size
     if settings.chunk_mode in ("auto", "chunk"):
@@ -85,7 +85,7 @@ def build_context(
     from ..infrastructure.providers.factory import get_translator_service
     from ..infrastructure.providers.glossary import load_merged_glossary
     from ..infrastructure.providers.prompts import PROMPT_VERSION
-    from ..infrastructure.providers.registry import _resolve_model
+    from ..infrastructure.providers.registry import resolve_model
 
     _configure_rate_limits(settings)
 
@@ -124,52 +124,94 @@ def build_context(
         model=model,
         glossary=glossary,
         chunk_size=translation_chunk_size,
+        max_concurrent_chunks=settings.max_workers,
+        chunk_token_budget=settings.chunk_token_budget,
+        chunk_max_text_length=settings.chunk_max_text_length,
+        chunk_mode=settings.chunk_mode,
     )
 
-    resolved_model = _resolve_model(settings.provider, model)
+    resolved_model = resolve_model(settings.provider, model)
 
-    # ── Wrap with inline QA (streaming) if enabled ─────────────────
-    if settings.qa_judge and settings.qa_streaming and is_llm:
+    # ── Wrap with inline QA if enabled ─────────────────────────────
+    if settings.qa_judge:
         from ..infrastructure.providers.judge import LlmJudge
         from ..infrastructure.providers.qa_wrapper import InlineQaWrapper
         from ..infrastructure.providers.registry import build_transport
 
-        judge_provider = settings.qa_judge_provider or settings.provider
-        judge_model = settings.qa_judge_model or resolved_model
-        try:
-            judge_transport = build_transport(judge_provider, judge_model)
-            judge = LlmJudge(
-                transport=judge_transport,
-                source_display=source_display,
-                target_display=target_display,
-                glossary=glossary,
-                chunk_size=settings.qa_chunk_size,
-                max_tokens=1024,
-                cache=sqlite_cache,
-                target_lang=settings.target_mc_lang,
-                judge_model=judge_model,
-                judge_workers=settings.qa_judge_workers,
-            )
-            raw_provider = InlineQaWrapper(
-                inner=raw_provider,
-                judge=judge,
-                corrector=raw_provider,
-                threshold=settings.qa_threshold,
-                max_attempts=settings.qa_max_attempts,
-                chunk_size=settings.qa_chunk_size,
-                progress=progress,
-            )
-            progress.report(
-                "qa_inline_status",
-                provider=judge_provider,
-                model=judge_model,
-            )
-        except Exception:
+        # Google + QA without dedicated judge provider: warn and skip
+        if not is_llm and not settings.qa_judge_provider:
             logger.warning(
-                "Inline QA: failed to build judge ({}/{}), skipping streaming QA",
-                judge_provider,
-                judge_model,
+                "Inline QA: Google Translate selected but no judge provider configured. "
+                "QA requires an LLM provider — set a judge provider in Advanced settings."
             )
+            if progress is not None:
+                progress.report_qa_warning(
+                    "",
+                    "QA skipped: set a judge provider for Google translation",
+                )
+        else:
+            judge_provider = settings.qa_judge_provider or settings.provider
+            judge_model = settings.qa_judge_model or resolved_model
+            try:
+                judge_transport = build_transport(
+                    judge_provider,
+                    judge_model,
+                    task="judge",
+                )
+                judge = LlmJudge(
+                    transport=judge_transport,
+                    source_display=source_display,
+                    target_display=target_display,
+                    glossary=glossary,
+                    chunk_size=settings.qa_chunk_size,
+                    max_tokens=1024,
+                    cache=sqlite_cache,
+                    target_lang=settings.target_mc_lang,
+                    judge_model=judge_model,
+                    judge_workers=settings.qa_judge_workers,
+                    progress=progress,
+                )
+
+                # ── Resolve corrector ──
+                corrector: TranslationProvider | None = raw_provider
+                if settings.qa_corrector_model:
+                    try:
+                        corrector = get_translator_service(
+                            provider=settings.provider,
+                            source_lang=source_lang,
+                            target_lang=target_lang,
+                            source_lang_display=source_display,
+                            target_lang_display=target_display,
+                            capitalize=True,
+                            max_retries=3,
+                            model=settings.qa_corrector_model,
+                            glossary=glossary,
+                            chunk_size=1,  # singleton for corrections
+                            max_concurrent_chunks=1,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Inline QA: failed to build corrector with model {}, falling back to translator: {}",
+                            settings.qa_corrector_model,
+                            exc,
+                        )
+
+                raw_provider = InlineQaWrapper(
+                    inner=raw_provider,
+                    judge=judge,
+                    corrector=corrector,
+                    threshold=settings.qa_threshold,
+                    max_attempts=settings.qa_max_attempts,
+                    chunk_size=settings.qa_chunk_size,
+                    progress=progress,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Inline QA: failed to build judge ({}/{}), skipping inline QA: {}",
+                    judge_provider,
+                    judge_model,
+                    exc,
+                )
 
     if settings.no_cache:
         provider: TranslationProvider = raw_provider
@@ -198,6 +240,7 @@ def build_context(
 
 # ── Sync pipeline runner ───────────────────────────────────────────
 
+
 async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineResult:
     """Async version of :func:`run_pipeline`.
 
@@ -206,7 +249,6 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     """
     from .stages.discover import stage_discover_files
     from .stages.parse import stage_parse_sources
-    from .stages.qa_refine import stage_qa_refine_async
     from .stages.repack import stage_repack_jars
     from .stages.translate import stage_translate_async
     from .stages.unpack import stage_unpack_jars
@@ -232,16 +274,8 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     ctx.progress.report("title", text="Translating...")
     mods = await stage_translate_async(ctx, mods)
 
-    if ctx.settings.qa_judge and ctx.settings.qa_streaming:
-        ctx.progress.report(
-            "qa_inline_status",
-            provider="",
-            model="",
-            message="Inline QA handled corrections — skipping batch QA review",
-        )
-    else:
-        ctx.progress.report("title", text="QA review...")
-        mods = await stage_qa_refine_async(ctx, mods)
+    # ── Collect inline QA stats from wrapper ──
+    _collect_inline_qa_stats(ctx.provider, stats)
 
     ctx.progress.report("title", text="Validating translations...")
     mods = await asyncio.to_thread(stage_validate_outputs, ctx, mods)
@@ -269,6 +303,24 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
 def run_pipeline(ctx: PipelineContext, mods: list[Mod]) -> PipelineResult:
     """Execute the full translation pipeline (sync wrapper for CLI)."""
     return asyncio.run(run_pipeline_async(ctx, mods))
+
+
+def _collect_inline_qa_stats(provider: object, stats: OverallStats) -> None:
+    """Walk the provider chain and collect QA stats from InlineQaWrapper."""
+    current = provider
+    while True:
+        if hasattr(current, "consume_run_stats"):
+            qa_stats = current.consume_run_stats()  # type: ignore[union-attr]
+            if isinstance(qa_stats, dict) and qa_stats.get("qa_judged", 0) > 0:
+                stats.qa_enabled = True
+                stats.qa_judged = qa_stats.get("qa_judged", 0)
+                stats.qa_flagged = qa_stats.get("qa_flagged", 0)
+                stats.qa_corrected = qa_stats.get("qa_corrected", 0)
+            return
+        inner = getattr(current, "_inner", None)
+        if inner is None:
+            break
+        current = inner
 
 
 def _accumulate_stats(stats: OverallStats, mods: list[Mod]) -> None:
@@ -307,5 +359,3 @@ def _build_file_stats(lang_file: LangFile) -> FileStats:
     file_stats.entries_translated = translated
     file_stats.entries_failed = failed
     return file_stats
-
-

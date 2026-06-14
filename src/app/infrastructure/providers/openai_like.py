@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
 from typing import Protocol
 
 from loguru import logger
 
 from ...application.batching import chunk_list, parse_chunk_response
+from ...application.token_budget import build_token_chunks
 from ...domain.models import TranslationResult, TranslationUnit
 from ...exceptions import TranslationServiceError
 from ...utils.cancellation import cancel_token
@@ -61,6 +63,10 @@ class OpenAILikeProvider:
         capitalize: bool = True,
         max_retries: int = 3,
         chunk_size: int | None = None,
+        max_concurrent_chunks: int = 4,
+        chunk_token_budget: int = 3500,
+        chunk_max_text_length: int = 200,
+        chunk_mode: str = "auto",
         *,
         source_lang_display: str | None = None,
         target_lang_display: str | None = None,
@@ -76,6 +82,10 @@ class OpenAILikeProvider:
         self._retry = create_retry_decorator(service_name, max_retries=max_retries)
         if chunk_size is not None:
             self._CHUNK_SIZE = chunk_size
+        self._max_concurrent_chunks = max(1, max_concurrent_chunks)
+        self._chunk_token_budget = chunk_token_budget
+        self._max_chunk_text_length = chunk_max_text_length
+        self._chunk_mode = chunk_mode
 
         self._lang_instructions = LANG_SPECIFIC_INSTRUCTIONS.get(self.target_lang, "")
         self._glossary: dict[str, str] = glossary or {}
@@ -122,6 +132,22 @@ class OpenAILikeProvider:
             glossary_terms=glossary_terms,
         )
 
+    def _build_plain_chunks(
+        self, items: list[tuple[str, str]]
+    ) -> tuple[list[list[tuple[str, str]]], list[tuple[str, str]]]:
+        if self._chunk_mode == "auto":
+            return build_token_chunks(
+                items,
+                max_input_tokens=self._chunk_token_budget,
+                max_items=self._CHUNK_SIZE,
+                max_text_length=self._max_chunk_text_length,
+            )
+        short = [(k, t) for k, t in items if len(t) <= self._max_chunk_text_length]
+        long_items = [(k, t) for k, t in items if len(t) > self._max_chunk_text_length]
+        if self._chunk_mode == "item" or self._CHUNK_SIZE <= 1:
+            return [[pair] for pair in short], long_items
+        return chunk_list(short, self._CHUNK_SIZE), long_items
+
     # ── Sync translate ────────────────────────────────────────────────
 
     def _translate_text(self, text: str, hint_text: str | None = None) -> str:
@@ -130,7 +156,7 @@ class OpenAILikeProvider:
 
         transport_name = self._transport.__class__.__name__
         src_log = text.replace("\n", "\\n")
-        logger.debug(f"[{transport_name}] request: \"{src_log}\"")
+        logger.debug(f'[{transport_name}] request: "{src_log}"')
 
         @self._retry
         def _do_translate(t: str, hint: str | None = hint_text) -> str:
@@ -167,9 +193,7 @@ class OpenAILikeProvider:
             else:
                 raise
 
-            logger.warning(
-                "Full-text translation failed, splitting by paragraphs for: {}...", text[:60]
-            )
+            logger.warning("Full-text translation failed, splitting by paragraphs for: {}...", text[:60])
             paragraphs = [p.strip() for p in text.split(sep) if p.strip()]
             translated_parts: list[str] = []
             for para in paragraphs:
@@ -180,7 +204,7 @@ class OpenAILikeProvider:
             result = sep.join(translated_parts)
 
         tgt_log = result.replace("\n", "\\n")
-        logger.debug(f"[{transport_name}] response: \"{tgt_log}\"")
+        logger.debug(f'[{transport_name}] response: "{tgt_log}"')
         return result  # type: ignore[no-any-return]
 
     def translate(self, text: str) -> str:
@@ -310,16 +334,43 @@ class OpenAILikeProvider:
     # ── New-style sync batch ──────────────────────────────────────────
 
     def translate_batch(self, units: list[TranslationUnit]) -> list[TranslationResult]:
-        results: list[TranslationResult] = []
-        for unit in units:
-            try:
-                translated = self._translate_text(unit.source_text, unit.hint_text)
-                results.append(TranslationResult(unit=unit, translated_text=translated, success=True))
-            except Exception as exc:
-                results.append(
-                    TranslationResult(unit=unit, translated_text=unit.source_text, success=False, error=str(exc))
-                )
-        return results
+        cancel_token.raise_if_set()
+        if not units:
+            return []
+
+        results: dict[str, TranslationResult] = {}
+        hinted = [u for u in units if u.hint_text]
+        plain = [u for u in units if not u.hint_text]
+
+        for unit in hinted:
+            cancel_token.raise_if_set()
+            results[unit.key] = self.translate_unit(unit)
+
+        if plain:
+            plain_pairs = [(u.key, u.source_text) for u in plain]
+            chunks, long_items = self._build_plain_chunks(plain_pairs)
+            unit_map = {u.key: u for u in plain}
+            for key, _text in long_items:
+                cancel_token.raise_if_set()
+                results[key] = self.translate_unit(unit_map[key])
+            for chunk in chunks:
+                cancel_token.raise_if_set()
+                chunk_result = self._translate_chunk(chunk)
+                for key, text in chunk:
+                    unit = unit_map[key]
+                    if key in chunk_result:
+                        results[key] = TranslationResult(unit=unit, translated_text=chunk_result[key], success=True)
+                    else:
+                        results[key] = TranslationResult(
+                            unit=unit,
+                            translated_text=text,
+                            success=False,
+                            error="missing from chunk response",
+                        )
+
+        return [
+            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False)) for u in units
+        ]
 
     # ── Async translate ───────────────────────────────────────────────
 
@@ -365,13 +416,18 @@ class OpenAILikeProvider:
             )
         return TranslationResult(unit=unit, translated_text=translated_text, success=True)
 
-    async def _translate_chunk_async(self, chunk: list[tuple[str, str]]) -> dict[str, str]:
+    async def _translate_chunk_async(
+        self,
+        chunk: list[tuple[str, str]],
+        hints: dict[str, str | None] | None = None,
+    ) -> dict[str, str]:
         if not chunk:
             return {}
         if len(chunk) == 1:
             key, text = chunk[0]
+            hint = hints.get(key) if hints else None
             try:
-                return {key: await self.translate_async(text)}
+                return {key: await self._translate_text_async(text, hint)}
             except Exception:
                 return {key: text}
 
@@ -403,8 +459,9 @@ class OpenAILikeProvider:
             logger.warning("Async chunk response parse failed, falling back to per-item")
             result = {}
             for key, text in chunk:
+                hint = hints.get(key) if hints else None
                 try:
-                    result[key] = await self.translate_async(text)
+                    result[key] = await self._translate_text_async(text, hint)
                 except Exception:
                     result[key] = text
             return result
@@ -412,44 +469,84 @@ class OpenAILikeProvider:
             logger.exception(f"Async chunk translation failed for {len(chunk)} items")
             return {key: text for key, text in chunk}
 
-    async def translate_batch_async(self, units: list[TranslationUnit]) -> list[TranslationResult]:
+    async def translate_batch_async(
+        self,
+        units: list[TranslationUnit],
+        *,
+        on_entry: Callable[[str, str, str], None] | None = None,
+    ) -> list[TranslationResult]:
         """Async batch translation with structured results.
 
-        Processes items concurrently using asyncio.gather.
-        Short texts are batched into chunks; long texts go individually.
+        Hinted units are translated individually; plain units are grouped into
+        JSON chunks (token-budget or fixed size) and processed concurrently.
         """
-        items = [(unit.key, unit.source_text, unit) for unit in units]
-        short_items = [(k, t, u) for k, t, u in items if len(t) <= self._MAX_CHUNK_TEXT_LENGTH]
-        long_items = [(k, t, u) for k, t, u in items if len(t) > self._MAX_CHUNK_TEXT_LENGTH]
+        cancel_token.raise_if_set()
+        if not units:
+            return []
 
         results: dict[str, TranslationResult] = {}
+        sem = asyncio.Semaphore(self._max_concurrent_chunks)
 
-        # Long items individually
-        for key, text, unit in long_items:
-            try:
-                translated = await self._translate_text_async(text)
-                results[key] = TranslationResult(unit=unit, translated_text=translated, success=True)
-            except Exception as exc:
-                results[key] = TranslationResult(unit=unit, translated_text=text, success=False, error=str(exc))
+        def _report(unit: TranslationUnit, tr: TranslationResult) -> None:
+            if on_entry is not None:
+                txt = tr.translated_text if tr.success else unit.source_text
+                on_entry(unit.key, unit.source_text, txt)
 
-        # Short items in parallel chunks
-        if short_items:
-            chunk_size = self._CHUNK_SIZE
-            chunks_raw = chunk_list([(k, t) for k, t, _ in short_items], chunk_size)
-            unit_map = {unit.key: unit for _, _, unit in short_items}
+        async def _translate_one(unit: TranslationUnit) -> None:
+            async with sem:
+                cancel_token.raise_if_set()
+                try:
+                    translated = await self._translate_text_async(unit.source_text, unit.hint_text)
+                    tr = TranslationResult(unit=unit, translated_text=translated, success=True)
+                except Exception as exc:
+                    tr = TranslationResult(
+                        unit=unit,
+                        translated_text=unit.source_text,
+                        success=False,
+                        error=str(exc),
+                    )
+                results[unit.key] = tr
+                _report(unit, tr)
 
-            async def _process_chunk(chunk: list[tuple[str, str]]) -> None:
+        async def _process_chunk(chunk: list[tuple[str, str]], unit_map: dict[str, TranslationUnit]) -> None:
+            async with sem:
+                cancel_token.raise_if_set()
                 chunk_result = await self._translate_chunk_async(chunk)
                 for key, text in chunk:
                     unit = unit_map[key]
                     if key in chunk_result:
-                        results[key] = TranslationResult(unit=unit, translated_text=chunk_result[key], success=True)
+                        tr = TranslationResult(unit=unit, translated_text=chunk_result[key], success=True)
                     else:
-                        results[key] = TranslationResult(unit=unit, translated_text=text, success=False)
+                        tr = TranslationResult(
+                            unit=unit,
+                            translated_text=text,
+                            success=False,
+                            error="missing from chunk response",
+                        )
+                    results[key] = tr
+                    _report(unit, tr)
 
-            await asyncio.gather(*[_process_chunk(c) for c in chunks_raw], return_exceptions=True)
+        hinted = [u for u in units if u.hint_text]
+        plain = [u for u in units if not u.hint_text]
+
+        if hinted:
+            await asyncio.gather(*[_translate_one(u) for u in hinted], return_exceptions=True)
+
+        if plain:
+            plain_pairs = [(u.key, u.source_text) for u in plain]
+            chunks, long_items = self._build_plain_chunks(plain_pairs)
+            unit_map = {u.key: u for u in plain}
+
+            long_units = [unit_map[key] for key, _ in long_items]
+            if long_units:
+                await asyncio.gather(*[_translate_one(u) for u in long_units], return_exceptions=True)
+
+            if chunks:
+                await asyncio.gather(
+                    *[_process_chunk(c, unit_map) for c in chunks],
+                    return_exceptions=True,
+                )
 
         return [
-            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False))
-            for u in units
+            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False)) for u in units
         ]

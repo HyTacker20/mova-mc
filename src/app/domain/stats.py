@@ -62,6 +62,12 @@ class OverallStats:
     source_lang: str = ""
     target_lang: str = ""
     start_time: float = 0.0
+    # QA metrics
+    qa_enabled: bool = False
+    qa_judged: int = 0
+    qa_flagged: int = 0
+    qa_corrected: int = 0
+    qa_warnings: int = 0
 
     def start(self) -> None:
         self.start_time = time.monotonic()
@@ -87,6 +93,11 @@ class OverallStats:
             "provider": self.provider,
             "source_lang": self.source_lang,
             "target_lang": self.target_lang,
+            "qa_enabled": self.qa_enabled,
+            "qa_judged": self.qa_judged,
+            "qa_flagged": self.qa_flagged,
+            "qa_corrected": self.qa_corrected,
+            "qa_warnings": self.qa_warnings,
             "mods": [
                 {
                     "name": m.name,

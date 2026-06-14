@@ -112,7 +112,6 @@ class ModsStep(Widget):
             locale,
             name=name,
             entries=mod.estimated_entries,  # type: ignore[attr-defined]
-            langs=mod.lang_file_count,  # type: ignore[attr-defined]
         )
 
     def refresh_mods(self) -> None:
@@ -160,9 +159,7 @@ class ModsStep(Widget):
                 return
 
             error.update("")
-            wiz.selected_mod_infos = [
-                wiz.mod_infos[i] for i in slist.selected if i < len(wiz.mod_infos)
-            ]
+            wiz.selected_mod_infos = [wiz.mod_infos[i] for i in slist.selected if i < len(wiz.mod_infos)]
             self.post_message(StepComplete())
         elif event.button.id == "back-btn":
             self.post_message(StepBack())

@@ -9,15 +9,11 @@ model spending its whole ``max_tokens`` budget on thinking — into an opaque
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from loguru import logger
 
-# Some models inline their chain-of-thought as <think>...</think> inside the
-# content field instead of a separate reasoning_content channel.  Strip it so it
-# never leaks into a translation.
-_THINK_BLOCK = re.compile(r"<think>.*?</think>\s*", re.DOTALL | re.IGNORECASE)
+from ..reasoning_models import strip_thinking_artifacts
 
 
 def _reasoning_tokens(completion: Any) -> int | None:
@@ -28,7 +24,7 @@ def _reasoning_tokens(completion: Any) -> int | None:
 
 
 def extract_content(completion: Any, *, transport: str) -> str:
-    """Return the assistant text, stripped of ``<think>`` blocks.
+    """Return the assistant text, stripped of chain-of-thought blocks.
 
     When the result is empty, emit a warning explaining the likely cause
     (token-cap exhaustion vs. a reasoning model whose answer never reached the
@@ -43,7 +39,7 @@ def extract_content(completion: Any, *, transport: str) -> str:
 
     message = getattr(choice, "message", None)
     content = (getattr(message, "content", None) or "").strip()
-    content = _THINK_BLOCK.sub("", content).strip()
+    content = strip_thinking_artifacts(content)
 
     if content:
         return content

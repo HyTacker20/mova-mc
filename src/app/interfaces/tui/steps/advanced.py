@@ -143,8 +143,6 @@ class AdvancedStep(Widget):
 
     initial_qa_max_attempts: int = 2
 
-    initial_qa_streaming: bool = True
-
     initial_qa_chunk_size: int = 25
 
     initial_qa_judge_workers: int = 2
@@ -152,6 +150,8 @@ class AdvancedStep(Widget):
     initial_chunk_mode: str = "auto"
 
     initial_chunk_size: int | None = None
+
+    initial_chunk_token_budget: int = 3500
 
     initial_progress_batch_size: int = 10
 
@@ -376,12 +376,6 @@ class AdvancedStep(Widget):
 
             yield Label("", id="qa-same-info")
 
-            yield HorizontalGroup(
-                Switch(value=self.initial_qa_streaming, id="qa-streaming-switch"),
-                Label("Inline QA during translate"),
-                classes="qa-toggle-row",
-            )
-
             with Container(id="qa-model-container"):
                 yield Select(options=[], id="qa-model-select")
 
@@ -489,6 +483,17 @@ class AdvancedStep(Widget):
                 ),
                 classes="inline-field",
                 id="chunk-size-row",
+            )
+
+            yield HorizontalGroup(
+                Label("Token budget (auto mode):", classes="field-label-sm"),
+                Input(
+                    value=str(self.initial_chunk_token_budget),
+                    placeholder="3500",
+                    id="chunk-token-budget-input",
+                    type="integer",
+                ),
+                classes="inline-field",
             )
 
             yield HorizontalGroup(
@@ -838,13 +843,13 @@ class AdvancedStep(Widget):
             "output_mode": self.query_one("#output-mode-select", Select).value,
             "chunk_mode": chunk_mode,
             "chunk_size": chunk_size,
+            "chunk_token_budget": _parse_required_int(self.query_one("#chunk-token-budget-input", Input).value, 3500),
             "progress_batch_size": _parse_required_int(self.query_one("#progress-batch-input", Input).value, 10),
             "qa_judge": self.query_one("#qa-judge-switch", Switch).value,
             "qa_judge_provider": self._get_qa_provider(),
             "qa_judge_model": _clean_select_value(self._get_qa_model()),
             "qa_threshold": _parse_required_int(self.query_one("#qa-threshold-input", Input).value, 3),
             "qa_max_attempts": _parse_required_int(self.query_one("#qa-attempts-input", Input).value, 2),
-            "qa_streaming": self.query_one("#qa-streaming-switch", Switch).value,
             "qa_chunk_size": _parse_required_int(self.query_one("#qa-chunk-size-input", Input).value, 25),
             "qa_judge_workers": _parse_required_int(self.query_one("#qa-judge-workers-input", Input).value, 2),
             **({"rate_limit": rate_limit} if rate_limit else {}),

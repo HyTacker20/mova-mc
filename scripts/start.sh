@@ -12,7 +12,7 @@ if [ ! -f ".venv/bin/python" ]; then
     exit 1
 fi
 
-uv run mova app "$@"
+uv run mova tui "$@"
 
 echo
 echo "Press Enter to exit..."

@@ -40,18 +40,12 @@ class TestCheckProviderAvailable:
 
 class TestResolveProvider:
     def test_default_provider(self):
-        args = argparse.Namespace(provider="google", ai=False)
+        args = argparse.Namespace(provider="google")
         result = _resolve_provider(args)
         assert result == "google"
 
-    def test_ai_flag_deprecated(self):
-        args = argparse.Namespace(provider="google", ai=True)
-        result = _resolve_provider(args)
-        assert result == "openai"
-        assert args.ai is False
-
     def test_openai_explicit(self):
-        args = argparse.Namespace(provider="openai", ai=False)
+        args = argparse.Namespace(provider="openai")
         result = _resolve_provider(args)
         assert result == "openai"
 
@@ -84,27 +78,6 @@ class TestAddTranslateArguments:
         assert args.provider == "openai"
         assert args.workers == 6
         assert args.dry_run is True
-
-    def test_deprecated_ai_flag(self):
-        parser = argparse.ArgumentParser()
-        add_translate_arguments(parser)
-        args = parser.parse_args(
-            [
-                "-p",
-                "./mods",
-                "-s",
-                "en_US",
-                "-t",
-                "uk_UA",
-                "-o",
-                "./out",
-                "--ai",
-                "--workers",
-                "6",
-                "--dry-run",
-            ]
-        )
-        assert args.ai is True
 
     def test_defaults(self):
         parser = argparse.ArgumentParser()

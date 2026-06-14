@@ -20,6 +20,7 @@ Usage::
 
 from __future__ import annotations
 
+import asyncio
 import threading
 from typing import ClassVar
 
@@ -47,13 +48,18 @@ class _CancellationToken:
 
     @classmethod
     def raise_if_set(cls) -> None:
-        """Raise ``KeyboardInterrupt`` if cancellation was requested.
+        """Raise ``CancelledError`` if cancellation was requested.
 
         Safe to call inside ``except`` blocks (does not mask existing
         exceptions).  Use at safe checkpoints in long-running loops.
+
+        Uses ``asyncio.CancelledError`` rather than ``KeyboardInterrupt``
+        because ``KeyboardInterrupt`` in an async context causes the event
+        loop to cancel *all* tasks, which produces cascading
+        ``CancelledError`` noise in the lifespan and HTTP handlers.
         """
         if cls._event.is_set():
-            raise KeyboardInterrupt()
+            raise asyncio.CancelledError()
 
 
 cancel_token = _CancellationToken()

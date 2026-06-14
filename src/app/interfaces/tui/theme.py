@@ -15,17 +15,17 @@ from textual.theme import Theme
 
 DASHBOARD_THEME = Theme(
     name="dashboard",
-    primary="#f59e0b",     # amber-500 — brand emphasis (progress bars, primary buttons)
-    secondary="#d97706",   # amber-600 — deeper amber, stays in-family
-    accent="#f59e0b",      # == primary: titles/focus match progress-bar fill (no gold-vs-orange)
-    background="#0d1117",   # unchanged
-    surface="#161b22",      # unchanged
-    panel="#21262d",       # was #1c2333 (blue-slate) → neutral gray, harmonizes with warm accent
-    error="#ff4444",        # unchanged
-    warning="#facc15",     # yellow-400 — brighter/yellower than brand amber → reads as distinct state
-    success="#2ea043",      # unchanged
-    foreground="#e6edf3",   # unchanged
-    boost="#fbbf24",       # amber-400 — lighter highlight for hover tint, distinct from accent
+    primary="#f59e0b",  # amber-500 — brand emphasis (progress bars, primary buttons)
+    secondary="#d97706",  # amber-600 — deeper amber, stays in-family
+    accent="#f59e0b",  # == primary: titles/focus match progress-bar fill (no gold-vs-orange)
+    background="#0d1117",  # unchanged
+    surface="#161b22",  # unchanged
+    panel="#21262d",  # was #1c2333 (blue-slate) → neutral gray, harmonizes with warm accent
+    error="#ff4444",  # unchanged
+    warning="#facc15",  # yellow-400 — brighter/yellower than brand amber → reads as distinct state
+    success="#2ea043",  # unchanged
+    foreground="#e6edf3",  # unchanged
+    boost="#fbbf24",  # amber-400 — lighter highlight for hover tint, distinct from accent
 )
 
 # Alias for consumer clarity

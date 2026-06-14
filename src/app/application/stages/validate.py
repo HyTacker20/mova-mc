@@ -31,9 +31,7 @@ def stage_validate_outputs(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
         validated_files: list[LangFile] = []
         for lang_file in mod.lang_files:
             validated_units = tuple(
-                _validate_result(u, ctx=ctx, run_uk_lint=run_uk_lint)
-                if isinstance(u, TranslationResult)
-                else u
+                _validate_result(u, ctx=ctx, run_uk_lint=run_uk_lint) if isinstance(u, TranslationResult) else u
                 for u in lang_file.units
             )
             validated_files.append(

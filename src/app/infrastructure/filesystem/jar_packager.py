@@ -9,6 +9,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from loguru import logger
 
 from ...domain.languages import LANGUAGE_NAMES
+from ...utils.cancellation import cancel_token
 
 JAR = ".jar"
 JSON = ".json"
@@ -108,10 +109,21 @@ def _convert_folder_to_jar(
     try:
         with ZipFile(str(tmp_jar_path), "w", ZIP_DEFLATED) as jar_file:
             for root, _dirs, files in os.walk(str(folder_path)):
+                if cancel_token.is_set():
+                    logger.info("Repack cancelled — stopping JAR creation for {}", folder_path.name)
+                    break
                 for file in files:
+                    if cancel_token.is_set():
+                        break
                     file_path = Path(root) / file
                     relative_path = str(os.path.relpath(str(file_path), str(folder_path)))
-                    jar_file.write(str(file_path), relative_path)
+                    try:
+                        jar_file.write(str(file_path), relative_path)
+                    except FileNotFoundError:
+                        # Race with workspace cleanup during cancellation —
+                        # skip the file instead of losing the whole JAR.
+                        logger.warning("Skipping missing file during JAR creation: {}", relative_path)
+                        continue
                     file_count += 1
 
                     has_lang_ext = file.lower().endswith(JSON) or file.lower().endswith(LANG)

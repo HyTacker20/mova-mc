@@ -51,14 +51,31 @@ def register_provider(
     return decorator
 
 
-AI_PROVIDERS: frozenset[str] = frozenset({
-    "openai", "anthropic", "gemini", "ollama", "litellm", "openaicompatible", "opencode",
-})
+AI_PROVIDERS: frozenset[str] = frozenset(
+    {
+        "openai",
+        "anthropic",
+        "gemini",
+        "ollama",
+        "litellm",
+        "openaicompatible",
+        "opencode",
+    }
+)
 """Provider names that use LLM-based translation (as opposed to Google)."""
 
-ALL_PROVIDERS: frozenset[str] = frozenset({
-    "google", "openai", "anthropic", "gemini", "ollama", "litellm", "openaicompatible", "opencode",
-})
+ALL_PROVIDERS: frozenset[str] = frozenset(
+    {
+        "google",
+        "openai",
+        "anthropic",
+        "gemini",
+        "ollama",
+        "litellm",
+        "openaicompatible",
+        "opencode",
+    }
+)
 """Every known built-in provider name."""
 
 
@@ -68,6 +85,7 @@ def _register_builtins() -> None:
     Called once at module init to populate the registry with the
     providers shipped with mova-mc.
     """
+
     # Google ------------------------------------------------------------
     @register_provider("google", label="Google Translate")
     def _build_google(**kwargs: Any) -> TranslationProvider:
@@ -78,6 +96,7 @@ def _register_builtins() -> None:
             target_lang=kwargs["target_lang"],
             capitalize=kwargs.get("capitalize", True),
             max_retries=kwargs.get("max_retries", 3),
+            max_concurrent_chunks=kwargs.get("max_concurrent_chunks", 4),
         )
 
     # OpenAI-like providers ----------------------------------------------
@@ -117,10 +136,15 @@ def _register_builtins() -> None:
         return _build_openai_like("opencode", **kwargs)
 
 
-def build_transport(provider: str, model: str | None = None) -> LLMTransport:
+def build_transport(
+    provider: str,
+    model: str | None = None,
+    *,
+    task: str | None = None,
+) -> LLMTransport:
     """Build and return a configured ``LLMTransport`` for the given *provider*.
 
-    Resolves the model via :func:`_resolve_model` and selects the appropriate
+    Resolves the model via :func:`resolve_model` and selects the appropriate
     transport class (``OpenAICompatTransport`` / ``OpenAISDKTransport`` /
     ``LitellmTransport``).
 
@@ -128,26 +152,28 @@ def build_transport(provider: str, model: str | None = None) -> LLMTransport:
     same transport selection logic without building a full translator.
     """
     from .openai_like import LLMTransport  # noqa: F401
+    from .reasoning_models import ReasoningTask
     from .transports.compat_sdk import OpenAICompatTransport
     from .transports.litellm_sdk import LitellmTransport
     from .transports.openai_sdk import OpenAISDKTransport
     from .transports.opencode import OpenCodeTransport
 
-    resolved_model: str = _resolve_model(provider, model)  # type: ignore[arg-type]
+    resolved_model: str = resolve_model(provider, model)  # type: ignore[arg-type]
+    reasoning_task = ReasoningTask(task) if task else ReasoningTask.TRANSLATE
 
     # Auto-prepend provider prefix for Ollama (LiteLLM requires it)
     if provider == "ollama" and resolved_model and not resolved_model.startswith("ollama/"):
         resolved_model = f"ollama/{resolved_model}"
 
     if provider == "opencode":
-        return OpenCodeTransport(model=resolved_model)
+        return OpenCodeTransport(model=resolved_model, task=reasoning_task)
 
     if provider == "openaicompatible":
         base_url = os.getenv("OPENAICOMPATIBLE_BASE_URL", "")
-        return OpenAICompatTransport(model=resolved_model, base_url=base_url)
+        return OpenAICompatTransport(model=resolved_model, base_url=base_url, task=reasoning_task)
     if provider == "openai":
         try:
-            return OpenAISDKTransport(model=resolved_model)
+            return OpenAISDKTransport(model=resolved_model, task=reasoning_task)
         except (ImportError, ValueError) as e:
             from loguru import logger
 
@@ -156,16 +182,20 @@ def build_transport(provider: str, model: str | None = None) -> LLMTransport:
                 "To avoid this, install: pip install openai",
                 e,
             )
-            return LitellmTransport(model=resolved_model)
-    return LitellmTransport(model=resolved_model)
+            return LitellmTransport(model=resolved_model, task=reasoning_task)
+    return LitellmTransport(model=resolved_model, task=reasoning_task)
 
 
 def _build_openai_like(provider: str, **kwargs: Any) -> TranslationProvider:
     """Build an OpenAILikeProvider for the given *provider* name."""
     from .openai_like import OpenAILikeProvider
 
-    resolved_model = _resolve_model(provider, kwargs.get("model"))
+    resolved_model = resolve_model(provider, kwargs.get("model"))
     transport = build_transport(provider, resolved_model)
+    resolved_chunk_size = kwargs.get("chunk_size")
+    if resolved_chunk_size is None:
+        resolved_chunk_size = 10 if provider == "openaicompatible" else 25
+
     return OpenAILikeProvider(
         source_lang=kwargs.get("source_lang", ""),
         target_lang=kwargs.get("target_lang", ""),
@@ -173,14 +203,18 @@ def _build_openai_like(provider: str, **kwargs: Any) -> TranslationProvider:
         service_name=provider if provider != "openaicompatible" else "openaicompatible",
         capitalize=kwargs.get("capitalize", True),
         max_retries=kwargs.get("max_retries", 3),
-        chunk_size=kwargs.get("chunk_size", 10 if provider == "openaicompatible" else 25),
+        chunk_size=resolved_chunk_size,
+        max_concurrent_chunks=kwargs.get("max_concurrent_chunks", 4),
+        chunk_token_budget=kwargs.get("chunk_token_budget", 3500),
+        chunk_max_text_length=kwargs.get("chunk_max_text_length", 200),
+        chunk_mode=kwargs.get("chunk_mode", "auto"),
         source_lang_display=kwargs.get("source_lang_display"),
         target_lang_display=kwargs.get("target_lang_display"),
         glossary=kwargs.get("glossary"),
     )
 
 
-def _resolve_model(provider: str, explicit: str | None = None) -> str:
+def resolve_model(provider: str, explicit: str | None = None) -> str:
     if explicit:
         if provider == "opencode":
             from .transports.opencode import normalize_opencode_model
@@ -266,12 +300,14 @@ def check_provider_available(provider: str) -> tuple[bool, str]:
         openai_ok = False
         try:
             import openai  # noqa: F401
+
             openai_ok = True
         except ImportError:
             pass
         litellm_ok = False
         try:
             import litellm
+
             litellm_ok = True
         except ImportError:
             pass
@@ -285,6 +321,7 @@ def check_provider_available(provider: str) -> tuple[bool, str]:
     litellm_ok = False
     try:
         import litellm  # noqa: F401
+
         litellm_ok = True
     except ImportError:
         pass

@@ -110,8 +110,12 @@ class SqliteCache:
             return {row[0]: (row[1], row[2], row[3], row[4]) for row in rows}
 
     def set_verdict(
-        self, key: str, verdict: str, score: int | None = None,
-        issue: str | None = None, attempts: int = 0,
+        self,
+        key: str,
+        verdict: str,
+        score: int | None = None,
+        issue: str | None = None,
+        attempts: int = 0,
     ) -> None:
         from datetime import datetime, timezone
 

@@ -20,6 +20,25 @@ def add_translate_arguments(parser: ArgumentParser) -> None:
         help="Model name for AI providers (e.g. gpt-4o, claude-sonnet-4). Uses provider default if not set.",
     )
     parser.add_argument("--workers", type=int, default=4, help="Number of concurrent translation workers (default: 4)")
+    parser.add_argument(
+        "--chunk-mode",
+        type=str,
+        default=None,
+        choices=["auto", "chunk", "item"],
+        help="Translation batching: auto (token budget), chunk (fixed size), item (one per request)",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=None,
+        help="Fixed chunk size when --chunk-mode=chunk (default: provider default, usually 25)",
+    )
+    parser.add_argument(
+        "--chunk-token-budget",
+        type=int,
+        default=None,
+        help="Max estimated input tokens per JSON batch when --chunk-mode=auto (default: 3500)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Show what would be translated without making changes")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging to console")
     parser.add_argument(
@@ -130,7 +149,7 @@ def build_argument_parser() -> ArgumentParser:
     cli_parser = subparsers.add_parser("cli", help="Use traditional command-line arguments")
     add_translate_arguments(cli_parser)
 
-    app_parser = subparsers.add_parser("app", help="Launch interactive form interface")
+    app_parser = subparsers.add_parser("tui", help="Launch interactive Textual TUI")
     app_parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging to console")
 
     init_parser = subparsers.add_parser("init", help="Generate a movamc.toml config template")
@@ -139,6 +158,19 @@ def build_argument_parser() -> ArgumentParser:
         nargs="?",
         default=".",
         help="Directory to create movamc.toml in (default: current directory)",
+    )
+
+    web_parser = subparsers.add_parser("web", help="Launch browser-based web UI")
+    web_parser.add_argument("--host", default=None, help="Bind host (env: MOVAMC_HOST)")
+    web_parser.add_argument("--port", type=int, default=None, help="Listen port (env: MOVAMC_PORT)")
+    web_parser.add_argument(
+        "--dev", action="store_const", const=True, default=None, help="Dev mode + CORS (env: MOVAMC_DEV)"
+    )
+    web_parser.add_argument(
+        "-d", "--debug", action="store_const", const=True, default=None, help="Debug logging (env: MOVAMC_DEBUG)"
+    )
+    web_parser.add_argument(
+        "--no-browser", action="store_const", const=True, default=None, help="Skip browser (env: MOVAMC_NO_BROWSER)"
     )
 
     return parser

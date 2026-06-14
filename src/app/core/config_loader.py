@@ -31,15 +31,25 @@ VALID_CONFIG_KEYS = frozenset(
         "path",
         "chunk_mode",
         "chunk_size",
+        "chunk_token_budget",
+        "chunk_max_text_length",
         "progress_batch_size",
         "ui_locale",
     }
 )
 VALID_MOD_KEYS = frozenset({"include", "exclude"})
-VALID_QA_KEYS = frozenset({
-    "judge", "judge_model", "judge_provider", "corrector_model",
-    "threshold", "max_attempts", "streaming", "chunk_size", "judge_workers",
-})
+VALID_QA_KEYS = frozenset(
+    {
+        "judge",
+        "judge_model",
+        "judge_provider",
+        "corrector_model",
+        "threshold",
+        "max_attempts",
+        "chunk_size",
+        "judge_workers",
+    }
+)
 VALID_RATE_LIMIT_KEYS = frozenset({"rpm", "burst"})
 
 
@@ -59,6 +69,8 @@ def settings_to_config_dict(settings: Any, *, ui_locale: str | None = None) -> d
         "output_mode": settings.output_mode,
         "chunk_mode": settings.chunk_mode,
         "chunk_size": settings.chunk_size,
+        "chunk_token_budget": settings.chunk_token_budget,
+        "chunk_max_text_length": settings.chunk_max_text_length,
         "progress_batch_size": settings.progress_batch_size,
         "qa_judge": settings.qa_judge,
         "qa_judge_provider": settings.qa_judge_provider,
@@ -66,7 +78,6 @@ def settings_to_config_dict(settings: Any, *, ui_locale: str | None = None) -> d
         "qa_corrector_model": settings.qa_corrector_model,
         "qa_threshold": settings.qa_threshold,
         "qa_max_attempts": settings.qa_max_attempts,
-        "qa_streaming": settings.qa_streaming,
         "qa_chunk_size": settings.qa_chunk_size,
         "qa_judge_workers": settings.qa_judge_workers,
     }
@@ -83,6 +94,7 @@ def settings_to_config_dict(settings: Any, *, ui_locale: str | None = None) -> d
     if rate_limit:
         data["rate_limit"] = rate_limit
     return data
+
 
 CONFIG_TEMPLATE = """# MovaMC configuration
 # This file is auto-discovered when placed next to your mods.
@@ -117,7 +129,7 @@ workers = 4
 # hint_lang = ""
 
 # Output mode: "replace" (overwrite originals) or "separate" (keep both)
-# output_mode = "replace"
+# output_mode = "separate"
 
 [mods]
 # Glob patterns for mods to include (default: all mods)
@@ -176,7 +188,16 @@ def load_config(config_path: Path) -> dict[str, Any]:
                 except (ValueError, TypeError):
                     logger.warning(f"Config key 'workers' must be an integer, got: {type(value).__name__}")
                     continue
-            elif key in ("chunk_size", "progress_batch_size") and value is not None:
+            elif (
+                key
+                in (
+                    "chunk_size",
+                    "progress_batch_size",
+                    "chunk_token_budget",
+                    "chunk_max_text_length",
+                )
+                and value is not None
+            ):
                 try:
                     config[key] = int(value)
                 except (ValueError, TypeError):
@@ -243,8 +264,20 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
     If config_path is given, overwrites that file.
     Otherwise writes to CWD/movamc.toml.
     Returns the path written to.
+
+    Logs a compact summary of what changed (added / modified / removed keys)
+    so you always know what the save actually did.
     """
     target = config_path or (Path.cwd() / CONFIG_FILE_NAME)
+
+    # Snapshot existing file before overwriting so we can show a delta.
+    prev: dict[str, Any] = {}
+    if target.is_file():
+        try:
+            with target.open("rb") as f:
+                prev = tomllib.load(f)
+        except Exception:
+            prev = {}
 
     # Build TOML structure with [translation], [mods], and [qa] sections
     toml_output: dict[str, Any] = {"translation": {}, "mods": {}}
@@ -264,12 +297,19 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
         "output_mode": "output_mode",
         "chunk_mode": "chunk_mode",
         "chunk_size": "chunk_size",
+        "chunk_token_budget": "chunk_token_budget",
+        "chunk_max_text_length": "chunk_max_text_length",
         "progress_batch_size": "progress_batch_size",
         "ui_locale": "ui_locale",
     }
     for toml_key, data_key in trans_keys_map.items():
-        if data_key in data and data[data_key] is not None:
-            toml_output["translation"][toml_key] = data[data_key]
+        # Prefer internal key (from settings_to_config_dict), fall back to
+        # TOML key (from load_config) so both callers work without translating.
+        value = data.get(data_key)
+        if value is None and toml_key != data_key:
+            value = data.get(toml_key)
+        if value is not None:
+            toml_output["translation"][toml_key] = value
 
     # Map mods-section keys
     mods_data = data.get("mods", {})
@@ -293,7 +333,6 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
             "corrector_model": "corrector_model",
             "threshold": "threshold",
             "max_attempts": "max_attempts",
-            "streaming": "streaming",
             "chunk_size": "chunk_size",
             "judge_workers": "judge_workers",
         }
@@ -305,7 +344,6 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
             "qa_corrector_model": "corrector_model",
             "qa_threshold": "threshold",
             "qa_max_attempts": "max_attempts",
-            "qa_streaming": "streaming",
             "qa_chunk_size": "chunk_size",
             "qa_judge_workers": "judge_workers",
         }
@@ -322,11 +360,70 @@ def save_config(data: dict[str, Any], config_path: Path | None = None) -> Path:
     if isinstance(rate_limit_data, dict) and rate_limit_data:
         toml_output["rate_limit"] = rate_limit_data
 
+    # Remove empty sections before comparison to avoid noise
+    toml_output = {k: v for k, v in toml_output.items() if v}
+
+    # Don't touch the file if nothing actually changed.
+    # Normalise prev the same way (strip empty tables) for a fair comparison.
+    prev_normalised = {k: v for k, v in prev.items() if v}
+    if prev_normalised and toml_output == prev_normalised:
+        logger.info(f"Saved {target.name} →\n  (no changes — file was identical)")
+        return target
+
     with target.open("wb") as f:
         tomli_w.dump(toml_output, f)
 
-    logger.info(f"Configuration saved to {target}")
+    # Log a compact delta so the user knows what actually changed.
+    # Use normalised prev so empty-section removals don't show as spurious deltas.
+    _log_config_delta(prev_normalised, toml_output, target)
     return target
+
+
+def _log_config_delta(prev: dict[str, Any], curr: dict[str, Any], target: Path) -> None:
+    """Log which top-level sections / keys were added, changed, or removed."""
+
+    def _flatten(d: dict[str, Any], prefix: str = "") -> dict[str, Any]:
+        flat: dict[str, Any] = {}
+        for k, v in d.items():
+            full = f"{prefix}{k}" if prefix else k
+            if isinstance(v, dict) and not isinstance(v, list):
+                flat.update(_flatten(v, f"{full}."))
+            else:
+                flat[full] = v
+        return flat
+
+    old_flat = _flatten(prev)
+    new_flat = _flatten(curr)
+
+    added = {k: v for k, v in new_flat.items() if k not in old_flat}
+    removed = {k: v for k, v in old_flat.items() if k not in new_flat}
+    changed = {k: (old_flat[k], new_flat[k]) for k in new_flat if k in old_flat and old_flat[k] != new_flat[k]}
+
+    lines: list[str] = [f"Saved {target.name} →"]
+    if added:
+        for k, v in sorted(added.items()):
+            lines.append(f"  + {k} = {_fmt_val(v)}")
+    if changed:
+        for k, (old, new) in sorted(changed.items()):
+            lines.append(f"  ~ {k}: {_fmt_val(old)} → {_fmt_val(new)}")
+    if removed:
+        for k, v in sorted(removed.items()):
+            lines.append(f"  - {k}  (was {_fmt_val(v)})")
+
+    if not added and not changed and not removed:
+        lines.append("  (no changes — file was identical)")
+
+    logger.info("\n".join(lines))
+
+
+def _fmt_val(v: Any) -> str:
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, str):
+        return repr(v)
+    if isinstance(v, list):
+        return "[" + ", ".join(repr(x) for x in v) + "]"
+    return str(v)
 
 
 def generate_config_template(output_dir: str) -> Path:

@@ -46,9 +46,6 @@ class QaConfig:
     max_attempts: int = 2
     """Maximum re-translation attempts per flagged entry."""
 
-    streaming: bool = True
-    """Run QA inline during translation (True) or as a separate post-pass."""
-
     chunk_size: int = 25
     """Entries per QA chunk."""
 
@@ -59,21 +56,13 @@ class QaConfig:
 
     def __post_init__(self) -> None:
         if self.threshold < 1 or self.threshold > 5:
-            raise ValueError(
-                f"qa_threshold must be 1-5, got {self.threshold}"
-            )
+            raise ValueError(f"qa_threshold must be 1-5, got {self.threshold}")
         if self.max_attempts < 0:
-            raise ValueError(
-                f"qa_max_attempts must be >= 0, got {self.max_attempts}"
-            )
+            raise ValueError(f"qa_max_attempts must be >= 0, got {self.max_attempts}")
         if self.chunk_size < 1:
-            raise ValueError(
-                f"qa_chunk_size must be >= 1, got {self.chunk_size}"
-            )
+            raise ValueError(f"qa_chunk_size must be >= 1, got {self.chunk_size}")
         if self.judge_workers < 1:
-            raise ValueError(
-                f"qa_judge_workers must be >= 1, got {self.judge_workers}"
-            )
+            raise ValueError(f"qa_judge_workers must be >= 1, got {self.judge_workers}")
 
     # -- factories -------------------------------------------------------
 
@@ -87,7 +76,6 @@ class QaConfig:
             corrector_model=data.get("qa_corrector_model"),
             threshold=int(data.get("qa_threshold", 3)),
             max_attempts=int(data.get("qa_max_attempts", 2)),
-            streaming=bool(data.get("qa_streaming", True)),
             chunk_size=int(data.get("qa_chunk_size", 25)),
             judge_workers=int(data.get("qa_judge_workers", 2)),
         )
@@ -95,14 +83,16 @@ class QaConfig:
     @classmethod
     def from_table_dict(cls, table: dict[str, Any]) -> QaConfig:
         """Build from a ``[qa]`` TOML table."""
+        enabled_raw = table.get("judge", table.get("enabled", False))
+        provider_raw = table.get("judge_provider", table.get("provider"))
+        model_raw = table.get("judge_model", table.get("model"))
         return cls(
-            enabled=bool(table.get("judge", False)),
-            provider=table.get("judge_provider"),
-            model=_coerce_model(table.get("judge_model")),
+            enabled=bool(enabled_raw),
+            provider=provider_raw,
+            model=_coerce_model(model_raw),
             corrector_model=table.get("corrector_model"),
             threshold=int(table.get("threshold", 3)),
             max_attempts=int(table.get("max_attempts", 2)),
-            streaming=bool(table.get("streaming", True)),
             chunk_size=int(table.get("chunk_size", 25)),
             judge_workers=int(table.get("judge_workers", 2)),
         )

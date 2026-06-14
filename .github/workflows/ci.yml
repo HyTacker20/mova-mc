@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --extra ai
+        run: uv sync --group dev
 
       - name: Run ruff check
         run: uv run ruff check .

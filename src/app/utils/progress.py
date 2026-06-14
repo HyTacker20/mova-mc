@@ -111,6 +111,9 @@ class ProgressReporter:
 
     # ── QA events ──────────────────────────────────────────────────────
 
+    def report_qa_progress(self, done: int, total: int) -> None:
+        self._notify("qa_progress", done=done, total=total)
+
     def report_qa_start(self, total: int, provider: str, model: str) -> None:
         self._notify("qa_start", total=total, provider=provider, model=model)
 

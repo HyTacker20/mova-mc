@@ -215,7 +215,6 @@ async def test_advanced_step_performance_fields_present() -> None:
         assert step.query_one("#judge-rpm-input")
         assert step.query_one("#qa-chunk-size-input")
         assert step.query_one("#qa-judge-workers-input")
-        assert step.query_one("#qa-streaming-switch")
 
 
 @pytest.mark.asyncio
@@ -233,7 +232,6 @@ async def test_save_config_writes_performance_sections(tmp_path: Path) -> None:
         "chunk_mode": "auto",
         "progress_batch_size": 10,
         "qa_judge": True,
-        "qa_streaming": True,
         "qa_chunk_size": 25,
         "qa_judge_workers": 2,
         "rate_limit": {"rpm": 300, "burst": 20, "judge": {"rpm": 120, "burst": 5}},

@@ -50,3 +50,28 @@ async def test_translate_run_step_has_stats_widgets() -> None:
         await app.mount(step)
         assert step.query_one("#translate-stats")
         assert step.query_one("#translate-file")
+        assert step.query_one("#qa-progress")
+
+
+@pytest.mark.asyncio
+async def test_translate_run_step_update_qa() -> None:
+    """update_qa drives the QA progress bar and label."""
+    from textual.app import App
+    from textual.widgets import Label, ProgressBar
+
+    from app.interfaces.tui.steps.translate_run import TranslateRunStep
+
+    class _TestApp(App):
+        pass
+
+    app = _TestApp()
+    async with app.run_test(size=(100, 30)):
+        step = TranslateRunStep()
+        await app.mount(step)
+        step.update_qa(3, 10)
+        bar = step.query_one("#qa-progress", ProgressBar)
+        assert bar.progress == 3
+        assert bar.total == 10
+        label_text = str(step.query_one("#qa-progress-label", Label).content)
+        assert "3/10" in label_text
+        assert "30" in label_text

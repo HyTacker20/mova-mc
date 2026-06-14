@@ -11,7 +11,7 @@
 - **Ukrainian-first quality** — custom glossary (62 Minecraft terms), anti-surzhyk prompt, russism detector
 - **Three file formats** — JSON with comments, Minecraft LANG (`key=value`), MCFUNCTION (`data modify storage`)
 - **Placeholder safety** — `%s`, `%d`, `%1$s`, `§c`, `{name}` are validated so nothing breaks in-game
-- **Both GUI and CLI** — interactive Textual TUI (`mova app`) or scriptable CLI (`mova cli`)
+- **Web UI and CLI** — browser wizard (`mova`) or scriptable CLI (`mova cli`); terminal TUI (`mova tui`) is deprecated and will be removed
 
 ## What's coming next
 
@@ -24,7 +24,7 @@
 ### Next — resource packs & reliability
 - **Resource pack output** — translations packaged as standard Minecraft resource packs (survive mod updates, shareable on CurseForge/Modrinth)
 - **Crash recovery** — pipeline saves progress after each mod; restart picks up where it left off
-- **Web interface** — browser-based UI with side-by-side translation editor (replaces the terminal TUI)
+- **Web interface polish** — ongoing UX improvements; terminal TUI is frozen and scheduled for removal
 
 ### Later — smarter translation
 - **Auto-detect source language** — no need to specify the mod's language manually
