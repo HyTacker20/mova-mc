@@ -8,10 +8,6 @@ A Python tool that translates Minecraft mod files between languages. It unpacks 
 
 Primary interfaces: **web UI** (`mova` → browser) and **CLI** (`mova cli`).
 
-> **TUI deprecated:** `mova tui` / `src/app/interfaces/tui/` is **frozen** — no new features or UX fixes.
-> All UI work goes to `frontend/` + `backend/`. The Textual TUI will be **removed** in a future release.
-> See [`src/app/interfaces/tui/DEPRECATED.md`](src/app/interfaces/tui/DEPRECATED.md).
-
 ## Architecture
 
 The project follows a **hexagonal (ports & adapters)** architecture with strict layer isolation enforced by `import-linter`:
@@ -77,28 +73,11 @@ src/app/
       jar_unpacker.py          JAR → temp directory extraction
       jar_packager.py          Temp directory → JAR repacking
 
-  interfaces/          User-facing interfaces (CLI and TUI)
+  interfaces/          User-facing interfaces (CLI)
     cli/
-      args.py          ArgumentParser with subcommands (cli/app/init) and all flags
-      main.py          CLI dispatcher: mova cli / app / init
+      args.py          ArgumentParser with subcommands (cli/init/web) and all flags
+      main.py          CLI dispatcher: mova cli / init / web
       presenter.py     CLI stats/summary output
-    tui/
-      app.py           TranslationApp(App) — root Textual app, global bindings
-      main.py          TUI entry: main(debug=False) → TranslationApp
-      wizard.py        WizardScreen — stepper navigation, pipeline orchestration
-      theme.py         Custom amber "dashboard" Textual theme
-      key_bindings.py  Layout-independent Cyrillic keyboard aliases
-      app.tcss         Global Textual CSS (centered column, amber focus)
-      log_viewer.py    Modal log tail viewer
-      translations_viewer.py  Modal source→target translation viewer
-      steps/
-        welcome.py     Step 0 — version, config indicator, start button
-        provider.py    Step 1 — provider selection, credentials, model fetch
-        paths.py       Step 2 — mods path, languages, output path
-        advanced.py    Step 3 — cache, workers, hint lang, dry-run, glossary, QA
-        mods.py        Step 4 — mod selection (SelectionList)
-        translate_run.py  Step 5 — live progress bars + dual RichLog panels
-        summary.py     Step 6 — results DataTable, restart/quit actions
 
 frontend/             React + TypeScript web UI (Vite)
   src/
@@ -155,7 +134,7 @@ backend/              FastAPI backend
 ## Translation flow
 
 ```
-User input (CLI args or TUI form)
+User input (CLI args or web form)
   → Settings object (resolves language codes, provider, flags)
   → pipeline.build_context(settings, progress) — resolves provider,
     wraps in CachingProvider with version-aware cache key
@@ -169,7 +148,7 @@ User input (CLI args or TUI form)
       7. write     — write target language files to temp/ (skipped on dry_run)
       8. repack    — temp/ → output JAR (skipped on dry_run; output_mode controls path)
   → cleanup temp workspace (unique per-run via tempfile.mkdtemp)
-  → display stats (CLI) or SummaryStep (TUI)
+  → display stats (CLI or web UI)
 ```
 
 ## Key modules
@@ -245,7 +224,7 @@ Loads Minecraft terminology from `data/glossary/{lang_code}.json`. `get_relevant
 | `hint_lang` | `--hint-lang` | `None` |
 | `glossary_path` | `--glossary-path` | `None` |
 | `output_mode` | `--output-mode` | `"separate"` |
-| `qa_judge` | TUI / config | `False` |
+| `qa_judge` | config | `False` |
 
 `Settings.effective_output_path()` returns `mods_path` when `output_mode == "replace"`,
 otherwise `translation_path`.
@@ -253,28 +232,6 @@ otherwise `translation_path`.
 ### `infrastructure/providers/factory.py`
 
 Single function `get_translator_service()` resolves the correct provider. For LLM providers it accepts `source_lang_display` / `target_lang_display` for human-readable prompt names. Google always receives ISO codes.
-
-### `interfaces/tui/` (Textual) — **deprecated, do not extend**
-
-Legacy terminal UI. **Do not implement new features here** — use the web UI instead.
-Kept only until removal. Entry point: `main.py:main(debug=False)`.
-
-| File | Purpose |
-|---|---|
-| `app.py` | `TranslationApp(App)` — pushes WizardScreen, global quit bindings |
-| `main.py` | Entry point preserving `main(debug=False)` signature |
-| `wizard.py` | `WizardScreen` — stepper, navigation, pipeline worker, clipboard |
-| `steps/welcome.py` | Welcome step with config indicator and start button |
-| `steps/provider.py` | Provider/credentials/model selection with auto-save |
-| `steps/paths.py` | Mods path, source/target languages, output path |
-| `steps/advanced.py` | Cache, workers, hint lang, dry-run, glossary, QA settings |
-| `steps/mods.py` | Mod selection via SelectionList |
-| `steps/translate_run.py` | Live progress + Translation/QA log panels |
-| `steps/summary.py` | Results DataTable, view log/translations, restart |
-| `app.tcss` | Global Textual CSS (amber dashboard theme) |
-
-Flow: Welcome → Provider → Paths → Advanced → Mods → Translate → Summary.
-Back from Summary returns to Mods. "New Translation" restarts at Welcome.
 
 ### Persistable config keys (movamc.toml)
 | Key | Type | Section |
@@ -361,8 +318,6 @@ tests/
     test_pipeline_e2e.py           End-to-end pipeline test
     test_e2e_extended.py           Extended E2E tests
   test_app.py                      Interactive app tests
-  test_tui_smoke.py                Textual wizard smoke tests
-  test_key_bindings.py             Cyrillic keyboard layout bindings
   test_command_line_extended.py    CLI arg parsing
   test_config_loader.py            Config file loading
   test_data.py                     languages.json loading
