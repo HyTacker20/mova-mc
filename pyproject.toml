@@ -19,7 +19,6 @@ dependencies = [
     "loguru>=0.7.0",
     "tomli>=2.0; python_version < '3.11'",
     "json5>=0.14.0",
-    "textual>=1.0.0",
     "tomli-w>=1.0",
     "httpx>=0.27.0",
     "litellm>=1.35",
@@ -50,7 +49,6 @@ rar = [
 
 [project.scripts]
 mova = "app.interfaces.cli.main:main"
-mova-app = "app.interfaces.tui.main:main"
 
 [tool.setuptools.package-dir]
 "" = "src"
@@ -67,12 +65,14 @@ warn_unused_configs = true
 ignore_missing_imports = false
 
 [[tool.mypy.overrides]]
-module = ["deep_translator.*", "litellm.*", "textual.*", "tomli_w.*", "rich.*", "loguru.*", "dotenv.*", "openai.*", "fastapi.*", "uvicorn.*", "starlette.*", "pydantic.*", "rarfile.*"]
+module = ["deep_translator.*", "litellm.*", "tomli_w.*", "rich.*", "loguru.*", "dotenv.*", "openai.*", "fastapi.*", "uvicorn.*", "starlette.*", "pydantic.*", "rarfile.*"]
 ignore_missing_imports = true
 
 [tool.coverage.report]
-fail_under = 63
+fail_under = 80
 show_missing = true
+
+[tool.coverage.run]
 
 [tool.ruff]
 line-length = 120
@@ -89,8 +89,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["RUF001", "RUF003", "E501", "S108", "RUF002", "ARG005", "I001"]
-"src/app/interfaces/tui/i18n.py" = ["RUF001"]
-"src/app/interfaces/tui/key_bindings.py" = ["RUF001", "RUF002"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
