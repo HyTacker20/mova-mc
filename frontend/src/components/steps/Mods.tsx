@@ -162,10 +162,23 @@ export default function Mods() {
   }
 
   function renderModRow(mod: ModInfo) {
+    const isSelected = selected.has(mod.name)
+    const isDisabled = !mod.has_lang_files
     return (
       <label
         key={mod.name}
-        className={`mod-row ${!mod.has_lang_files ? 'mod-row--no-lang' : ''} ${mod.in_resource_pack ? 'mod-row--in-pack' : ''}`}
+        className={`mod-row ${isDisabled ? 'mod-row--no-lang' : ''} ${mod.in_resource_pack ? 'mod-row--in-pack' : ''}`}
+        role="option"
+        aria-selected={isDisabled ? undefined : isSelected}
+        aria-disabled={isDisabled || undefined}
+        tabIndex={isDisabled ? -1 : 0}
+        onKeyDown={(e) => {
+          if (isDisabled) return
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault()
+            toggleMod(mod.name)
+          }
+        }}
       >
         <input
           type="checkbox"
@@ -229,7 +242,16 @@ export default function Mods() {
       {!loading && error && <p className="error-msg">{error}</p>}
 
       {!loading && !error && mods.length === 0 && (
-        <p style={{ color: 'var(--text-muted)' }}>No .jar files found in this directory.</p>
+        <div style={{ textAlign: 'center', padding: '32px 0' }}>
+          <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.5 }} aria-hidden="true">📂</div>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>No .jar files found in this directory.</p>
+          <button
+            className="btn-ghost btn-sm"
+            onClick={() => dispatch({ type: 'SET_STEP', step: 2 })}
+          >
+            ← Choose a different folder
+          </button>
+        </div>
       )}
 
       {!loading && mods.length > 0 && (
