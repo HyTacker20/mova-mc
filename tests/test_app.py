@@ -17,11 +17,6 @@ class TestCommandLine:
         assert args.source == "en_US"
         assert args.target == "uk_UA"
 
-    def test_parser_tui_command(self):
-        parser = build_argument_parser()
-        args = parser.parse_args(["tui"])
-        assert args.command == "tui"
-
     def test_parser_provider_flag(self):
         parser = build_argument_parser()
         args = parser.parse_args(["cli", "-s", "en_US", "--provider", "openai"])

@@ -11,7 +11,7 @@ import pytest
 def _clear_cancel_token() -> None:
     """Ensure the global cancel token is cleared before every test.
 
-    Some tests (notably the TUI smoke test for Ctrl+C) set the token but
+    Some tests set the token but
     don't restore it, which leaks into subsequent tests that call
     ``cancel_token.raise_if_set()``.
     """

@@ -15,14 +15,6 @@ class TestCommandLineExtended:
             main()
             mock_web_main.assert_called_once()
 
-    def test_main_tui_command(self):
-        with (
-            patch("sys.argv", ["mova", "tui"]),
-            patch("app.interfaces.tui.main.main") as mock_tui_main,
-        ):
-            main()
-            mock_tui_main.assert_called_once()
-
     def test_main_cli_subcommand(self):
         with (
             patch("sys.argv", ["mova", "cli", "-s", "en_US", "-t", "uk_UA"]),
