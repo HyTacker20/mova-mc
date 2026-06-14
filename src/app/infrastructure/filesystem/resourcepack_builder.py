@@ -147,20 +147,6 @@ def _version_to_pack_format(version: tuple[int, int]) -> int:
     return _VERSION_PACK_FORMAT.get(version, _FALLBACK_PACK_FORMAT)
 
 
-def _read_pack_format_from_mcmeta(mcmeta_path: Path) -> int | None:
-    """Extract ``pack_format`` from an existing ``pack.mcmeta``, if any."""
-    try:
-        data = json.loads(mcmeta_path.read_text(encoding="utf-8"))
-        pack = data.get("pack")
-        if isinstance(pack, dict):
-            result = pack.get("pack_format")
-            if isinstance(result, int) or result is None:
-                return result
-        return None
-    except (json.JSONDecodeError, OSError, KeyError):
-        return None
-
-
 def _read_version_from_mcmod_info(info_path: Path) -> str | None:
     """Extract ``mcversion`` from a Forge ``mcmod.info`` JSON."""
     try:
