@@ -6,10 +6,23 @@ from pathlib import Path
 
 from loguru import logger
 
+from ...domain.languages import get_language_english_name
 from ...domain.models import Mod
 from ...infrastructure.filesystem.resourcepack_builder import build_resource_pack
 from ...utils.cancellation import cancel_token
 from ..pipeline import PipelineContext
+
+
+def _build_pack_name(lang_code: str, mod_count: int) -> str:
+    """Build a human-friendly resource pack filename.
+
+    Examples:
+        ``_build_pack_name("uk_UA", 3)`` → ``"Ukrainian — 3 mods (MovaMC)"``
+        ``_build_pack_name("es_ES", 1)`` → ``"Spanish — 1 mod (MovaMC)"``
+    """
+    lang = get_language_english_name(lang_code)
+    mods_word = "mod" if mod_count == 1 else "mods"
+    return f"{lang} — {mod_count} {mods_word} (MovaMC)"
 
 
 def stage_build_resourcepack(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
@@ -30,8 +43,7 @@ def stage_build_resourcepack(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]
     output_path = Path(ctx.settings.effective_output_path())
     target_lang = ctx.settings.target_mc_lang
 
-    # Pack name: e.g. "mova_uk_UA"
-    pack_name = f"mova_{target_lang}"
+    pack_name = _build_pack_name(target_lang, len(selected))
 
     ctx.progress.report("title", text="Building resource pack...")
 

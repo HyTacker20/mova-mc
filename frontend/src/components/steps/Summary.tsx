@@ -118,7 +118,7 @@ export default function Summary() {
           {!state.dryRun && (
             <p className="hint" style={{ marginTop: 16 }}>
               {state.outputMode === 'resourcepack'
-                ? `Resource pack: ${state.outputPath}/mova_${state.target}.zip`
+                ? `Resource pack: ${state.outputPath}`
                 : `Output: ${state.outputMode === 'replace' ? state.modsPath : state.outputPath}`}
             </p>
           )}

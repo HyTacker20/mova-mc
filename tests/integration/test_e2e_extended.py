@@ -148,7 +148,7 @@ class TestE2EAdditional:
         mods = [Mod(name=jar.name, path=jar, selected=True)]
         run_pipeline(ctx, mods)
 
-        pack_zip = out / "mova_es_ES.zip"
+        pack_zip = out / "Spanish Spain — 1 mod (MovaMC).zip"
         assert pack_zip.exists(), f"Expected {pack_zip}"
 
         with zipfile.ZipFile(pack_zip, "r") as zf:
