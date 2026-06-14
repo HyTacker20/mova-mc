@@ -19,12 +19,12 @@ from loguru import logger
 
 _PACK_DESCRIPTION = "MovaMC Translation Pack"
 
-# Default pack.png — a simple 64×64 icon generated at runtime.
+# Default pack.png — a simple 64x64 icon generated at runtime.
 # Icon design: stylized "M" formed by blocks on a dark background,
 # using the MovaMC green accent colour.
 _ICON_SIZE = 64
 
-# Blocky "M" shape (1 = filled, 0 = empty) at 8×6 "blocks" on 8×8 px cells
+# Blocky "M" shape (1 = filled, 0 = empty) at 8x6 "blocks" on 8x8 px cells
 _M_PATTERN: list[list[int]] = [
     [1, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 0, 0, 0, 0, 1, 1],
@@ -43,7 +43,7 @@ def _make_chunk(chunk_type: bytes, data: bytes) -> bytes:
 
 
 def _build_default_pack_png() -> bytes:
-    """Generate a default pack.png (64×64 RGBA) using only stdlib."""
+    """Generate a default pack.png (64x64 RGBA) using only stdlib."""
     signature = b"\x89PNG\r\n\x1a\n"
 
     # IHDR: width, height, bit depth 8, color type 6 (RGBA)
@@ -106,14 +106,20 @@ def get_pack_png() -> bytes:
         _PACK_PNG = _build_default_pack_png()
     return _PACK_PNG
 
+
 # Maps (major, minor) Minecraft version to the *minimum* compatible pack_format.
 # Newer patch versions within the same minor may use a higher format, but the
 # oldest compatible value ensures the pack loads without rejection.
 _VERSION_PACK_FORMAT: dict[tuple[int, int], int] = {
-    (1, 6): 1, (1, 7): 1, (1, 8): 1,
-    (1, 9): 2, (1, 10): 2,
-    (1, 11): 3, (1, 12): 3,
-    (1, 13): 4, (1, 14): 4,
+    (1, 6): 1,
+    (1, 7): 1,
+    (1, 8): 1,
+    (1, 9): 2,
+    (1, 10): 2,
+    (1, 11): 3,
+    (1, 12): 3,
+    (1, 13): 4,
+    (1, 14): 4,
     (1, 15): 5,
     (1, 16): 6,
     (1, 17): 7,
@@ -145,7 +151,12 @@ def _read_pack_format_from_mcmeta(mcmeta_path: Path) -> int | None:
     """Extract ``pack_format`` from an existing ``pack.mcmeta``, if any."""
     try:
         data = json.loads(mcmeta_path.read_text(encoding="utf-8"))
-        return data.get("pack", {}).get("pack_format")
+        pack = data.get("pack")
+        if isinstance(pack, dict):
+            result = pack.get("pack_format")
+            if isinstance(result, int) or result is None:
+                return result
+        return None
     except (json.JSONDecodeError, OSError, KeyError):
         return None
 
@@ -157,7 +168,11 @@ def _read_version_from_mcmod_info(info_path: Path) -> str | None:
         # mcmod.info is either a list-of-dicts or a single dict
         if isinstance(data, list) and data:
             data = data[0]
-        return data.get("mcversion")
+        if isinstance(data, dict):
+            result = data.get("mcversion")
+            if isinstance(result, str) or result is None:
+                return result
+        return None
     except (json.JSONDecodeError, OSError):
         return None
 
@@ -237,14 +252,15 @@ def detect_pack_format(workspace: Path) -> int:
             pf = _version_to_pack_format(parsed)
             logger.info(
                 "Detected MC version={} → pack_format={} (from {})",
-                version_str, pf, "mod metadata",
+                version_str,
+                pf,
+                "mod metadata",
             )
             return pf
         logger.debug("Could not parse MC version from string: {}", version_str)
 
     logger.info(
-        "Could not detect MC version from mod metadata — "
-        "using fallback pack_format={}",
+        "Could not detect MC version from mod metadata — " "using fallback pack_format={}",
         _FALLBACK_PACK_FORMAT,
     )
     return _FALLBACK_PACK_FORMAT
@@ -326,16 +342,12 @@ def build_resource_pack(
         # instead of:
         #   <modname>/assets/<ns>/lang/<file>
         parts = entry.relative_to(workspace).parts
-        if len(parts) > 1:
-            arcname = str(Path(*parts[1:]))
-        else:
-            arcname = str(Path(*parts))
+        arcname = str(Path(*parts[1:])) if len(parts) > 1 else str(Path(*parts))
         collected.append((arcname, entry))
 
     if not collected:
         logger.warning(
-            "No target-language files found in workspace for lang={} — "
-            "resource pack will contain only pack.mcmeta",
+            "No target-language files found in workspace for lang={} — " "resource pack will contain only pack.mcmeta",
             target_lang,
         )
 

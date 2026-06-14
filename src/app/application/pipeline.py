@@ -109,11 +109,7 @@ def build_context(
     # injection (LLM providers) and for the cache signature.
     glossary = load_merged_glossary(settings.target_mc_lang, settings.glossary_path)
     glossary_sig = (
-        hashlib.sha256(
-            json.dumps(sorted(glossary.items()), ensure_ascii=True).encode()
-        ).hexdigest()
-        if glossary
-        else ""
+        hashlib.sha256(json.dumps(sorted(glossary.items()), ensure_ascii=True).encode()).hexdigest() if glossary else ""
     )
 
     db_path = cache_path or str(Path(settings.translation_path) / "translation_cache.db")

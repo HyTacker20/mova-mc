@@ -21,6 +21,7 @@ class TestLitellmTransport:
                 mock_litellm.acompletion = mock_acompletion
                 with patch.dict("sys.modules", {"litellm": mock_litellm}):
                     from app.infrastructure.providers.transports.litellm_sdk import LitellmTransport
+
                     transport = LitellmTransport("gpt-4o-mini")
                     assert transport._model == "gpt-4o-mini"
                     mock_load.assert_called_once()
@@ -37,6 +38,7 @@ class TestLitellmTransport:
                 mock_litellm.acompletion = mock_acompletion
                 with patch.dict("sys.modules", {"litellm": mock_litellm}):
                     from app.infrastructure.providers.transports.litellm_sdk import LitellmTransport
+
                     transport = LitellmTransport("gpt-4o-mini")
                     kwargs = transport._completion_kwargs(
                         messages=[{"role": "user", "content": "hi"}],
@@ -60,6 +62,7 @@ class TestLitellmTransport:
                 mock_litellm.acompletion = MagicMock()
                 with patch.dict("sys.modules", {"litellm": mock_litellm}):
                     from app.infrastructure.providers.transports.litellm_sdk import LitellmTransport
+
                     transport = LitellmTransport("claude-sonnet-4")
                     kwargs = transport._completion_kwargs(
                         messages=[{"role": "user", "content": "hi"}],
@@ -80,12 +83,15 @@ class TestLitellmTransport:
                 mock_litellm.completion = mock_completion
                 mock_litellm.acompletion = MagicMock()
                 with patch.dict("sys.modules", {"litellm": mock_litellm}):
-                    with patch("app.infrastructure.providers.transports.litellm_sdk.scale_max_tokens", return_value=100):
+                    with patch(
+                        "app.infrastructure.providers.transports.litellm_sdk.scale_max_tokens", return_value=100
+                    ):
                         with patch(
                             "app.infrastructure.providers.transports.litellm_sdk.extract_content",
                             return_value="Hello!",
                         ):
                             from app.infrastructure.providers.transports.litellm_sdk import LitellmTransport
+
                             transport = LitellmTransport("gpt-4o-mini")
                             result = transport.complete(
                                 messages=[{"role": "user", "content": "hi"}],
@@ -108,12 +114,15 @@ class TestLitellmTransport:
                 mock_litellm.completion = MagicMock()
                 mock_litellm.acompletion = mock_acompletion
                 with patch.dict("sys.modules", {"litellm": mock_litellm}):
-                    with patch("app.infrastructure.providers.transports.litellm_sdk.scale_max_tokens", return_value=100):
+                    with patch(
+                        "app.infrastructure.providers.transports.litellm_sdk.scale_max_tokens", return_value=100
+                    ):
                         with patch(
                             "app.infrastructure.providers.transports.litellm_sdk.extract_content",
                             return_value="Bonjour!",
                         ):
                             from app.infrastructure.providers.transports.litellm_sdk import LitellmTransport
+
                             transport = LitellmTransport("gpt-4o-mini")
                             result = await transport.acomplete(
                                 messages=[{"role": "user", "content": "bonjour"}],
@@ -137,6 +146,7 @@ class TestLitellmTransport:
                 mock_litellm.acompletion = MagicMock()
                 with patch.dict("sys.modules", {"litellm": mock_litellm}):
                     from app.infrastructure.providers.transports.litellm_sdk import LitellmTransport
+
                     transport = LitellmTransport("deepseek-v4", task=ReasoningTask.JUDGE)
         assert transport._task == ReasoningTask.JUDGE
         assert transport._extra_body == {"reasoning": "high"}

@@ -105,14 +105,22 @@ def _start_backend(host: str, port: int) -> subprocess.Popen:
     uv = shutil.which("uv") or "uv"
     return subprocess.Popen(
         [
-            uv, "run", "uvicorn", "backend.app:create_app",
-            "--host", host,
-            "--port", str(port),
+            uv,
+            "run",
+            "uvicorn",
+            "backend.app:create_app",
+            "--host",
+            host,
+            "--port",
+            str(port),
             "--reload",
-            "--reload-dir", "src",
-            "--reload-dir", "backend",
+            "--reload-dir",
+            "src",
+            "--reload-dir",
+            "backend",
             "--factory",
-            "--log-level", "info",
+            "--log-level",
+            "info",
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
@@ -128,7 +136,7 @@ def _wait_for_backend(host: str, port: int, timeout: float = 20.0) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            urllib.request.urlopen(url, timeout=2)
+            urllib.request.urlopen(url, timeout=2)  # noqa: S310 (local health check)
             return True
         except Exception:
             time.sleep(0.5)

@@ -182,7 +182,7 @@ def load_config(config_path: Path) -> dict[str, Any]:
     config: dict[str, Any] = {}
     for key, value in translation_table.items():
         if key in VALID_CONFIG_KEYS:
-            if key == "workers" and not isinstance(value, (int, type(None))):
+            if key == "workers" and not isinstance(value, int | None):
                 try:
                     config[key] = int(value)
                 except (ValueError, TypeError):

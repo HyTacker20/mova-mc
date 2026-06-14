@@ -25,13 +25,41 @@ _STATIC_DIR = Path(__file__).parent / "static"
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    """Startup: configure logging and attach the loguru→SSE sink.
-    Shutdown: detach the sink."""
+    """Startup: configure logging, attach loguru→SSE sink, log config."""
+    from loguru import logger
+
+    from app.core.config_loader import find_config_file, load_config
     from app.logging_config import is_logging_configured, setup_logging
 
     if not is_logging_configured():
         setup_logging(console_level="INFO")
     attach_log_sink()
+
+    # ── Log current config for debugging context ──
+    try:
+        # Try CWD first, then fall back to ".".
+        config_path = find_config_file(".")
+        if config_path:
+            raw = load_config(config_path)
+            logger.info(
+                "Config loaded from {} | provider={} model={} source={} target={} "
+                "output={} output_mode={} cache={} qa={} workers={}",
+                config_path.name,
+                raw.get("provider", "?"),
+                raw.get("model", "?"),
+                raw.get("source", "?"),
+                raw.get("target", "?"),
+                raw.get("output", "?"),
+                raw.get("output_mode", "?"),
+                "off" if raw.get("no_cache") else "on",
+                "on" if raw.get("qa", {}).get("judge") else "off",
+                raw.get("workers", "?"),
+            )
+        else:
+            logger.info("No config file found — using defaults")
+    except Exception:
+        logger.debug("Could not log config at startup")
+
     yield
     detach_log_sink()
 

@@ -39,8 +39,7 @@ class PathConfig:
         """Raise ``ValueError`` on invalid configuration."""
         if self.output_mode not in ("separate", "replace", "resourcepack"):
             raise ValueError(
-                f"output_mode must be 'separate', 'replace', or 'resourcepack', "
-                f"got {self.output_mode!r}"
+                f"output_mode must be 'separate', 'replace', or 'resourcepack', " f"got {self.output_mode!r}"
             )
         # Basic sanity — these are user-facing paths, not temp dirs.
         if not self.mods_path:

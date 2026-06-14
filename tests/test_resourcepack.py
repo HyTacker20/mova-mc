@@ -84,8 +84,7 @@ class TestDetectPackFormat:
         ws = tmp_path / "ws"
         ws.mkdir()
         _make_workspace_file(ws, "mod_a/pack.mcmeta", '{"pack":{"pack_format":1,"description":"mod"}}')
-        _make_workspace_file(ws, "mod_a/mcmod.info",
-            '[{"modid":"test","mcversion":"1.12.2"}]')
+        _make_workspace_file(ws, "mod_a/mcmod.info", '[{"modid":"test","mcversion":"1.12.2"}]')
 
         # Should use mcmod.info → 1.12.2 → pack_format=3, NOT pack.mcmeta's 1
         assert detect_pack_format(ws) == 3
@@ -94,8 +93,7 @@ class TestDetectPackFormat:
         """Detect from Forge mcmod.info."""
         ws = tmp_path / "ws"
         ws.mkdir()
-        _make_workspace_file(ws, "mod_a/mcmod.info",
-            '[{"modid":"test","mcversion":"1.12.2"}]')
+        _make_workspace_file(ws, "mod_a/mcmod.info", '[{"modid":"test","mcversion":"1.12.2"}]')
 
         assert detect_pack_format(ws) == 3
 
@@ -103,8 +101,7 @@ class TestDetectPackFormat:
         """Detect from fabric.mod.json."""
         ws = tmp_path / "ws"
         ws.mkdir()
-        _make_workspace_file(ws, "mod_a/fabric.mod.json",
-            '{"id":"test","depends":{"minecraft":"~1.19.2"}}')
+        _make_workspace_file(ws, "mod_a/fabric.mod.json", '{"id":"test","depends":{"minecraft":"~1.19.2"}}')
 
         assert detect_pack_format(ws) == 9
 
@@ -112,8 +109,7 @@ class TestDetectPackFormat:
         """Detect from META-INF/mods.toml."""
         ws = tmp_path / "ws"
         ws.mkdir()
-        _make_workspace_file(ws, "mod_a/META-INF/mods.toml",
-            'modLoader="javafml"\nversions="1.16.5"\n')
+        _make_workspace_file(ws, "mod_a/META-INF/mods.toml", 'modLoader="javafml"\nversions="1.16.5"\n')
 
         assert detect_pack_format(ws) == 6
 
@@ -130,8 +126,7 @@ class TestDetectPackFormat:
         ws = tmp_path / "ws"
         ws.mkdir()
         _make_workspace_file(ws, "mod_a/pack.mcmeta", '{"pack":{"pack_format":15}}')
-        _make_workspace_file(ws, "mod_a/mcmod.info",
-            '[{"modid":"test","mcversion":"1.12.2"}]')
+        _make_workspace_file(ws, "mod_a/mcmod.info", '[{"modid":"test","mcversion":"1.12.2"}]')
 
         assert detect_pack_format(ws) == 3  # mcmod.info wins
 
@@ -236,8 +231,7 @@ class TestBuildResourcePack:
 
         # Simulate a 1.16.5 mod
         _make_workspace_file(ws, "mod_a/assets/mymod/lang/uk_ua.json", '{"stone":"Камінь"}')
-        _make_workspace_file(ws, "mod_a/mcmod.info",
-            '[{"modid":"test","mcversion":"1.16.5"}]')
+        _make_workspace_file(ws, "mod_a/mcmod.info", '[{"modid":"test","mcversion":"1.16.5"}]')
 
         zip_path = build_resource_pack(ws, out, "uk_UA", "mova_test")
         # pack_format should be auto-detected as 6 (for 1.16)
@@ -255,8 +249,7 @@ class TestBuildResourcePack:
 
         _make_workspace_file(ws, "mod_a/assets/mymod/lang/uk_ua.json", '{"stone":"Камінь"}')
         _make_workspace_file(ws, "mod_a/pack.mcmeta", '{"pack":{"pack_format":12,"description":"mod"}}')
-        _make_workspace_file(ws, "mod_a/mcmod.info",
-            '[{"modid":"test","mcversion":"1.12.2"}]')
+        _make_workspace_file(ws, "mod_a/mcmod.info", '[{"modid":"test","mcversion":"1.12.2"}]')
 
         zip_path = build_resource_pack(ws, out, "uk_UA", "mova_test")
 

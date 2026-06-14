@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from app.core.config_loader import (
     CONFIG_FILE_NAME,
     _fmt_val,
-    _log_config_delta,
-    generate_config_template,
     load_config,
     save_config,
 )
@@ -29,10 +26,9 @@ class TestLoadConfigEdgeCases:
     def test_chunk_size_type_error(self, tmp_path: Path) -> None:
         """Non-integer chunk_size is warned and skipped."""
         config = tmp_path / "movamc.toml"
-        config.write_text(
-            '[translation]\nsource = "en_US"\nchunk_size = "abc"\n', encoding="utf-8"
-        )
+        config.write_text('[translation]\nsource = "en_US"\nchunk_size = "abc"\n', encoding="utf-8")
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="WARNING", format="{message}")
         result = load_config(config)
@@ -43,10 +39,9 @@ class TestLoadConfigEdgeCases:
     def test_chunk_token_budget_type_error(self, tmp_path: Path) -> None:
         """Non-integer chunk_token_budget is warned and skipped."""
         config = tmp_path / "movamc.toml"
-        config.write_text(
-            '[translation]\nsource = "en_US"\nchunk_token_budget = "large"\n', encoding="utf-8"
-        )
+        config.write_text('[translation]\nsource = "en_US"\nchunk_token_budget = "large"\n', encoding="utf-8")
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="WARNING", format="{message}")
         result = load_config(config)
@@ -56,10 +51,9 @@ class TestLoadConfigEdgeCases:
     def test_chunk_max_text_length_type_error(self, tmp_path: Path) -> None:
         """Non-integer chunk_max_text_length is warned and skipped."""
         config = tmp_path / "movamc.toml"
-        config.write_text(
-            '[translation]\nsource = "en_US"\nchunk_max_text_length = "long"\n', encoding="utf-8"
-        )
+        config.write_text('[translation]\nsource = "en_US"\nchunk_max_text_length = "long"\n', encoding="utf-8")
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="WARNING", format="{message}")
         result = load_config(config)
@@ -69,10 +63,9 @@ class TestLoadConfigEdgeCases:
     def test_progress_batch_size_type_error(self, tmp_path: Path) -> None:
         """Non-integer progress_batch_size is warned and skipped."""
         config = tmp_path / "movamc.toml"
-        config.write_text(
-            '[translation]\nsource = "en_US"\nprogress_batch_size = "big"\n', encoding="utf-8"
-        )
+        config.write_text('[translation]\nsource = "en_US"\nprogress_batch_size = "big"\n', encoding="utf-8")
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="WARNING", format="{message}")
         result = load_config(config)
@@ -111,6 +104,7 @@ class TestLoadConfigMods:
             encoding="utf-8",
         )
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="WARNING", format="{message}")
         result = load_config(config)
@@ -126,9 +120,10 @@ class TestLoadConfigMods:
             encoding="utf-8",
         )
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="WARNING", format="{message}")
-        result = load_config(config)
+        load_config(config)
         logger.remove(sink_id)
         assert any("Unknown mods config key" in m for m in captured)
 
@@ -155,9 +150,10 @@ class TestLoadConfigQA:
             encoding="utf-8",
         )
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="WARNING", format="{message}")
-        result = load_config(config)
+        load_config(config)
         logger.remove(sink_id)
         assert any("Unknown QA config key" in m for m in captured)
 
@@ -196,9 +192,10 @@ class TestLoadConfigRateLimit:
             encoding="utf-8",
         )
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="WARNING", format="{message}")
-        result = load_config(config)
+        load_config(config)
         logger.remove(sink_id)
         assert any("Unknown rate_limit config key" in m for m in captured)
 
@@ -230,6 +227,7 @@ class TestSaveConfig:
         save_config(data, config_path)
         # Second save with same data
         from loguru import logger
+
         captured: list[str] = []
         sink_id = logger.add(lambda msg: captured.append(str(msg).strip()), level="INFO", format="{message}")
         save_config(data, config_path)

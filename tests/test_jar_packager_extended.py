@@ -18,10 +18,14 @@ class TestUpdatePackMcmeta:
         folder = tmp_path / "mod"
         folder.mkdir()
         mcmeta = folder / "pack.mcmeta"
-        mcmeta.write_text(json.dumps({
-            "pack": {"pack_format": 15, "description": "Test"},
-            "language": {},
-        }))
+        mcmeta.write_text(
+            json.dumps(
+                {
+                    "pack": {"pack_format": 15, "description": "Test"},
+                    "language": {},
+                }
+            )
+        )
 
         _update_pack_mcmeta(folder, "uk_UA")
 
