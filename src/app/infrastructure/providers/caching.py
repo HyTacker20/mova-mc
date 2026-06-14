@@ -93,7 +93,12 @@ class CachingProvider:
                 uncached_units.append(unit)
 
         cached_count = len(units) - len(uncached_units)
-        logger.debug(f"[cache] translate_batch: {cached_count}/{len(units)} cached, {len(uncached_units)} uncached")
+        if cached_count > 0:
+            logger.info(
+                "[cache] {} / {} entries served from cache",
+                cached_count,
+                len(units),
+            )
 
         if uncached_units:
             for idx, unit in zip(uncached_indices, uncached_units, strict=True):
@@ -163,6 +168,14 @@ class CachingProvider:
             else:
                 uncached_indices.append(i)
                 uncached_units.append(unit)
+
+        cached_count = len(units) - len(uncached_units)
+        if cached_count > 0:
+            logger.info(
+                "[cache] {} / {} entries served from cache",
+                cached_count,
+                len(units),
+            )
 
         if uncached_units:
             new_results = await self._inner.translate_batch_async(uncached_units, on_entry=entry_cb)
