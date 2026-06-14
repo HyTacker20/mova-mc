@@ -32,6 +32,8 @@ class ModInfo:
     estimated_entries: int
     source_files: list[str] = field(default_factory=list)
     selected: bool = False
+    namespaces: list[str] = field(default_factory=list)
+    in_resource_pack: bool = False
 
 
 def _count_entries_from_json(raw: str) -> int:
@@ -42,6 +44,22 @@ def _count_entries_from_json(raw: str) -> int:
     except (json.JSONDecodeError, TypeError):
         pass
     return 0
+
+
+def _extract_namespace(name: str) -> str | None:
+    """Extract namespace from a path like ``assets/minecraft/lang/en_US.json``.
+
+    Returns the namespace component (e.g. ``"minecraft"``) or ``None`` if the
+    path doesn't follow the expected ``assets/<ns>/lang/...`` layout.
+    """
+    parts = name.replace("\\", "/").split("/")
+    try:
+        idx = parts.index("assets")
+        if idx + 2 < len(parts) and parts[idx + 2] == "lang":
+            return parts[idx + 1]
+    except ValueError:
+        pass
+    return None
 
 
 def _count_entries_from_lang(raw: str) -> int:
@@ -118,6 +136,7 @@ class ModScanner:
         mcfunction_count = 0
         estimated_entries = 0
         has_lang_files = False
+        namespaces: set[str] = set()
 
         # Collect ALL lang files first, then decide which to count.
         all_lang_files: list[tuple[str, str]] = []  # (name, raw_content)
@@ -134,6 +153,10 @@ class ModScanner:
                         except Exception:
                             raw = ""
                         all_lang_files.append((basename, raw))
+                        # Extract namespace from path
+                        ns = _extract_namespace(name)
+                        if ns:
+                            namespaces.add(ns)
                     elif lower.endswith(MCFUNCTION):
                         all_mcfunction_files.append(name)
 
@@ -193,6 +216,7 @@ class ModScanner:
             estimated_entries=estimated_entries,
             source_files=source_files,
             selected=has_lang_files,
+            namespaces=sorted(namespaces),
         )
 
     @staticmethod
@@ -201,3 +225,58 @@ class ModScanner:
             if fnmatch.fnmatch(name, pattern):
                 return False
         return any(fnmatch.fnmatch(name, pattern) for pattern in include)
+
+
+def check_resource_pack_mods(
+    mods: list[ModInfo],
+    output_dir: str,
+    target_lang: str,
+    pack_name: str,
+) -> None:
+    """Mark *mods* whose namespaces are found in an existing resource pack zip.
+
+    Reads ``<output_dir>/<pack_name>.zip`` and sets
+    ``mod.in_resource_pack = True`` for any mod whose namespaces all appear
+    inside the pack.
+    """
+    pack_path = Path(output_dir) / f"{pack_name}.zip"
+    if not pack_path.is_file():
+        logger.debug("No existing resource pack at {}", pack_path)
+        return
+
+    pack_namespaces: set[str] = set()
+    try:
+        with zipfile.ZipFile(pack_path, "r") as zf:
+            target_lang_lower = target_lang.lower()
+            for name in zf.namelist():
+                # Entries like assets/<ns>/lang/<target_lang>.json
+                lower = name.lower()
+                if not lower.endswith((".json", ".lang")):
+                    continue
+                # Check if this is a target-language file
+                stem = Path(name).stem.lower()
+                if stem != target_lang_lower:
+                    continue
+                ns = _extract_namespace(name)
+                if ns:
+                    pack_namespaces.add(ns)
+    except (zipfile.BadZipFile, OSError) as exc:
+        logger.warning("Could not read resource pack {}: {}", pack_path, exc)
+        return
+
+    if not pack_namespaces:
+        logger.debug("Resource pack at {} contains no target-lang entries for {}", pack_path, target_lang)
+        return
+
+    logger.info(
+        "Found {} namespace(s) in existing resource pack: {}",
+        len(pack_namespaces),
+        ", ".join(sorted(pack_namespaces)),
+    )
+
+    for mod in mods:
+        if not mod.namespaces:
+            continue
+        # A mod is "in the pack" if at least one of its namespaces is present.
+        if any(ns in pack_namespaces for ns in mod.namespaces):
+            mod.in_resource_pack = True

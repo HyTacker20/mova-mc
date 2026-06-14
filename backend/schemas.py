@@ -165,6 +165,8 @@ class ModInfoResponse(BaseModel):
     lang_file_count: int
     estimated_entries: int
     selected: bool
+    namespaces: list[str] = Field(default_factory=list)
+    in_resource_pack: bool = False
 
 
 class ScanResponse(BaseModel):
