@@ -53,13 +53,20 @@ src/app/
       caching.py               CachingProvider wrapper (SQLite-backed, version-aware cache key)
       prompts.py               System prompt templates with language-specific instructions
       glossary.py              Glossary loader for Minecraft terminology injection
-      registry.py              check_provider_available() for all providers
-      factory.py               get_translator_service() — provider instantiation
-      helpers.py               Shared utilities (capitalize_first)
+      qa_wrapper.py            InlineQaWrapper — LLM judge + re-translation decorator
+      judge.py                 LLM judge client (binary verdict: ok/flag)
+      judge_prompts.py         Judge system prompt templates (v1.5 binary prompt)
+      reasoning_models.py      Centralized reasoning model policy + token scaling
+      model_list.py            Live model list fetching per provider
       transports/
         openai_sdk.py          OpenAI Python SDK transport
         litellm_sdk.py         LiteLLM transport
         compat_sdk.py          OpenAI-compatible API transport
+        opencode.py            OpenCode Go transport (facade over compat/anthropic)
+        anthropic_compat.py    Anthropic Messages API transport
+      factory.py               get_translator_service() — provider instantiation
+      registry.py              Provider registration + model resolution
+      helpers.py               Shared utilities (capitalize_first)
     cache/
       sqlite_cache.py          SQLite-backed TranslationCache
     parsers/
@@ -93,10 +100,47 @@ src/app/
         translate_run.py  Step 5 — live progress bars + dual RichLog panels
         summary.py     Step 6 — results DataTable, restart/quit actions
 
+frontend/             React + TypeScript web UI (Vite)
+  src/
+    components/
+      Wizard.tsx         Main wizard stepper (7 steps)
+      steps/
+        Welcome.tsx      Step 0 — version, config indicator
+        Provider.tsx     Step 1 — provider, API key, model
+        Paths.tsx        Step 2 — mods path, languages, output
+        Advanced.tsx     Step 3 — QA settings, cache, glossary
+        Mods.tsx         Step 4 — mod selection
+        Translate.tsx    Step 5 — job configuration
+        TranslationRun.tsx  Step 6 — live progress + QA panels
+        Summary.tsx      Step 7 — results, restart
+      shared/
+        LogPanel.tsx     Real-time SSE log viewer (All/Translation/QA tabs)
+        LiveResultsPanels.tsx  Live translation + QA cards
+        ModList.tsx      Mod selection list
+    context/
+      WizardContext.tsx  Global wizard state + reducer
+    utils/
+      qaLive.ts         QA event → card mapping + dedup logic
+      errors.ts         User-friendly error messages (Ukrainian)
+
+backend/              FastAPI backend
+    main.py              uvicorn entry point, lifespan, CORS
+    routes/
+      config.py          Config read/write API
+      jobs.py            Job lifecycle (start/pause/resume/cancel)
+      logs.py            SSE loguru sink → LogPanel
+      mods.py            Mod scanning API
+      translate.py       Translation pipeline orchestration
+    dev_progress_log.py  ProgressReporter → loguru relay
+    job_manager.py       TranslationJob lifecycle
+
   core/                Shared configuration and discovery
-    settings.py        Settings class (CLI args + config file; flags: no_cache, hint_lang, output_mode)
+    settings.py        Settings class (CLI args + config file; delegates to PathConfig/QaConfig)
     config_loader.py   movamc.toml loading and generation
     mod_scanner.py     JAR discovery and metadata scanning
+    path_config.py     PathConfig dataclass (mods_path, translation_path, output_mode)
+    qa_config.py       QaConfig dataclass (judge settings, model resolution, validation)
+    dotenv_loader.py   .env file loading
 
   data/
     __init__.py        load_languages() — reads languages.json
@@ -280,8 +324,9 @@ uv run ruff check .        # Lint
 uv run ruff format .       # Format
 uv run mypy src/           # Type check
 uv run lint-imports        # Check layer isolation
-uv run mova tui  # Run interactive TUI
-uv run mova cli  # Run CLI
+uv run mova web           # Launch web UI (primary)
+uv run mova cli           # Run CLI
+cd frontend && npm run build  # Build frontend (TypeScript + Vite)
 ```
 
 ## Environment variables
@@ -299,6 +344,9 @@ Copy `.env.example` to `.env`. Supported vars:
 | `OPENAICOMPATIBLE_API_KEY` | openaicompatible | Yes |
 | `OPENAICOMPATIBLE_BASE_URL` | openaicompatible | Yes |
 | `OPENAICOMPATIBLE_MODEL` | openaicompatible | No |
+| `OPENCODE_GO_API_KEY` | opencode | Yes |
+| `OPENCODE_GO_BASE_URL` | opencode | No (default: https://opencode.ai/zen/go/v1) |
+| `OPENCODE_GO_MODEL` | opencode | No (default: deepseek-v4-flash) |
 
 ## Test structure
 
@@ -307,9 +355,11 @@ tests/
   conftest.py                      Shared fixtures (sample JSON/LANG/mcfunction, temp dirs, JAR builder)
   contracts/
     test_provider_contract.py      Provider interface contract tests
+    test_reasoning_transport.py    Reasoning transport contract tests
   integration/
     test_jar_roundtrip.py          Full JAR roundtrip integration
     test_pipeline_e2e.py           End-to-end pipeline test
+    test_e2e_extended.py           Extended E2E tests
   test_app.py                      Interactive app tests
   test_tui_smoke.py                Textual wizard smoke tests
   test_key_bindings.py             Cyrillic keyboard layout bindings
@@ -336,6 +386,45 @@ tests/
   test_translate_orchestrator.py   Translate command orchestration
   test_translator.py               Translator wrapper
   test_version.py                  Version tuple
+
+  # Web UI / backend
+  test_web_api.py                  FastAPI endpoint tests
+  test_web_logging.py              SSE log streaming tests
+  test_job_bridge.py               TranslationJob bridge tests
+
+  # QA / Judge
+  test_judge.py                    LLM judge client tests
+  test_judge_prompts.py            Judge prompt template tests
+  test_inline_qa_wrapper.py        InlineQaWrapper decorator tests
+  test_qa_display.py               QA display formatting tests
+
+  # Pipeline stages
+  test_stages.py                   Individual pipeline stage tests
+  test_validate.py                 Placeholder validation tests
+  test_lint_ukrainian.py           Ukrainian-specific lint rules
+
+  # Providers
+  test_opencode_provider.py        OpenCode Go transport tests
+  test_openai_batch.py             OpenAI batch translation tests
+  test_transport_response.py       Transport response handling tests
+  test_reasoning_models.py         Reasoning model policy tests
+  test_caching.py                  SQLite cache tests
+
+  # Config / settings
+  test_config_roundtrip.py         Config file roundtrip tests
+  test_performance_settings.py     Chunk/worker/batch settings tests
+  test_token_budget.py             Token budget calculation tests
+  test_domain_property.py          Domain model property tests
+
+  # Infrastructure
+  test_glossary.py                 Glossary loader tests
+  test_archive_handler.py          Archive handler tests
+  test_jar_packager.py             JAR packager tests
+  test_shutdown.py                 Graceful shutdown tests
+  test_presenter.py                CLI presenter tests
+  test_translate_run_progress.py   Progress reporting tests
+  test_languages_extended.py       Extended language registry tests
+  test_placeholders_extended.py    Extended placeholder tests
 ```
 
 ## File format support

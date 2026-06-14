@@ -43,7 +43,8 @@
         "**/*.egg-info": true,
         "**/.venv": true,
         "**/dist": true,
-        "**/build": true
+        "**/build": true,
+        "**/.import_linter_cache": true
     },
     "search.exclude": {
         "**/.venv": true,
