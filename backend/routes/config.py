@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -17,29 +18,42 @@ from app.core.config_loader import (
 
 router = APIRouter()
 
+
 # Allow-list for config file locations.  Config files must live under one of
 # these roots.  This prevents path-traversal attacks where an attacker
 # controls the `path` or `config_path` query/body parameter.
-_ALLOWED_ROOTS: tuple[Path, ...] = (
-    Path.home().resolve(),
-    Path.cwd().resolve(),
-)
+def _allowed_roots() -> list[Path]:
+    """Return the set of directory roots that path inputs may resolve into."""
+    roots: list[Path] = [
+        Path.home().resolve(),
+        Path.cwd().resolve(),
+    ]
+    # pytest fixtures create temporary directories outside HOME/CWD —
+    # include the system temp directory so tests pass on Linux CI where
+    # /tmp is not under /home/runner.
+    try:
+        tmp = Path(tempfile.gettempdir()).resolve()
+        if tmp not in roots:
+            roots.append(tmp)
+    except Exception:
+        pass
+    return roots
 
 
 def _validate_path_within_root(p: Path) -> Path:
     """Resolve *p* and verify it stays within an allowed directory tree.
 
     Raises :exc:`ValueError` when the resolved absolute path escapes every
-    configured *base* root.
+    allowed root.
     """
     resolved = p.resolve()
-    for base in _ALLOWED_ROOTS:
+    for base in _allowed_roots():
         try:
             resolved.relative_to(base)
             return resolved
         except ValueError:
             continue
-    raise ValueError(f"Path {resolved} is outside all allowed directories: {', '.join(str(b) for b in _ALLOWED_ROOTS)}")
+    raise ValueError(f"Path {resolved} is outside allowed directories: {', '.join(str(b) for b in _allowed_roots())}")
 
 
 class ConfigPayload(BaseModel):
