@@ -50,7 +50,7 @@ export default function Mods() {
   }
 
   return (
-    <div className="step-card wide">
+    <div className="step-card wide step-card--fill">
       <h2 className="step-title">Select Mods</h2>
       <p className="step-subtitle">
         Scanning <code>{state.modsPath}</code> — choose which mods to translate.
