@@ -1,8 +1,69 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useWizard } from '../../context/WizardContext'
 import { api } from '../../api/client'
 import { friendlyError } from '../../utils/errors'
 import type { ModInfo } from '../../types'
+
+type SortMode = 'pack' | 'name-asc' | 'name-desc' | 'entries-desc' | 'entries-asc' | 'size-desc' | 'size-asc'
+
+const SORT_LABELS: Record<SortMode, string> = {
+  'pack': 'Pack first',
+  'name-asc': 'Name A–Z',
+  'name-desc': 'Name Z–A',
+  'entries-desc': 'Entries ↓',
+  'entries-asc': 'Entries ↑',
+  'size-desc': 'Size ↓',
+  'size-asc': 'Size ↑',
+}
+
+const SORT_FN: Record<SortMode, (a: ModInfo, b: ModInfo) => number> = {
+  'pack': (a, b) => {
+    if (a.in_resource_pack !== b.in_resource_pack) return a.in_resource_pack ? -1 : 1
+    return a.name.localeCompare(b.name)
+  },
+  'name-asc': (a, b) => a.name.localeCompare(b.name),
+  'name-desc': (a, b) => b.name.localeCompare(a.name),
+  'entries-desc': (a, b) => b.estimated_entries - a.estimated_entries,
+  'entries-asc': (a, b) => a.estimated_entries - b.estimated_entries,
+  'size-desc': (a, b) => b.size_bytes - a.size_bytes,
+  'size-asc': (a, b) => a.size_bytes - b.size_bytes,
+}
+
+function SortDropdown({ value, onChange }: { value: SortMode; onChange: (v: SortMode) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  return (
+    <div className="sort-dropdown" ref={ref}>
+      <button className="sort-dropdown-trigger" onClick={() => setOpen(!open)}>
+        {SORT_LABELS[value]}
+        <span className={`sort-dropdown-arrow ${open ? 'sort-dropdown-arrow--open' : ''}`}>▾</span>
+      </button>
+      {open && (
+        <div className="sort-dropdown-menu">
+          {Object.entries(SORT_LABELS).map(([k, label]) => (
+            <button
+              key={k}
+              className={`sort-dropdown-item ${k === value ? 'sort-dropdown-item--active' : ''}`}
+              onClick={() => { onChange(k as SortMode); setOpen(false) }}
+            >
+              {k === value && <span className="sort-dropdown-check">✓</span>}
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -16,18 +77,69 @@ export default function Mods() {
   const [selected, setSelected] = useState<Set<string>>(new Set(state.selectedMods))
   const [loading, setLoading] = useState(state.mods.length === 0)
   const [error, setError] = useState('')
+  const [showNoLang, setShowNoLang] = useState(false)
+  const [sortBy, setSortBy] = useState<SortMode>('pack')
 
-  useEffect(() => {
-    if (state.mods.length > 0) return
+  const modsWithLang = useMemo(
+    () => [...mods].filter(m => m.has_lang_files).sort(SORT_FN[sortBy]),
+    [mods, sortBy],
+  )
+  const modsWithoutLang = mods.filter(m => !m.has_lang_files)
+  const inPackCount = mods.filter(m => m.in_resource_pack).length
+  const hasExistingPack = inPackCount > 0
+
+  const selectedTotals = useMemo(() => {
+    let entries = 0
+    let size = 0
+    for (const m of modsWithLang) {
+      if (selected.has(m.name)) {
+        entries += m.estimated_entries
+        size += m.size_bytes
+      }
+    }
+    return { entries, size }
+  }, [modsWithLang, selected])
+
+  function doScan() {
     setLoading(true)
-    api.scanMods(state.modsPath, state.source)
+    setError('')
+    api.scanMods(state.modsPath, state.source, state.target, state.outputPath, state.outputMode)
       .then(r => {
         setMods(r.mods)
-        setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name)))
+        if (r.mods.some(m => m.in_resource_pack)) {
+          const auto = new Set(
+            r.mods
+              .filter(m => m.in_resource_pack || m.has_lang_files)
+              .map(m => m.name),
+          )
+          setSelected(auto)
+        } else {
+          setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name)))
+        }
       })
       .catch(e => setError(friendlyError(String(e.message ?? e))))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    if (state.mods.length > 0) return
+    doScan()
   }, [])
+
+  // Ctrl+A / Cmd+A to select all
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        // Only intercept when no input/textarea is focused
+        const tag = (e.target as HTMLElement)?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        e.preventDefault()
+        selectAll()
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [modsWithLang])
 
   function toggleMod(name: string) {
     setSelected(prev => {
@@ -38,7 +150,7 @@ export default function Mods() {
     })
   }
 
-  function selectAll() { setSelected(new Set(mods.map(m => m.name))) }
+  function selectAll() { setSelected(new Set(modsWithLang.map(m => m.name))) }
   function deselectAll() { setSelected(new Set()) }
 
   function next() {
@@ -47,6 +159,56 @@ export default function Mods() {
     const withSelected: ModInfo[] = mods.map(m => ({ ...m, selected: selected.has(m.name) }))
     dispatch({ type: 'SET_MODS', mods: withSelected })
     dispatch({ type: 'SET_STEP', step: 5 })
+  }
+
+  function renderModRow(mod: ModInfo) {
+    return (
+      <label
+        key={mod.name}
+        className={`mod-row ${!mod.has_lang_files ? 'mod-row--no-lang' : ''} ${mod.in_resource_pack ? 'mod-row--in-pack' : ''}`}
+      >
+        <input
+          type="checkbox"
+          checked={selected.has(mod.name)}
+          disabled={!mod.has_lang_files}
+          onChange={() => toggleMod(mod.name)}
+        />
+        <span className="mod-name">{mod.name}</span>
+        {mod.has_lang_files ? (
+          <>
+            <span className="mod-meta">
+              ~{mod.estimated_entries} entries
+            </span>
+            <span className="mod-size">{formatBytes(mod.size_bytes)}</span>
+            {mod.in_resource_pack && (
+                          <span
+                            className="mod-badge mod-badge--in-pack"
+                            data-tooltip={`Already in resource pack (${inPackCount} mod${inPackCount !== 1 ? 's' : ''} total). Translating will rebuild the pack.`}
+                            onMouseEnter={e => {
+                              const el = e.currentTarget as HTMLElement
+                              const tip = el.querySelector('.mod-tooltip') as HTMLElement
+                              if (!tip) return
+                              const rect = el.getBoundingClientRect()
+                              tip.style.left = `${rect.left + rect.width / 2}px`
+                              tip.style.top = `${rect.top - 8}px`
+                              tip.style.display = 'block'
+                            }}
+                            onMouseLeave={e => {
+                              const tip = (e.currentTarget as HTMLElement).querySelector('.mod-tooltip') as HTMLElement
+                              if (tip) tip.style.display = 'none'
+                            }}
+                          >
+                            ✓ in pack
+                            <span className="mod-badge-hint">?</span>
+                            <span className="mod-tooltip">{`Already in resource pack (${inPackCount} mod${inPackCount !== 1 ? 's' : ''} total). Translating will rebuild the pack.`}</span>
+                          </span>
+                        )}
+          </>
+        ) : (
+          <span className="mod-badge mod-badge--no-lang" title="No language files to translate">no lang</span>
+        )}
+      </label>
+    )
   }
 
   return (
@@ -75,32 +237,41 @@ export default function Mods() {
           <div className="mods-toolbar">
             <button className="btn-ghost btn-sm" onClick={selectAll}>Select all</button>
             <button className="btn-ghost btn-sm" onClick={deselectAll}>Deselect all</button>
+            <span className="mods-separator" />
+            <SortDropdown value={sortBy} onChange={setSortBy} />
             <span className="mods-counter">
-              {selected.size} / {mods.length} selected
+              {selected.size} / {modsWithLang.length} selected
             </span>
           </div>
 
           <div className="mods-list" role="listbox" aria-multiselectable="true">
-            {mods.map(mod => (
-              <label
-                key={mod.name}
-                className={`mod-row ${!mod.has_lang_files ? 'mod-row--no-lang' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(mod.name)}
-                  onChange={() => toggleMod(mod.name)}
-                />
-                <span className="mod-name">{mod.name}</span>
-                <span className="mod-meta">
-                  {mod.has_lang_files
-                    ? `~${mod.estimated_entries} entries`
-                    : 'no lang files'}
-                </span>
-                <span className="mod-size">{formatBytes(mod.size_bytes)}</span>
-              </label>
-            ))}
+            {modsWithLang.map(renderModRow)}
           </div>
+
+          {selected.size > 0 && (
+            <p className="mods-summary">
+              ~{selectedTotals.entries} entries · {formatBytes(selectedTotals.size)}
+            </p>
+          )}
+
+          {modsWithoutLang.length > 0 && (
+            <div className="mods-no-lang-section">
+              <button
+                className="mods-no-lang-toggle"
+                onClick={() => setShowNoLang(prev => !prev)}
+              >
+                <span className={`mods-no-lang-chevron ${showNoLang ? 'mods-no-lang-chevron--open' : ''}`}>▸</span>
+                {modsWithoutLang.length} mod{modsWithoutLang.length !== 1 ? 's' : ''} without language files
+              </button>
+              {showNoLang && (
+                <div className="mods-no-lang-list">
+                  {modsWithoutLang.map(mod => (
+                    <span key={mod.name} className="mods-no-lang-name">{mod.name}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
@@ -108,17 +279,7 @@ export default function Mods() {
         <button
           className="btn-ghost"
           style={{ marginTop: 12 }}
-          onClick={() => {
-            setError('')
-            setLoading(true)
-            api.scanMods(state.modsPath, state.source)
-              .then(r => {
-                setMods(r.mods)
-                setSelected(new Set(r.mods.filter(m => m.has_lang_files).map(m => m.name)))
-              })
-              .catch(e => setError(friendlyError(String(e.message ?? e))))
-              .finally(() => setLoading(false))
-          }}
+          onClick={doScan}
         >
           Retry
         </button>

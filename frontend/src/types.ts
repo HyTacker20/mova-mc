@@ -5,6 +5,8 @@ export interface ModInfo {
   lang_file_count: number
   estimated_entries: number
   selected: boolean
+  namespaces: string[]
+  in_resource_pack: boolean
 }
 
 export interface QaConfigResponse {

@@ -82,6 +82,7 @@ button.btn-primary:not(:disabled):hover {
 
 button.btn-primary:not(:disabled):active {
   background: oklch(0.42 0.12 32);
+  transform: translateY(1px);
 }
 
 /* Ghost — transparent, muted */
@@ -94,6 +95,10 @@ button.btn-ghost {
 button.btn-ghost:not(:disabled):hover {
   border-color: var(--text-muted);
   color: var(--text);
+}
+
+button.btn-ghost:not(:disabled):active {
+  transform: translateY(1px);
 }
 
 /* Danger — filled red */
@@ -160,12 +165,16 @@ select option {
 }
 
 /* ── Checkbox ──────────────────────────────────────────────── */
-input[type="checkbox"] {
+input[type=checkbox] {
   accent-color: var(--primary);
   width: 15px;
   height: 15px;
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+input[type=checkbox]:active {
+  transform: scale(0.85);
 }
 
 /* ── Labels & Fields ───────────────────────────────────────── */

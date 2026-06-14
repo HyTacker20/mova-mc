@@ -40,8 +40,13 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  scanMods: (path: string, source: string): Promise<ScanResponse> =>
-    request(`/api/mods?path=${encodeURIComponent(path)}&source=${encodeURIComponent(source)}`),
+  scanMods: (path: string, source: string, target: string, output: string, outputMode: string): Promise<ScanResponse> => {
+    const params = new URLSearchParams({ path, source })
+    if (target) params.set('target', target)
+    if (output) params.set('output', output)
+    if (outputMode) params.set('output_mode', outputMode)
+    return request(`/api/mods?${params.toString()}`)
+  },
 
   createJob: (req: JobRequest): Promise<JobCreatedResponse> =>
     request('/api/jobs', {
