@@ -17,7 +17,7 @@ from .presenter import export_stats_json, print_cli_summary
 JAR = ".jar"
 
 
-_KNOWN_COMMANDS = frozenset({"cli", "tui", "init", "web"})
+_KNOWN_COMMANDS = frozenset({"cli", "init", "web"})
 _HELP_FLAGS = frozenset({"-h", "--help"})
 
 
@@ -39,12 +39,7 @@ def main() -> None:
             logger.info(f"Config template created at: {path}")
             return
 
-        if getattr(args, "command", None) == "tui":
-            from ..tui.main import main as tui_main
-
-            debug = getattr(args, "debug", False)
-            tui_main(debug=debug)
-        elif getattr(args, "command", None) == "web":
+        if getattr(args, "command", None) == "web":
             from backend.__main__ import main as web_main
 
             web_main(

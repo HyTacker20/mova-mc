@@ -149,9 +149,6 @@ def build_argument_parser() -> ArgumentParser:
     cli_parser = subparsers.add_parser("cli", help="Use traditional command-line arguments")
     add_translate_arguments(cli_parser)
 
-    app_parser = subparsers.add_parser("tui", help="Launch interactive Textual TUI")
-    app_parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging to console")
-
     init_parser = subparsers.add_parser("init", help="Generate a movamc.toml config template")
     init_parser.add_argument(
         "directory",

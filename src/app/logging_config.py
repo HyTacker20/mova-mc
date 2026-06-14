@@ -72,15 +72,6 @@ def setup_logging(
     _logging_initialized = True
 
 
-def setup_logging_for_tui(log_dir: str = "logs") -> None:
-    """Configure logging for the Textual TUI — file only, no stderr sink.
-
-    Full backtrace/diagnose detail is written to the log file so the UI
-    never sees raw tracebacks or noisy stderr output.
-    """
-    setup_logging(log_dir=log_dir, console=False)
-
-
 def is_logging_configured() -> bool:
     return _logging_initialized
 

@@ -11,9 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-# Values that indicate "no model selected" in the TUI.  Previously these
-# Textual sentinels leaked into the core layer via ``settings.py``.
-_MODEL_BLANK_VALUES = frozenset({"Select.NULL", "Select.BLANK", ""})
+_MODEL_BLANK_VALUES: frozenset[str] = frozenset({""})
 
 
 def _coerce_model(raw: Any) -> str | None:
