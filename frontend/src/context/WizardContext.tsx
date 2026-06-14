@@ -222,10 +222,15 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           source: src,
           translated: trn,
         }
+        // Also bump completedEntries so the progress bar moves in real-time
+        // (entry_progress only fires every N entries to limit event rate).
+        const bumped = p.completedEntries + 1
         return {
           ...state,
           progress: {
             ...p,
+            completedEntries: bumped,
+            totalEntries: Math.max(p.totalEntries, bumped),
             translations: p.translations.length > 200
               ? [...p.translations.slice(-200), t]
               : [...p.translations, t],

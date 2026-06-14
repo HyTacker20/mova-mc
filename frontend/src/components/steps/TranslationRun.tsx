@@ -178,9 +178,7 @@ export default function TranslationRun() {
   const running = jobStatus === 'running'
   const failed = jobStatus === 'failed'
 
-  const modsLabel = progress.fractionalMods != null && progress.fractionalMods !== progress.completedMods
-    ? `${progress.fractionalMods.toFixed(1)} / ${progress.totalMods || '?'}`
-    : `${progress.completedMods} / ${progress.totalMods || '?'}`
+  const modsLabel = `${progress.completedMods} / ${progress.totalMods || '?'}`
 
   return (
     <div className="step-card wide translate-run-card">
