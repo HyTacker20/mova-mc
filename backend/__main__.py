@@ -98,6 +98,43 @@ def _start_vite() -> subprocess.Popen:
     )
 
 
+def _start_backend(host: str, port: int) -> subprocess.Popen:
+    """Start the uvicorn backend as a child process (with reload)."""
+    _kill_port(port)
+    print(f"Starting backend (port {port})...", flush=True)
+    uv = shutil.which("uv") or "uv"
+    return subprocess.Popen(
+        [
+            uv, "run", "uvicorn", "backend.app:create_app",
+            "--host", host,
+            "--port", str(port),
+            "--reload",
+            "--reload-dir", "src",
+            "--reload-dir", "backend",
+            "--factory",
+            "--log-level", "info",
+        ],
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        env={**os.environ, "MOVAMC_DEV": "1"},
+    )
+
+
+def _wait_for_backend(host: str, port: int, timeout: float = 20.0) -> bool:
+    """Poll the backend health endpoint until it responds or *timeout* expires."""
+    import urllib.request
+
+    url = f"http://{host}:{port}/api/catalog/providers"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=2)
+            return True
+        except Exception:
+            time.sleep(0.5)
+    return False
+
+
 def _env_bool(name: str, default: bool = False) -> bool:
     val = os.environ.get(name)
     if val is None:
@@ -141,8 +178,14 @@ def main(
 
     if dev:
         os.environ["MOVAMC_DEV"] = "1"
-        vite_proc = _start_vite()
-        time.sleep(2.0)
+        # Start backend first, wait for it, then start frontend.
+        backend_proc = _start_backend(host, port)
+        if _wait_for_backend(host, port):
+            vite_proc = _start_vite()
+        else:
+            print("ERROR: Backend did not start in time.", file=sys.stderr)
+            backend_proc.terminate()
+            sys.exit(1)
         browser_url = f"http://localhost:{_VITE_PORT}"
     else:
         _build_frontend()
@@ -169,16 +212,9 @@ def main(
     print("  Press Ctrl+C to stop.\n")
 
     try:
+        # In dev mode the backend runs as a child process — just wait.
         if dev:
-            uvicorn.run(
-                "backend.app:create_app",
-                host=host,
-                port=port,
-                log_level="info",
-                reload=True,
-                reload_dirs=["src", "backend"],
-                factory=True,
-            )
+            backend_proc.wait()
         else:
             app = create_app(dev=False)
             uvicorn.run(app, host=host, port=port, log_level="warning")
@@ -188,6 +224,9 @@ def main(
             sys.exit(1)
         raise
     finally:
+        if dev:
+            backend_proc.terminate()
+            backend_proc.wait()
         if vite_proc is not None:
             vite_proc.terminate()
             vite_proc.wait()
