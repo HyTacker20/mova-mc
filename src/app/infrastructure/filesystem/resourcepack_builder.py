@@ -246,7 +246,7 @@ def detect_pack_format(workspace: Path) -> int:
         logger.debug("Could not parse MC version from string: {}", version_str)
 
     logger.info(
-        "Could not detect MC version from mod metadata — " "using fallback pack_format={}",
+        "Could not detect MC version from mod metadata — using fallback pack_format={}",
         _FALLBACK_PACK_FORMAT,
     )
     return _FALLBACK_PACK_FORMAT
@@ -333,7 +333,7 @@ def build_resource_pack(
 
     if not collected:
         logger.warning(
-            "No target-language files found in workspace for lang={} — " "resource pack will contain only pack.mcmeta",
+            "No target-language files found in workspace for lang={} — resource pack will contain only pack.mcmeta",
             target_lang,
         )
 
