@@ -250,17 +250,22 @@ def detect_pack_format(workspace: Path) -> int:
     return _FALLBACK_PACK_FORMAT
 
 
-def write_pack_mcmeta(zf: zipfile.ZipFile, pack_format: int | None = None) -> None:
+def write_pack_mcmeta(
+    zf: zipfile.ZipFile,
+    pack_format: int | None = None,
+    description: str | None = None,
+) -> None:
     """Write ``pack.mcmeta`` into an open zip file.
 
     If *pack_format* is omitted, it will be ``None`` here; the caller
     should always pass a detected value.
     """
     pf = pack_format if pack_format is not None else _FALLBACK_PACK_FORMAT
+    desc = description if description else _PACK_DESCRIPTION
     data = {
         "pack": {
             "pack_format": pf,
-            "description": _PACK_DESCRIPTION,
+            "description": desc,
         }
     }
     zf.writestr("pack.mcmeta", json.dumps(data, indent=2, ensure_ascii=False))
@@ -272,6 +277,7 @@ def build_resource_pack(
     target_lang: str,
     pack_name: str,
     pack_format: int | None = None,
+    description: str | None = None,
 ) -> Path:
     """Walk *workspace* and collect translated files into a resource pack zip.
 
@@ -334,7 +340,7 @@ def build_resource_pack(
         )
 
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        write_pack_mcmeta(zf, pack_format=pack_format)
+        write_pack_mcmeta(zf, pack_format=pack_format, description=description)
         zf.writestr("pack.png", get_pack_png())
         for arcname, file_path in collected:
             logger.debug("Adding {} → {}", file_path, arcname)
