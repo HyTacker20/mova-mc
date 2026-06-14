@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -106,7 +108,9 @@ def build_context(
     # Load glossary (built-in + optional user glossary). Used both for prompt
     # injection (LLM providers) and for the cache signature.
     glossary = load_merged_glossary(settings.target_mc_lang, settings.glossary_path)
-    glossary_sig = str(hash(frozenset(glossary.items()))) if glossary else ""
+    glossary_sig = (
+        hashlib.sha256(json.dumps(sorted(glossary.items()), ensure_ascii=True).encode()).hexdigest() if glossary else ""
+    )
 
     db_path = cache_path or str(Path(settings.translation_path) / "translation_cache.db")
     sqlite_cache = SqliteCache(db_path)
@@ -250,6 +254,7 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     from .stages.discover import stage_discover_files
     from .stages.parse import stage_parse_sources
     from .stages.repack import stage_repack_jars
+    from .stages.resourcepack import stage_build_resourcepack
     from .stages.translate import stage_translate_async
     from .stages.unpack import stage_unpack_jars
     from .stages.validate import stage_validate_outputs
@@ -283,6 +288,11 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     if ctx.settings.dry_run:
         logger.info("Dry run enabled — skipping write and repack stages")
         ctx.progress.report("title", text="Dry run complete (no files written)")
+    elif ctx.settings.output_mode == "resourcepack":
+        ctx.progress.report("title", text="Writing target files...")
+        mods = await asyncio.to_thread(stage_write_targets, ctx, mods)
+
+        mods = await asyncio.to_thread(stage_build_resourcepack, ctx, mods)
     else:
         ctx.progress.report("title", text="Writing target files...")
         mods = await asyncio.to_thread(stage_write_targets, ctx, mods)

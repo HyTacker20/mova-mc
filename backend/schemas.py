@@ -40,7 +40,7 @@ class JobRequest(BaseModel):
 
     path: str = "./mods"
     output: str = "./translated_mods"
-    output_mode: str = "separate"
+    output_mode: str = "resourcepack"
 
     no_cache: bool = False
     dry_run: bool = False

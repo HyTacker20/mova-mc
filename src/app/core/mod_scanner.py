@@ -119,31 +119,24 @@ class ModScanner:
         estimated_entries = 0
         has_lang_files = False
 
+        # Collect ALL lang files first, then decide which to count.
+        all_lang_files: list[tuple[str, str]] = []  # (name, raw_content)
+        all_mcfunction_files: list[str] = []
+
         try:
             with open_archive(jar_path) as archive:
                 for name in archive.namelist():
                     lower = name.lower()
                     if lower.endswith(JSON) or lower.endswith(LANG):
-                        # When source_lang is set, only count files matching
-                        # that language (e.g. en_US.json, not uk_UA.json).
                         basename = name.rsplit("/", 1)[-1] if "/" in name else name
-                        if self.source_lang and not _is_source_lang_file(basename, self.source_lang):
-                            continue
-                        source_files.append(name)
-                        lang_file_count += 1
-                        has_lang_files = True
                         try:
                             raw = archive.read(name).decode("utf-8", errors="replace")
-                            if lower.endswith(JSON):
-                                estimated_entries += _count_entries_from_json(raw)
-                            elif lower.endswith(LANG):
-                                estimated_entries += _count_entries_from_lang(raw)
                         except Exception:
-                            logger.debug(f"Could not parse entries from {name}")
+                            raw = ""
+                        all_lang_files.append((basename, raw))
                     elif lower.endswith(MCFUNCTION):
-                        mcfunction_count += 1
-                        source_files.append(name)
-                        has_lang_files = True
+                        all_mcfunction_files.append(name)
+
         except RarBackendUnavailableError:
             logger.warning(
                 "Could not scan JAR {}: file is a RAR archive but unrar backend "
@@ -153,6 +146,42 @@ class ModScanner:
             )
         except (zipfile.BadZipFile, OSError) as e:
             logger.warning(f"Could not scan JAR {jar_path.name}: {e}")
+
+        # ── Count entries: prefer source_lang, fall back to en_US ──
+        source_matches: list[tuple[str, str]] = []
+        en_fallback: list[tuple[str, str]] = []
+        other_files: list[tuple[str, str]] = []
+
+        for basename, raw in all_lang_files:
+            if self.source_lang and _is_source_lang_file(basename, self.source_lang):
+                source_matches.append((basename, raw))
+            elif basename.lower().startswith("en_"):
+                en_fallback.append((basename, raw))
+            else:
+                other_files.append((basename, raw))
+
+        # When source_lang is set: prefer matching files, fall back to English.
+        # When source_lang is None: count all files.
+        if self.source_lang:
+            counted = source_matches if source_matches else en_fallback
+        else:
+            counted = source_matches + en_fallback + other_files
+
+        for basename, raw in counted:
+            source_files.append(basename)
+            lang_file_count += 1
+            has_lang_files = True
+            lower = basename.lower()
+            if lower.endswith(JSON):
+                estimated_entries += _count_entries_from_json(raw)
+            elif lower.endswith(LANG):
+                estimated_entries += _count_entries_from_lang(raw)
+
+        # MCFUNCTION files don't have a language code — always include them.
+        mcfunction_count = len(all_mcfunction_files)
+        if mcfunction_count > 0:
+            has_lang_files = True
+            source_files.extend(all_mcfunction_files)
 
         return ModInfo(
             jar_path=jar_path,

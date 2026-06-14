@@ -87,9 +87,10 @@ def add_translate_arguments(parser: ArgumentParser) -> None:
         "--output-mode",
         type=str,
         default=None,
-        choices=["replace", "separate"],
-        help="Output mode: 'replace' overwrites original mod JARs (DANGEROUS), "
-        "'separate' writes translated JARs to the --output folder (default: separate)",
+        choices=["replace", "separate", "resourcepack"],
+        help="Output mode: 'resourcepack' builds a Minecraft resource pack .zip, "
+        "'separate' writes translated JARs to the --output folder, "
+        "'replace' overwrites original mod JARs (DANGEROUS) (default: resourcepack)",
     )
     parser.add_argument(
         "--export-stats",

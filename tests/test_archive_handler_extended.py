@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import zipfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.infrastructure.filesystem.archive_handler import (
-    RarBackendUnavailableError,
     _find_unrar,
     is_rar_archive,
 )

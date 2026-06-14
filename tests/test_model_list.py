@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -25,6 +24,7 @@ from app.infrastructure.providers.model_list import (
 
 # ── FALLBACK_MODELS ──────────────────────────────────────────────────
 
+
 class TestFallbackModels:
     def test_has_all_providers(self) -> None:
         """Every major provider has a fallback list."""
@@ -45,6 +45,7 @@ class TestFallbackModels:
 
 
 # ── _env_api_key ─────────────────────────────────────────────────────
+
 
 class TestEnvApiKey:
     def test_openai_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -77,6 +78,7 @@ class TestEnvApiKey:
 
 # ── _env_base_url ────────────────────────────────────────────────────
 
+
 class TestEnvBaseUrl:
     def test_ollama_default(self) -> None:
         assert _env_base_url("ollama") == "http://localhost:11434"
@@ -104,6 +106,7 @@ class TestEnvBaseUrl:
 
 # ── Cache helpers ────────────────────────────────────────────────────
 
+
 class TestCacheHelpers:
     def test_get_cached_models_none(self) -> None:
         clear_model_cache()  # ensure clean
@@ -116,6 +119,7 @@ class TestCacheHelpers:
         with patch("app.infrastructure.providers.model_list._fetch_openai") as mock_fetch:
             mock_fetch.return_value = ["gpt-4o", "gpt-4o-mini"]
             import asyncio
+
             asyncio.run(fetch_models("openai", api_key="sk-test"))
 
         cached = get_cached_models("openai")
@@ -129,6 +133,7 @@ class TestCacheHelpers:
         clear_model_cache()
         # Populate cache manually via internal
         from app.infrastructure.providers.model_list import _model_cache
+
         _model_cache["openai"] = ["m1"]
         _model_cache["anthropic"] = ["m2"]
 
@@ -141,6 +146,7 @@ class TestCacheHelpers:
 
     def test_clear_all(self) -> None:
         from app.infrastructure.providers.model_list import _model_cache
+
         _model_cache["openai"] = ["m1"]
         _model_cache["anthropic"] = ["m2"]
 
@@ -155,6 +161,7 @@ class TestCacheHelpers:
 
 # ── _fetch_opencode ──────────────────────────────────────────────────
 
+
 class TestFetchOpencode:
     @pytest.mark.asyncio
     async def test_returns_fallback_list(self) -> None:
@@ -165,6 +172,7 @@ class TestFetchOpencode:
 
 
 # ── fetch_models ─────────────────────────────────────────────────────
+
 
 class TestFetchModels:
     def teardown_method(self) -> None:
@@ -572,4 +580,3 @@ class TestFetchOpenAICompatible:
         # No httpx needed — returns [] before any network call
         models = await _fetch_openaicompatible("", "")
         assert models == []
-

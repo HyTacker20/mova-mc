@@ -135,3 +135,30 @@ class TestE2EAdditional:
         run_pipeline(ctx, mods)
         # No output jar since there was nothing to translate
         assert not (out / jar.name).exists()
+
+    def test_resourcepack_output_mode(self, tmp_path: Path) -> None:
+        """Full pipeline with output_mode=resourcepack produces a valid resource pack .zip."""
+        jar = _build_sample_jar(tmp_path)
+        ws = tmp_path / "ws"
+        out = tmp_path / "out"
+        ws.mkdir()
+        out.mkdir()
+        settings = _make_settings(jar.parent, ws, out, output_mode="resourcepack")
+        ctx = PipelineContext(settings=settings, progress=NullProgress(), provider=_echo_provider(), workspace=ws)
+        mods = [Mod(name=jar.name, path=jar, selected=True)]
+        run_pipeline(ctx, mods)
+
+        pack_zip = out / "Spanish Spain (MovaMC).zip"
+        assert pack_zip.exists(), f"Expected {pack_zip}"
+
+        with zipfile.ZipFile(pack_zip, "r") as zf:
+            names = sorted(zf.namelist())
+
+        # pack.mcmeta must be present
+        assert "pack.mcmeta" in names
+
+        # Source-lang file must NOT be in the resource pack
+        assert not any("en_us" in n.lower() for n in names)
+
+        # Target-lang file must be present
+        assert any("es_es" in n.lower() for n in names)
