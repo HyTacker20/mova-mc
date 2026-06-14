@@ -250,6 +250,7 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     from .stages.discover import stage_discover_files
     from .stages.parse import stage_parse_sources
     from .stages.repack import stage_repack_jars
+    from .stages.resourcepack import stage_build_resourcepack
     from .stages.translate import stage_translate_async
     from .stages.unpack import stage_unpack_jars
     from .stages.validate import stage_validate_outputs
@@ -283,6 +284,11 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     if ctx.settings.dry_run:
         logger.info("Dry run enabled — skipping write and repack stages")
         ctx.progress.report("title", text="Dry run complete (no files written)")
+    elif ctx.settings.output_mode == "resourcepack":
+        ctx.progress.report("title", text="Writing target files...")
+        mods = await asyncio.to_thread(stage_write_targets, ctx, mods)
+
+        mods = await asyncio.to_thread(stage_build_resourcepack, ctx, mods)
     else:
         ctx.progress.report("title", text="Writing target files...")
         mods = await asyncio.to_thread(stage_write_targets, ctx, mods)
