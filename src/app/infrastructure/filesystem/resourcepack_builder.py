@@ -10,12 +10,101 @@ from __future__ import annotations
 
 import json
 import re
+import struct
 import zipfile
+import zlib
 from pathlib import Path
 
 from loguru import logger
 
 _PACK_DESCRIPTION = "MovaMC Translation Pack"
+
+# Default pack.png — a simple 64×64 icon generated at runtime.
+# Icon design: stylized "M" formed by blocks on a dark background,
+# using the MovaMC green accent colour.
+_ICON_SIZE = 64
+
+# Blocky "M" shape (1 = filled, 0 = empty) at 8×6 "blocks" on 8×8 px cells
+_M_PATTERN: list[list[int]] = [
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 0, 0, 0, 0, 1, 1],
+    [1, 0, 1, 0, 0, 1, 0, 1],
+    [1, 0, 0, 1, 1, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+]
+_M_CELL = _ICON_SIZE // 8  # 8 px per cell
+
+
+def _make_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    """Build a single PNG chunk."""
+    payload = chunk_type + data
+    return struct.pack(">I", len(data)) + payload + struct.pack(">I", zlib.crc32(payload) & 0xFFFFFFFF)
+
+
+def _build_default_pack_png() -> bytes:
+    """Generate a default pack.png (64×64 RGBA) using only stdlib."""
+    signature = b"\x89PNG\r\n\x1a\n"
+
+    # IHDR: width, height, bit depth 8, color type 6 (RGBA)
+    ihdr_data = struct.pack(">IIBBBBB", _ICON_SIZE, _ICON_SIZE, 8, 6, 0, 0, 0)
+    ihdr = _make_chunk(b"IHDR", ihdr_data)
+
+    # Build pixel rows (filter byte 0 = None, then RGBA)
+    # Background: dark navy (#1A1A2E). The "M" pattern is drawn in
+    # warm amber/orange matching the web UI primary colour.
+    raw_rows: list[bytes] = []
+    base_y = (_ICON_SIZE - len(_M_PATTERN) * _M_CELL) // 2  # center vertically
+    for y in range(_ICON_SIZE):
+        row = bytearray()
+        row.append(0)  # filter: none
+        for x in range(_ICON_SIZE):
+            # Default background
+            r, g, b = 0x1A, 0x1A, 0x2E
+            a = 0xFF
+
+            # Map pixel to pattern cell
+            py = (y - base_y) // _M_CELL
+            px = x // _M_CELL
+            if 0 <= py < len(_M_PATTERN):
+                row_pat = _M_PATTERN[py]
+                if 0 <= px < len(row_pat) and row_pat[px] == 1:
+                    # Is this pixel a border of the block?
+                    cx = x % _M_CELL
+                    cy = (y - base_y) % _M_CELL
+                    if cx < 2 or cy < 2:
+                        # Top/left border: deeper amber
+                        r, g, b = 0xC5, 0x60, 0x20
+                    elif cx >= _M_CELL - 2 or cy >= _M_CELL - 2:
+                        # Bottom/right border: lighter amber
+                        r, g, b = 0xF0, 0x90, 0x50
+                    else:
+                        # Solid block fill: warm amber (#E8782E)
+                        r, g, b = 0xE8, 0x78, 0x2E
+            row.extend((r, g, b, a))
+        raw_rows.append(bytes(row))
+
+    # IDAT: compressed image data
+    raw_data = b"".join(raw_rows)
+    compressed = zlib.compress(raw_data)
+    idat = _make_chunk(b"IDAT", compressed)
+
+    # IEND
+    iend = _make_chunk(b"IEND", b"")
+
+    return signature + ihdr + idat + iend
+
+
+# Pre-built pack.png bytes (lazy-loaded)
+_PACK_PNG: bytes | None = None
+
+
+def get_pack_png() -> bytes:
+    """Return the default ``pack.png`` bytes (generated once)."""
+    global _PACK_PNG
+    if _PACK_PNG is None:
+        _PACK_PNG = _build_default_pack_png()
+    return _PACK_PNG
 
 # Maps (major, minor) Minecraft version to the *minimum* compatible pack_format.
 # Newer patch versions within the same minor may use a higher format, but the
@@ -246,6 +335,7 @@ def build_resource_pack(
 
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
         write_pack_mcmeta(zf, pack_format=pack_format)
+        zf.writestr("pack.png", get_pack_png())
         for arcname, file_path in collected:
             logger.debug("Adding {} → {}", file_path, arcname)
             zf.write(file_path, arcname)

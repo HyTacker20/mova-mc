@@ -208,7 +208,7 @@ class TestBuildResourcePack:
         assert zip_path.exists()
         with zipfile.ZipFile(zip_path, "r") as zf:
             names = zf.namelist()
-        assert names == ["pack.mcmeta"]
+        assert names == ["pack.mcmeta", "pack.png"]
 
     def test_no_matching_files(self, tmp_path: Path) -> None:
         """Workspace with files but none matching target_lang still yields pack.mcmeta."""
@@ -225,7 +225,7 @@ class TestBuildResourcePack:
         assert zip_path.exists()
         with zipfile.ZipFile(zip_path, "r") as zf:
             names = zf.namelist()
-        assert names == ["pack.mcmeta"]
+        assert names == ["pack.mcmeta", "pack.png"]
 
     def test_auto_detect_pack_format(self, tmp_path: Path) -> None:
         """When pack_format is not provided, it's auto-detected from metadata."""
