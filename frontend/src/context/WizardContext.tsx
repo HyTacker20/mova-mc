@@ -33,7 +33,7 @@ export const INITIAL_STATE: WizardState = {
   target: 'uk_UA',
   modsPath: './mods',
   outputPath: './translated_mods',
-  outputMode: 'separate',
+  outputMode: 'resourcepack',
   workers: 4,
   noCache: false,
   dryRun: false,

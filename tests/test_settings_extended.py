@@ -41,9 +41,9 @@ class TestSettingsNewKeys:
         assert s.output_mode == "separate"
 
     def test_default_output_mode(self) -> None:
-        """Default output_mode is 'separate'."""
+        """Default output_mode is 'resourcepack'."""
         s = Settings()
-        assert s.output_mode == "separate"
+        assert s.output_mode == "resourcepack"
 
     def test_cli_overrides_config_hint_lang(self) -> None:
         """CLI args override config for hint_lang."""

@@ -52,7 +52,7 @@ export default function Provider() {
           target: cfg.target,
           modsPath: state.modsPath,
           outputPath: cfg.output || state.outputPath,
-          outputMode: cfg.output_mode || 'separate',
+          outputMode: cfg.output_mode || 'resourcepack',
         })
         dispatch({
           type: 'SET_ADVANCED',

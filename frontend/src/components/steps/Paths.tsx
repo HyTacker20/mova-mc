@@ -85,6 +85,7 @@ export default function Paths() {
       <div className="field">
         <label htmlFor="output-mode">Output mode</label>
         <select id="output-mode" value={outputMode} onChange={e => setOutputMode(e.target.value)}>
+          <option value="resourcepack">Resource Pack — build a Minecraft resource pack .zip</option>
           <option value="separate">Separate — write translated JARs to output directory</option>
           <option value="replace">Replace — overwrite original JARs</option>
         </select>

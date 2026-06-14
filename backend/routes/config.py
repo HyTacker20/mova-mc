@@ -153,7 +153,7 @@ def get_config(path: str = "./mods") -> ConfigResponse:
             no_cache=False,
             hint_lang=None,
             glossary_path=None,
-            output_mode="separate",
+            output_mode="resourcepack",
             config_path=None,
             qa=QaConfigResponse(),
         )
@@ -170,7 +170,7 @@ def get_config(path: str = "./mods") -> ConfigResponse:
         no_cache=raw.get("no_cache", False),
         hint_lang=raw.get("hint_lang"),
         glossary_path=raw.get("glossary_path"),
-        output_mode=raw.get("output_mode", "separate"),
+        output_mode=raw.get("output_mode", "resourcepack"),
         config_path=str(config_path),
         qa=_qa_from_raw(raw),
     )

@@ -128,8 +128,8 @@ workers = 4
 # Hint language code to assist translation (e.g., "ru_RU" for uk_UA target)
 # hint_lang = ""
 
-# Output mode: "replace" (overwrite originals) or "separate" (keep both)
-# output_mode = "separate"
+# Output mode: "resourcepack" (build .zip pack), "separate" (keep both), or "replace" (overwrite originals)
+# output_mode = "resourcepack"
 
 [mods]
 # Glob patterns for mods to include (default: all mods)
