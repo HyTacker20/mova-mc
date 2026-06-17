@@ -72,14 +72,20 @@ def _count_entries_from_lang(raw: str) -> int:
 
 
 def modinfo_to_domain_mod(mod_info: ModInfo) -> Mod:
-    """Convert a ModInfo to a domain Mod model."""
+    """Convert a ModInfo to a domain Mod model.
+
+    Attaches ``_estimated_entries`` as a non-public attribute so the
+    pipeline can pre-compute a global entry count before unpacking.
+    """
     from ..domain.models import Mod
 
-    return Mod(
+    mod = Mod(
         name=mod_info.name,
         path=mod_info.jar_path,
         selected=mod_info.selected,
     )
+    object.__setattr__(mod, "_estimated_entries", mod_info.estimated_entries)
+    return mod
 
 
 def _is_source_lang_file(filename: str, source_lang: str) -> bool:

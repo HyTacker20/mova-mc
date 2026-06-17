@@ -15,6 +15,7 @@ from ..domain.languages import get_language_english_name
 from ..domain.models import LangFile, Mod, TranslationResult, TranslationUnit
 from ..domain.stats import FileStats, ModStats, OverallStats
 from ..infrastructure.providers.registry import AI_PROVIDERS
+from ..utils.cancellation import cancel_token
 
 
 def _resolve_translation_chunk_size(settings: Settings) -> int | None:
@@ -248,8 +249,10 @@ def build_context(
 async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineResult:
     """Async version of :func:`run_pipeline`.
 
-    All stages run the same sync implementations except ``translate``,
-    which uses the async provider methods for non-blocking I/O.
+    Processes each mod through the full pipeline individually
+    (unpack → discover → parse → translate → validate → write → repack)
+    before moving to the next.  This gives faster perceived progress
+    and keeps memory usage bounded to one mod at a time.
     """
     from .stages.discover import stage_discover_files
     from .stages.parse import stage_parse_sources
@@ -267,47 +270,121 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
     stats = OverallStats()
     stats.start()
 
-    ctx.progress.report("title", text="Unpacking mods...")
-    mods = await asyncio.to_thread(stage_unpack_jars, ctx, mods)
+    selected = [m for m in mods if m.selected]
+    total_mods = len(selected)
+    completed_mods: list[Mod] = []
+    failed_mod_names: list[str] = []
+    resource_pack_mods: list[Mod] = []
 
-    ctx.progress.report("title", text="Discovering language files...")
-    mods = await asyncio.to_thread(stage_discover_files, ctx, mods)
+    # Pre-compute total entries for overall progress denominator.
+    # Mods arrive from the scanner with lang_files=() — the actual units
+    # are discovered during parse.  Use _estimated_entries (attached by
+    # modinfo_to_domain_mod) as a close-enough denominator for the
+    # progress bars until the translate stage reports real totals.
+    total_entries = sum(getattr(m, "_estimated_entries", 0) for m in selected)
+    cumulative_entries = 0
 
-    ctx.progress.report("title", text="Parsing source files...")
-    mods = await asyncio.to_thread(stage_parse_sources, ctx, mods)
+    for idx, mod in enumerate(selected):
+        cancel_token.raise_if_set()
 
-    ctx.progress.report("title", text="Translating...")
-    mods = await stage_translate_async(ctx, mods)
+        mod_name = mod.name
+        ctx.progress.report("title", text=f"Processing {mod_name} ({idx + 1}/{total_mods})...")
+        ctx.progress.report(
+            "overall_progress",
+            completed_mods=idx,
+            fractional_mods=float(idx),
+            total_mods=total_mods,
+            completed_entries=cumulative_entries,
+            total_entries=total_entries,
+            failed_entries=0,
+        )
 
-    # ── Collect inline QA stats from wrapper ──
+        try:
+            # ── 1. Unpack ──
+            ctx.progress.report("title", text=f"Unpacking {mod_name}...")
+            [processed] = await asyncio.to_thread(stage_unpack_jars, ctx, [mod])
+
+            # ── 2. Discover ──
+            ctx.progress.report("title", text=f"Discovering files in {mod_name}...")
+            [processed] = await asyncio.to_thread(stage_discover_files, ctx, [processed])
+
+            if not processed.lang_files:
+                logger.info(f"No language files in {mod_name} — skipping")
+                completed_mods.append(processed)
+                continue
+
+            # ── 3. Parse ──
+            ctx.progress.report("title", text=f"Parsing {mod_name}...")
+            [processed] = await asyncio.to_thread(stage_parse_sources, ctx, [processed])
+
+            # ── 4. Translate ──
+            ctx.progress.report("title", text=f"Translating {mod_name}...")
+            [processed] = await stage_translate_async(
+                ctx,
+                [processed],
+                mod_index=idx,
+                total_mod_count=total_mods,
+                entries_done_before=cumulative_entries,
+                total_entries_global=total_entries,
+            )
+
+            # ── 5. Validate ──
+            ctx.progress.report("title", text=f"Validating {mod_name}...")
+            [processed] = await asyncio.to_thread(stage_validate_outputs, ctx, [processed])
+
+            # ── Count entries in this mod for cumulative tracking ──
+            mod_entry_count = sum(len(f.units) for f in processed.lang_files)
+            cumulative_entries += mod_entry_count
+
+            if ctx.settings.dry_run:
+                logger.info(f"Dry run — skipping write/repack for {mod_name}")
+            elif ctx.settings.output_mode == "resourcepack":
+                # ── 6. Write targets ──
+                [processed] = await asyncio.to_thread(stage_write_targets, ctx, [processed])
+                resource_pack_mods.append(processed)
+            else:
+                # ── 6. Write targets ──
+                [processed] = await asyncio.to_thread(stage_write_targets, ctx, [processed])
+                # ── 7. Repack ──
+                ctx.progress.report("title", text=f"Repacking {mod_name}...")
+                [processed] = await asyncio.to_thread(stage_repack_jars, ctx, [processed])
+
+            completed_mods.append(processed)
+
+        except asyncio.CancelledError:
+            # Preserve already-completed mods in the result so callers
+            # can report partial progress; re-raise for the job runner.
+            logger.info(f"Cancelled during {mod_name} — {len(completed_mods)} mod(s) already complete")
+            raise
+        except Exception as exc:
+            if _is_fatal_pipeline_error(exc):
+                raise
+            logger.exception(f"Failed to process mod {mod_name} — skipping")
+            failed_mod_names.append(mod_name)
+            continue
+
+    # ── Resource pack: build once at the end ──
+    if ctx.settings.output_mode == "resourcepack" and not ctx.settings.dry_run:
+        if resource_pack_mods:
+            ctx.progress.report("title", text="Building resource pack...")
+            await asyncio.to_thread(stage_build_resourcepack, ctx, resource_pack_mods)
+        else:
+            logger.warning("No mods with language files — resource pack skipped")
+
+    # ── Collect inline QA stats from wrapper (accumulated across all mods) ──
     _collect_inline_qa_stats(ctx.provider, stats)
 
-    ctx.progress.report("title", text="Validating translations...")
-    mods = await asyncio.to_thread(stage_validate_outputs, ctx, mods)
+    _accumulate_stats(stats, completed_mods)
 
-    if ctx.settings.dry_run:
-        logger.info("Dry run enabled — skipping write and repack stages")
-        ctx.progress.report("title", text="Dry run complete (no files written)")
-    elif ctx.settings.output_mode == "resourcepack":
-        ctx.progress.report("title", text="Writing target files...")
-        mods = await asyncio.to_thread(stage_write_targets, ctx, mods)
-
-        mods = await asyncio.to_thread(stage_build_resourcepack, ctx, mods)
-    else:
-        ctx.progress.report("title", text="Writing target files...")
-        mods = await asyncio.to_thread(stage_write_targets, ctx, mods)
-
-        ctx.progress.report("title", text="Repacking JARs...")
-        mods = await asyncio.to_thread(stage_repack_jars, ctx, mods)
-
-    _accumulate_stats(stats, mods)
+    if failed_mod_names:
+        logger.warning(f"Skipped {len(failed_mod_names)} failed mod(s): {', '.join(failed_mod_names)}")
 
     stats.finish()
     stats.provider = ctx.settings.provider
     stats.source_lang = ctx.settings.source_mc_lang
     stats.target_lang = ctx.settings.target_mc_lang
 
-    return PipelineResult(stats=stats, mods=mods, workspace_path=ctx.workspace)
+    return PipelineResult(stats=stats, mods=completed_mods, workspace_path=ctx.workspace)
 
 
 def run_pipeline(ctx: PipelineContext, mods: list[Mod]) -> PipelineResult:
@@ -369,3 +446,13 @@ def _build_file_stats(lang_file: LangFile) -> FileStats:
     file_stats.entries_translated = translated
     file_stats.entries_failed = failed
     return file_stats
+
+
+def _is_fatal_pipeline_error(exc: Exception) -> bool:
+    """Re-export of :func:`app.application.stages.translate._is_fatal_error`.
+
+    Avoids an import cycle between pipeline and translate stages.
+    """
+    from .stages.translate import _is_fatal_error  # type: ignore[import-untyped]
+
+    return _is_fatal_error(exc)

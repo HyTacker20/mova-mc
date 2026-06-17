@@ -368,8 +368,18 @@ class OpenAILikeProvider:
                             error="missing from chunk response",
                         )
 
+        was_cancelled = cancel_token.is_set()
         return [
-            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False)) for u in units
+            results.get(
+                u.key,
+                TranslationResult(
+                    unit=u,
+                    translated_text=u.source_text,
+                    success=False,
+                    error="cancelled" if was_cancelled else None,
+                ),
+            )
+            for u in units
         ]
 
     # ── Async translate ───────────────────────────────────────────────
@@ -547,6 +557,16 @@ class OpenAILikeProvider:
                     return_exceptions=True,
                 )
 
+        was_cancelled = cancel_token.is_set()
         return [
-            results.get(u.key, TranslationResult(unit=u, translated_text=u.source_text, success=False)) for u in units
+            results.get(
+                u.key,
+                TranslationResult(
+                    unit=u,
+                    translated_text=u.source_text,
+                    success=False,
+                    error="cancelled" if was_cancelled else None,
+                ),
+            )
+            for u in units
         ]

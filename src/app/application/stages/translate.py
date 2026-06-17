@@ -17,14 +17,26 @@ def stage_translate(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
     return asyncio.run(stage_translate_async(ctx, mods))
 
 
-async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
+async def stage_translate_async(
+    ctx: PipelineContext,
+    mods: list[Mod],
+    *,
+    mod_index: int = 0,
+    total_mod_count: int | None = None,
+    entries_done_before: int = 0,
+    total_entries_global: int | None = None,
+) -> list[Mod]:
     result: list[Mod] = []
     selected = [m for m in mods if m.selected]
-    total_mods = len(selected)
+    total_mods = total_mod_count if total_mod_count is not None else len(selected)
     mods_done = 0
 
     # Pre-compute total entries across all selected mods for global progress
-    total_entries = sum(1 for m in selected for f in m.lang_files for u in f.units if isinstance(u, TranslationUnit))
+    total_entries = (
+        total_entries_global
+        if total_entries_global is not None
+        else sum(1 for m in selected for f in m.lang_files for u in f.units if isinstance(u, TranslationUnit))
+    )
     entries_done = 0
     failed_entries = 0
 
@@ -77,10 +89,10 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
                     translated: str,
                     _ctx=ctx,
                     _mod_name: str = mod.name,
-                    _base: int = entries_done,
+                    _base: int = entries_done_before + entries_done,
                     _total_entries: int = total_entries,
                     _total_mods: int = total_mods,
-                    _mods_done: int = mods_done,
+                    _mods_done: int = mod_index,
                     _total_in_mod: int = total_in_mod,
                     _failed_entries: int = failed_entries,
                 ) -> None:
@@ -129,7 +141,9 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
                         source_units,
                         on_entry=_on_entry,
                     )
-                except Exception:
+                except Exception as exc:
+                    if _is_fatal_error(exc):
+                        raise
                     logger.exception(f"Batch translation failed for {lang_file.source_path}")
                     translated_units = [
                         TranslationResult(
@@ -168,7 +182,8 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
                 entries_done += file_total
 
                 succeeded = sum(1 for u in translated_units if u.success)
-                failed = file_total - succeeded
+                cancelled = sum(1 for u in translated_units if not u.success and u.error == "cancelled")
+                failed = file_total - succeeded - cancelled
                 failed_entries += failed
                 mod_translated += succeeded
                 mod_failed += failed
@@ -182,17 +197,18 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
                 mod_entries_done = mod_translated + mod_failed
                 ctx.progress.report(
                     "overall_progress",
-                    completed_mods=mods_done,
-                    fractional_mods=mods_done + min(1.0, mod_entries_done / max(1, mod_entry_count)),
+                    completed_mods=mod_index,
+                    fractional_mods=mod_index + min(1.0, mod_entries_done / max(1, mod_entry_count)),
                     total_mods=total_mods,
-                    completed_entries=entries_done,
+                    completed_entries=entries_done_before + entries_done,
                     total_entries=total_entries,
                     failed_entries=failed_entries,
                 )
                 failed_info = f", {failed} failed" if failed > 0 else ""
+                cancelled_info = f", {cancelled} skipped" if cancelled > 0 else ""
                 source_info = f" [from {effective_source}]" if effective_source else ""
                 base = f"  {lang_file.source_path.name}: {succeeded}/{file_total} translated"
-                msg = f"{base}{source_info}{failed_info} in {file_elapsed:.1f}s"
+                msg = f"{base}{source_info}{failed_info}{cancelled_info} in {file_elapsed:.1f}s"
                 logger.info(msg)
             else:
                 translated_units = []
@@ -215,9 +231,9 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
             ctx.progress.report_mod_complete(mod.name, 0, 0, 0)
             ctx.progress.report(
                 "overall_progress",
-                completed_mods=mods_done,
+                completed_mods=mod_index + mods_done,
                 total_mods=total_mods,
-                completed_entries=entries_done,
+                completed_entries=entries_done_before + entries_done,
                 total_entries=total_entries,
                 failed_entries=failed_entries,
             )
@@ -228,9 +244,9 @@ async def stage_translate_async(ctx: PipelineContext, mods: list[Mod]) -> list[M
         ctx.progress.report_mod_complete(mod.name, mod_translated, mod_total, mod_failed)
         ctx.progress.report(
             "overall_progress",
-            completed_mods=mods_done,
+            completed_mods=mod_index + mods_done,
             total_mods=total_mods,
-            completed_entries=entries_done,
+            completed_entries=entries_done_before + entries_done,
             total_entries=total_entries,
             failed_entries=failed_entries,
         )
@@ -374,5 +390,30 @@ def _translation_succeeded(source_text: str, translated_text: str) -> bool:
     return bool(translated_text.strip())
 
 
-def _placeholder_unit(key: str, text: str) -> TranslationUnit:
-    return TranslationUnit(key=key, source_text=text, file_type="lang")
+def _is_fatal_error(exc: Exception) -> bool:
+    """Return True if this error should stop the pipeline rather than skip one mod.
+
+    Detects rate-limit / quota / billing errors from OpenAI SDK and
+    common API response patterns so we don't waste quota retrying.
+    """
+    # OpenAI SDK RateLimitError
+    try:
+        from openai import RateLimitError  # type: ignore[import-untyped]
+
+        if isinstance(exc, RateLimitError):
+            return True
+    except ImportError:
+        pass
+    # LiteLLM / generic rate-limit patterns in error message
+    msg = str(exc).lower()
+    return any(
+        phrase in msg
+        for phrase in (
+            "rate limit",
+            "429",
+            "usage limit",
+            "quota exceeded",
+            "insufficient_quota",
+            "monthly usage limit",
+        )
+    )
