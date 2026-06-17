@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { memo, useEffect, useRef, type CSSProperties } from 'react'
 import type { QaLiveEntry, TranslatedEntry } from '../types'
 import {
   formatQaKey,
@@ -18,6 +18,26 @@ export interface LiveResultsPanelsProps {
   emptyTranslationText?: string
   emptyQaText?: string
 }
+
+/** Memoized translation row — avoids re-animating existing rows when new ones arrive. */
+const TrRow = memo(function TrRow({
+  entry,
+  animate,
+}: {
+  entry: TranslatedEntry
+  animate: boolean
+}) {
+  return (
+    <div
+      className="tr-row"
+      style={animate ? undefined : { animation: 'none' }}
+    >
+      <span className="tr-source">{entry.source}</span>
+      <span className="tr-arrow">→</span>
+      <span className="tr-target">{entry.translated}</span>
+    </div>
+  )
+})
 
 function rowStyle(index: number, total: number, animate: boolean): CSSProperties {
   if (!animate) return { animation: 'none' }
@@ -150,16 +170,12 @@ export default function LiveResultsPanels({
           {translations.length === 0 ? (
             <p className="translations-empty">{emptyTranslationText}</p>
           ) : (
-            translations.map((t, i) => (
-              <div
+            translations.map((t) => (
+              <TrRow
                 key={t.uid}
-                className="tr-row"
-                style={rowStyle(i, translations.length, animate)}
-              >
-                <span className="tr-source">{t.source}</span>
-                <span className="tr-arrow">→</span>
-                <span className="tr-target">{t.translated}</span>
-              </div>
+                entry={t}
+                animate={animate}
+              />
             ))
           )}
         </div>

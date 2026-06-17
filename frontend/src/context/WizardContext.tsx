@@ -145,7 +145,6 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           progress: {
             ...p,
             modName: String(data.mod_name ?? ''),
-            totalEntries: Number(data.entry_count ?? p.totalEntries),
           },
         }
       }
@@ -171,11 +170,11 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           totalMods: Number(data.total_mods ?? 0),
           fractionalMods: fractional != null ? Number(fractional) : null,
           completedEntries: Number(data.completed_entries ?? 0),
-          totalEntries,
+          totalEntries: totalEntries > 0 ? totalEntries : p.totalEntries,
           failed: Number(data.failed_entries ?? 0),
         }
-        if (state.qaEnabled && totalEntries > 0) {
-          next.totalQa = totalEntries
+        if (state.qaEnabled && next.totalEntries > 0) {
+          next.totalQa = next.totalEntries
         }
         return { ...state, progress: next }
       }
@@ -230,7 +229,6 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           progress: {
             ...p,
             completedEntries: bumped,
-            totalEntries: Math.max(p.totalEntries, bumped),
             translations: p.translations.length > 200
               ? [...p.translations.slice(-200), t]
               : [...p.translations, t],

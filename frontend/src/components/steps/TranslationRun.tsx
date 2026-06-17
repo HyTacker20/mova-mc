@@ -69,7 +69,16 @@ export default function TranslationRun() {
   const esRef = useRef<EventSource | null>(null)
   const stateRef = useRef(state)
   const jobStartRef = useRef<number | null>(null)
+  const translationStartRef = useRef<number | null>(null)
   stateRef.current = state
+
+  // Start translation timer when first entry arrives (not on job start).
+  // This gives accurate ETA based on translation rate, not total job time.
+  useEffect(() => {
+    if (progress.completedEntries > 0 && translationStartRef.current === null) {
+      translationStartRef.current = Date.now()
+    }
+  }, [progress.completedEntries])
 
   useEffect(() => {
     if (jobStatus !== 'running') return
@@ -170,10 +179,15 @@ export default function TranslationRun() {
   const entriesPct = pct(progress.completedEntries, progress.totalEntries)
   const qaTotal = progress.totalQa || progress.totalEntries
   const qaPct = pct(progress.completedQa, qaTotal)
+  // Use translation-only elapsed for ETA (not total job time).
+  // Falls back to total elapsed if translation hasn't started yet.
+  const translationElapsed = translationStartRef.current
+    ? (Date.now() - translationStartRef.current) / 1000
+    : 0
   const eta = estimateEtaSeconds(
     progress.completedEntries,
     progress.totalEntries,
-    elapsedS,
+    translationElapsed || elapsedS,
   )
   const running = jobStatus === 'running'
   const failed = jobStatus === 'failed'
