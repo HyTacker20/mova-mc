@@ -15,18 +15,23 @@ from starlette.responses import StreamingResponse
 
 router = APIRouter()
 
-# Queue fed by the loguru sink; up to 256 backlogged messages.
-_log_queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=256)
-_log_history: deque[dict] = deque(maxlen=500)
+# Queue fed by the loguru sink; up to 512 backlogged messages.
+_log_queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=512)
+_log_history: deque[dict] = deque(maxlen=5000)
 _loop: asyncio.AbstractEventLoop | None = None
+
+# Pinned startup messages that are never evicted from history.
+# Appended by the lifespan after config load; replayed before history.
+_startup_log: list[dict] = []
 
 
 def reset_state() -> None:
     """Reset module-level state (for test isolation)."""
-    global _log_queue, _log_history, _loop
-    _log_queue = asyncio.Queue(maxsize=256)
-    _log_history = deque(maxlen=500)
+    global _log_queue, _log_history, _loop, _startup_log
+    _log_queue = asyncio.Queue(maxsize=512)
+    _log_history = deque(maxlen=5000)
     _loop = None
+    _startup_log = []
 
 
 def _enqueue(entry: dict) -> None:
@@ -125,12 +130,57 @@ def detach_log_sink() -> None:
     _loop = None
 
 
+def capture_startup_config(
+    provider: str,
+    model: str,
+    source: str,
+    target: str,
+    output_mode: str,
+    cache: str,
+    qa: str,
+    workers: str,
+) -> None:
+    """Store startup config as pinned log entries that are never evicted.
+
+    Called from the lifespan after config is loaded.  These entries are
+    replayed before the rolling history so the user always sees how the
+    server was configured even after a long translation job fills the
+    history deque.
+    """
+    import time as _time
+
+    ts = _time.strftime("%H:%M:%S")
+    prefix = f"INFO: {ts} |"
+
+    _startup_log.clear()
+    _startup_log.extend(
+        [
+            {
+                "text": f"{prefix} provider={provider}  model={model}",
+                "level": "INFO",
+                "category": "general",
+            },
+            {
+                "text": f"{prefix} {source} → {target}  "
+                f"output={output_mode}  cache={cache}  qa={qa}  workers={workers}",
+                "level": "INFO",
+                "category": "general",
+            },
+        ]
+    )
+
+
 async def _event_stream(request: Request) -> AsyncGenerator[str, None]:
     """Yield new log lines as SSE events.
 
-    Replays recent history first, then streams live entries.  Exits when
-    the client disconnects or the connection times out.
+    Replays pinned startup config first, then recent history, then
+    streams live entries.  Exits when the client disconnects or the
+    connection times out.
     """
+    for entry in _startup_log:
+        if await request.is_disconnected():
+            return
+        yield f"data: {json.dumps(entry)}\n\n"
     for entry in list(_log_history):
         if await request.is_disconnected():
             return

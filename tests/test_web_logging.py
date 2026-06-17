@@ -95,13 +95,14 @@ async def test_log_sink_drops_oldest_on_queue_full() -> None:
 
     logs_route.attach_log_sink()
 
-    for i in range(260):
+    # Push more entries than the queue can hold (512 + 4).
+    for i in range(516):
         logs_route._enqueue({"text": f"line-{i}"})
 
     queued_texts = []
     while not logs_route._log_queue.empty():
         queued_texts.append(logs_route._log_queue.get_nowait()["text"])
 
-    assert len(queued_texts) == 256
+    assert len(queued_texts) == 512
     assert queued_texts[0] == "line-4"
-    assert queued_texts[-1] == "line-259"
+    assert queued_texts[-1] == "line-515"

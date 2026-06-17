@@ -11,9 +11,10 @@ interface LogPanelProps {
   onClose: () => void
 }
 
-type TabId = 'other' | 'translation' | 'qa'
+type TabId = 'all' | 'translation' | 'qa' | 'other'
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: 'all', label: 'All' },
   { id: 'translation', label: 'Translation' },
   { id: 'qa', label: 'QA' },
   { id: 'other', label: 'Other' },
@@ -27,7 +28,7 @@ function lineLevel(entry: LogLine): string {
 
 export default function LogPanel({ visible, onClose }: LogPanelProps) {
   const [lines, setLines] = useState<LogLine[]>([])
-  const [activeTab, setActiveTab] = useState<TabId>('translation')
+  const [activeTab, setActiveTab] = useState<TabId>('all')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function LogPanel({ visible, onClose }: LogPanelProps) {
   }, [visible])
 
   const filteredLines = lines.filter(line => {
+    if (activeTab === 'all') return true
     if (activeTab === 'translation') return line.category === 'translation'
     if (activeTab === 'qa') return line.category === 'qa'
     return line.category !== 'translation' && line.category !== 'qa'
@@ -85,7 +87,7 @@ export default function LogPanel({ visible, onClose }: LogPanelProps) {
       <div className="log-panel-body">
         {filteredLines.length === 0 && (
           <div className="log-panel-empty">
-            {activeTab === 'other' ? 'Waiting for log output…' : `No ${activeTab} logs yet…`}
+            {activeTab === 'all' ? 'Waiting for log output…' : `No ${activeTab} logs yet…`}
           </div>
         )}
         {filteredLines.map((line, i) => {

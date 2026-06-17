@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.routes.catalog import router as catalog_router
 from backend.routes.config import router as config_router
 from backend.routes.jobs import router as jobs_router
-from backend.routes.logs import attach_log_sink, detach_log_sink
+from backend.routes.logs import attach_log_sink, capture_startup_config, detach_log_sink
 from backend.routes.logs import router as logs_router
 from backend.routes.mods import router as mods_router
 
@@ -25,13 +25,60 @@ _STATIC_DIR = Path(__file__).parent / "static"
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    """Startup: configure logging and attach the loguru→SSE sink.
+    """Startup: configure logging, attach loguru→SSE sink, log config.
     Shutdown: detach the sink."""
+    from loguru import logger
+
+    from app.core.config_loader import find_config_file, load_config
     from app.logging_config import is_logging_configured, setup_logging
 
     if not is_logging_configured():
         setup_logging(console_level="INFO")
     attach_log_sink()
+
+    # ── Log current config for debugging context ──
+    try:
+        config_path = find_config_file(".")
+        if config_path:
+            raw = load_config(config_path)
+            provider = str(raw.get("provider", "?"))
+            model = str(raw.get("model", "?"))
+            source = str(raw.get("source", "?"))
+            target = str(raw.get("target", "?"))
+            output_mode = str(raw.get("output_mode", "?"))
+            cache = "off" if raw.get("no_cache") else "on"
+            qa = "on" if raw.get("qa", {}).get("judge") else "off"
+            workers = str(raw.get("workers", "?"))
+            logger.info(
+                "Config loaded from {} | provider={} model={} source={} target={} "
+                "output={} output_mode={} cache={} qa={} workers={}",
+                config_path.name,
+                provider,
+                model,
+                source,
+                target,
+                str(raw.get("output", "?")),
+                output_mode,
+                cache,
+                qa,
+                workers,
+            )
+            # Pin startup config so it survives history eviction.
+            capture_startup_config(
+                provider=provider,
+                model=model,
+                source=source,
+                target=target,
+                output_mode=output_mode,
+                cache=cache,
+                qa=qa,
+                workers=workers,
+            )
+        else:
+            logger.info("No config file found — using defaults")
+    except Exception:
+        logger.debug("Could not log config at startup")
+
     yield
     detach_log_sink()
 
