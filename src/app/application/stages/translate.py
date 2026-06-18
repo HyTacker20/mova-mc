@@ -49,7 +49,7 @@ async def stage_translate_async(
 
         mod_file_count = len(mod.lang_files)
         mod_entry_count = sum(1 for f in mod.lang_files for u in f.units if isinstance(u, TranslationUnit))
-        ctx.progress.report_mod_start(mod.name, mod_file_count, mod_entry_count)
+        ctx.progress.report("mod_start", mod_name=mod.name, file_count=mod_file_count, entry_count=mod_entry_count)
         translated_files: list[LangFile] = []
         mod_translated = 0
         mod_failed = 0
@@ -188,11 +188,12 @@ async def stage_translate_async(
                 mod_translated += succeeded
                 mod_failed += failed
                 file_duration_ms = int(file_elapsed * 1000)
-                ctx.progress.report_mod_file_complete(
-                    mod.name,
-                    str(lang_file.source_path),
-                    file_duration_ms,
-                    failed,
+                ctx.progress.report(
+                    "mod_file_complete",
+                    mod_name=mod.name,
+                    file_path=str(lang_file.source_path),
+                    duration_ms=file_duration_ms,
+                    errors=failed,
                 )
                 mod_entries_done = mod_translated + mod_failed
                 ctx.progress.report(
@@ -228,7 +229,7 @@ async def stage_translate_async(
 
         if not translated_files:
             logger.info(f"No translatable content in {mod.name} files — skipping")
-            ctx.progress.report_mod_complete(mod.name, 0, 0, 0)
+            ctx.progress.report("mod_complete", mod_name=mod.name, translated=0, total=0, failed=0)
             ctx.progress.report(
                 "overall_progress",
                 completed_mods=mod_index + mods_done,
@@ -241,7 +242,9 @@ async def stage_translate_async(
             continue
 
         mod_total = mod_translated + mod_failed
-        ctx.progress.report_mod_complete(mod.name, mod_translated, mod_total, mod_failed)
+        ctx.progress.report(
+            "mod_complete", mod_name=mod.name, translated=mod_translated, total=mod_total, failed=mod_failed
+        )
         ctx.progress.report(
             "overall_progress",
             completed_mods=mod_index + mods_done,

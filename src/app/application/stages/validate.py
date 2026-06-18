@@ -88,7 +88,7 @@ def _validate_result(
         logger.debug("QA warnings for '{}': {}", result.unit.key, qa_warnings)
         for warning in qa_warnings:
             msg = warning.get("message", warning.get("type", "warning"))
-            ctx.progress.report_qa_warning(result.unit.key, str(msg))
+            ctx.progress.report("qa_warning", key=result.unit.key, message=str(msg))
 
     # Only create a new result if we have warnings (otherwise return unchanged)
     if qa_warnings:

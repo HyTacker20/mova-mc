@@ -642,7 +642,7 @@ class InlineQaWrapper:
 
         self._qa_judged += len(batch)
         if self._progress is not None:
-            self._progress.report_qa_progress(self._qa_judged, self._qa_queued)
+            self._progress.report("qa_progress", done=self._qa_judged, total=self._qa_queued)
             if flagged_count > 0 or corrected_count > 0:
                 self._progress.report(
                     "qa_inline_summary",
@@ -723,7 +723,7 @@ class InlineQaWrapper:
             if tgt and tgt != src:
                 self._qa_queued += 1
                 if self._progress is not None:
-                    self._progress.report_qa_progress(self._qa_judged, self._qa_queued)
+                    self._progress.report("qa_progress", done=self._qa_judged, total=self._qa_queued)
                 work_queue.put((key, source, tgt))
 
         worker = threading.Thread(
