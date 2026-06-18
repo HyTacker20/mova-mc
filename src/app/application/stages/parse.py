@@ -29,7 +29,7 @@ def stage_parse_sources(_ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
 
         # Load hint-language data if available
         hint_data: dict[str, str] = {}
-        hint_path: Path | None = getattr(mod, "_hint_path", None)
+        hint_path: Path | None = mod.hint_path
         if hint_path and hint_path.exists():
             hint_data = _load_hint_file(hint_path)
 
@@ -53,17 +53,17 @@ def stage_parse_sources(_ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
         else:
             logger.info(f"No files to parse for {mod.name} — skipping")
 
+        # Propagate explicit metadata set by prior stages
+        # (e.g. effective_source_lang from discover fallback)
         result_mod = Mod(
             name=mod.name,
             path=mod.path,
             lang_files=tuple(parsed_files),
             selected=mod.selected,
+            effective_source_lang=mod.effective_source_lang,
+            estimated_entries=mod.estimated_entries,
+            hint_path=mod.hint_path,
         )
-        # Propagate ephemeral attributes set by prior stages
-        # (e.g. _effective_source_lang from discover fallback)
-        effective_source = getattr(mod, "_effective_source_lang", None)
-        if effective_source:
-            object.__setattr__(result_mod, "_effective_source_lang", effective_source)
 
         result.append(result_mod)
 

@@ -218,18 +218,15 @@ def stage_discover_files(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
             lang_files = []
             log_msg = f"No source language files found for {mod.name} — skipping"
 
-        # Attach hint path and fallback info to mod's metadata
-        # via non-public attributes (same pattern as _inject_hint_path).
+        # Build the Mod with explicit metadata — no object.__setattr__ needed.
         mod_with_hint = Mod(
             name=mod.name,
             path=mod.path,
             lang_files=tuple(lang_files),
             selected=mod.selected,
+            hint_path=hint_path,
+            effective_source_lang=effective_source if effective_source != source_lang else None,
         )
-        if hint_path:
-            mod_with_hint = _inject_hint_path(mod_with_hint, hint_path)
-        if effective_source != source_lang:
-            object.__setattr__(mod_with_hint, "_effective_source_lang", effective_source)
 
         logger.info(log_msg)
         result.append(mod_with_hint)
@@ -238,7 +235,13 @@ def stage_discover_files(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
 
 
 def _inject_hint_path(mod: Mod, hint_path: Path) -> Mod:
-    """Store the hint-language file path on the mod without modifying the
-    frozen dataclass interface — uses a non-public attribute."""
-    object.__setattr__(mod, "_hint_path", hint_path)
-    return mod
+    """Backward-compat wrapper. Prefer passing ``hint_path=`` to the Mod constructor."""
+    return Mod(
+        name=mod.name,
+        path=mod.path,
+        lang_files=mod.lang_files,
+        selected=mod.selected,
+        hint_path=hint_path,
+        effective_source_lang=mod.effective_source_lang,
+        estimated_entries=mod.estimated_entries,
+    )

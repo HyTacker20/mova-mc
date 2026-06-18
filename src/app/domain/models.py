@@ -79,9 +79,16 @@ class Mod:
         path: Path to the JAR file.
         lang_files: Language files discovered within the mod.
         selected: Whether the user selected this mod for translation.
+        estimated_entries: Approximate entry count (set by scanner, used for progress).
+        hint_path: Path to a hint-language file (set by discover stage).
+        effective_source_lang: Language code actually used for translation
+            (may differ from configured source_lang when fallback is used).
     """
 
     name: str
     path: Path
     lang_files: tuple[LangFile, ...] = ()
     selected: bool = True
+    estimated_entries: int = 0
+    hint_path: Path | None = None
+    effective_source_lang: str | None = None
