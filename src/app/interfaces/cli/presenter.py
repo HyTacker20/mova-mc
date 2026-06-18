@@ -5,7 +5,6 @@ from pathlib import Path
 from loguru import logger
 
 from ...domain.stats import OverallStats
-from ...utils.result import Err, Ok, Result
 
 
 def format_cli_summary_lines(stats: OverallStats) -> list[str]:
@@ -38,7 +37,7 @@ def print_cli_summary(stats: OverallStats) -> None:
         logger.info(line)
 
 
-def export_stats_json(stats: OverallStats, path: str | Path) -> Result[Path, str]:
+def export_stats_json(stats: OverallStats, path: str | Path) -> Path | None:
     import json
 
     export_path = Path(path)
@@ -47,6 +46,7 @@ def export_stats_json(stats: OverallStats, path: str | Path) -> Result[Path, str
         with export_path.open("w", encoding="utf-8") as fh:
             json.dump(stats.to_dict(), fh, indent=2, ensure_ascii=False)
         logger.info(f"Stats exported to {export_path}")
-        return Ok(export_path)
+        return export_path
     except OSError as e:
-        return Err(str(e))
+        logger.warning(f"Failed to export stats to {export_path}: {e}")
+        return None

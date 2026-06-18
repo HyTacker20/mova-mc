@@ -7,7 +7,6 @@ from pathlib import Path
 
 from app.domain.stats import FileStats, ModStats, OverallStats
 from app.interfaces.cli.presenter import export_stats_json, format_cli_summary_lines
-from app.utils.result import Err, Ok
 
 
 def _make_stats(
@@ -131,23 +130,23 @@ class TestExportStatsJson:
         stats = _make_stats()
         out = tmp_path / "stats.json"
         result = export_stats_json(stats, str(out))
-        assert isinstance(result, Ok)
+        assert result is not None
         assert out.exists()
         data = json.loads(out.read_text(encoding="utf-8"))
         assert data["total_mods"] == 1
         assert data["provider"] == "google"
 
-    def test_export_oserror_returns_err(self) -> None:
-        """On an invalid path, export returns Err."""
+    def test_export_oserror_returns_none(self) -> None:
+        """On an invalid path, export returns None."""
         stats = _make_stats()
         result = export_stats_json(stats, "")
-        assert isinstance(result, Err)
+        assert result is None
 
     def test_export_creates_parent_dir(self, tmp_path: Path) -> None:
         stats = _make_stats()
         out = tmp_path / "sub" / "dir" / "stats.json"
         result = export_stats_json(stats, str(out))
-        assert isinstance(result, Ok)
+        assert result is not None
         assert out.exists()
 
     def test_export_contains_all_mods(self, tmp_path: Path) -> None:
