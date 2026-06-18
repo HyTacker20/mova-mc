@@ -170,6 +170,6 @@ class TestJobQaMapping:
             ),
         )
         settings = Settings(config_data=req.to_settings_dict())
-        assert settings.qa_judge is True
-        assert settings.qa_judge_provider == "opencode"
-        assert settings.qa_judge_model == "deepseek-v4-flash"
+        assert settings.qa.enabled is True
+        assert settings.qa.provider == "opencode"
+        assert settings.qa.model == "deepseek-v4-flash"

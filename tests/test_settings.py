@@ -14,11 +14,11 @@ class TestSettings:
         settings = Settings()
         assert settings.source_mc_lang == "en_US"
         assert settings.target_mc_lang == "es_ES"
-        assert settings.mods_path == "./"
+        assert settings.paths.mods_path == "./"
         # Default temp_path is a unique dir under the system temp directory
         assert settings.temp_path.startswith(_tempfile.gettempdir())
         assert "mmt_" in settings.temp_path
-        assert settings.translation_path == "./translated_mods"
+        assert settings.paths.translation_path == "./translated_mods"
         assert settings.provider == "google"
 
     def test_cli_args_override(self):
@@ -32,8 +32,8 @@ class TestSettings:
         settings = Settings(cli_args=args)
         assert settings.source_mc_lang == "uk_UA"
         assert settings.target_mc_lang == "de_DE"
-        assert settings.mods_path == "./my_mods"
-        assert settings.translation_path == "./my_output"
+        assert settings.paths.mods_path == "./my_mods"
+        assert settings.paths.translation_path == "./my_output"
         assert settings.provider == "openai"
 
     def test_google_lang_extraction(self):
@@ -72,7 +72,7 @@ class TestSettings:
         assert settings.target_mc_lang == "de_DE"
         assert settings.provider == "openai"
         assert settings.max_workers == 10
-        assert settings.translation_path == "./my_out"
+        assert settings.paths.translation_path == "./my_out"
 
     def test_cli_overrides_config_data(self):
         config = {"source": "uk_UA", "provider": "openai", "workers": 10}

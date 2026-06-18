@@ -38,16 +38,21 @@ def _build_sample_jar(tmp_path: Path, name: str = "test_mod.jar") -> Path:
 
 def _make_settings(mods_path: Path, workspace: Path, output: Path, **overrides: object) -> Settings:
     s = Settings()
-    s.mods_path = str(mods_path)
+    s.paths.mods_path = str(mods_path)
     s.temp_path = str(workspace)
-    s.translation_path = str(output)
+    s.paths.translation_path = str(output)
     s.source_mc_lang = "en_US"
     s.target_mc_lang = "es_ES"
     s.max_workers = 1
     s.provider = "openai"
-    s.output_mode = "separate"
+    s.paths.output_mode = "separate"
     for k, v in overrides.items():
-        setattr(s, k, v)
+        if k == "output_mode":
+            s.paths.output_mode = str(v)
+        elif hasattr(s.paths, k):
+            setattr(s.paths, k, v)
+        else:
+            setattr(s, k, v)
     return s
 
 

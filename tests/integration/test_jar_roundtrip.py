@@ -19,16 +19,16 @@ class NullProgress(ProgressReporter):
 
 def _build_settings(mods_path: Path, temp_path: Path, output_path: Path) -> Settings:
     settings = Settings()
-    settings.mods_path = str(mods_path)
+    settings.paths.mods_path = str(mods_path)
     settings.temp_path = str(temp_path)
-    settings.translation_path = str(output_path)
+    settings.paths.translation_path = str(output_path)
     settings.source_mc_lang = "en_US"
     settings.target_mc_lang = "en_US"
     settings.source_google_lang = "en"
     settings.target_google_lang = "en"
     settings.max_workers = 1
     settings.provider = "openai"
-    settings.output_mode = "separate"
+    settings.paths.output_mode = "separate"
     return settings
 
 

@@ -59,7 +59,7 @@ def stage_build_resourcepack(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]
     if not selected:
         logger.warning("No mods with language files to include — resource pack will be empty")
 
-    output_path = Path(ctx.settings.effective_output_path())
+    output_path = Path(ctx.settings.paths.effective_output_path)
     target_lang = ctx.settings.target_mc_lang
     entry_count = _count_entries(mods)
 

@@ -43,8 +43,8 @@ class TestChunkModeSettings:
 
     def test_qa_chunk_size_from_config(self) -> None:
         settings = Settings(config_data={"qa": {"chunk_size": 15, "judge_workers": 3}})
-        assert settings.qa_chunk_size == 15
-        assert settings.qa_judge_workers == 3
+        assert settings.qa.chunk_size == 15
+        assert settings.qa.judge_workers == 3
 
 
 class TestRateLimiterConfigure:

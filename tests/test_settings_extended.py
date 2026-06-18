@@ -38,12 +38,12 @@ class TestSettingsNewKeys:
     def test_config_applies_output_mode(self) -> None:
         """output_mode from config is applied."""
         s = Settings(config_data={"output_mode": "separate"})
-        assert s.output_mode == "separate"
+        assert s.paths.output_mode == "separate"
 
     def test_default_output_mode(self) -> None:
         """Default output_mode is 'resourcepack'."""
         s = Settings()
-        assert s.output_mode == "resourcepack"
+        assert s.paths.output_mode == "resourcepack"
 
     def test_cli_overrides_config_hint_lang(self) -> None:
         """CLI args override config for hint_lang."""
@@ -61,7 +61,7 @@ class TestSettingsNewKeys:
         """CLI args override config for output_mode."""
         args = Namespace(output_mode="replace")
         s = Settings(cli_args=args, config_data={"output_mode": "separate"})
-        assert s.output_mode == "replace"
+        assert s.paths.output_mode == "replace"
 
 
 class TestReplaceMode:
@@ -70,17 +70,17 @@ class TestReplaceMode:
     def test_replace_mode_sets_translation_path_to_mods_path(self) -> None:
         """In replace mode, translation_path should equal mods_path (simulating _save_to_app_settings)."""
         s = Settings()
-        s.mods_path = "/some/mods/folder"
-        s.output_mode = "replace"
-        s.translation_path = s.mods_path  # what _save_to_app_settings does
-        assert s.translation_path == "/some/mods/folder"
-        assert s.translation_path == s.mods_path
+        s.paths.mods_path = "/some/mods/folder"
+        s.paths.output_mode = "replace"
+        s.paths.translation_path = s.paths.mods_path  # what _save_to_app_settings does
+        assert s.paths.translation_path == "/some/mods/folder"
+        assert s.paths.translation_path == s.paths.mods_path
 
     def test_separate_mode_preserves_translation_path(self) -> None:
         """In separate mode, translation_path stays as set."""
         s = Settings()
-        s.mods_path = "/some/mods/folder"
-        s.output_mode = "separate"
-        s.translation_path = "/custom/output"
-        assert s.translation_path == "/custom/output"
-        assert s.translation_path != s.mods_path
+        s.paths.mods_path = "/some/mods/folder"
+        s.paths.output_mode = "separate"
+        s.paths.translation_path = "/custom/output"
+        assert s.paths.translation_path == "/custom/output"
+        assert s.paths.translation_path != s.paths.mods_path

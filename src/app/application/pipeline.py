@@ -6,6 +6,7 @@ import json
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 
@@ -113,7 +114,7 @@ def build_context(
         hashlib.sha256(json.dumps(sorted(glossary.items()), ensure_ascii=True).encode()).hexdigest() if glossary else ""
     )
 
-    db_path = cache_path or str(Path(settings.translation_path) / "translation_cache.db")
+    db_path = cache_path or str(Path(settings.paths.translation_path) / "translation_cache.db")
     sqlite_cache = SqliteCache(db_path)
 
     translation_chunk_size = _resolve_translation_chunk_size(settings)
@@ -137,86 +138,20 @@ def build_context(
 
     resolved_model = resolve_model(settings.provider, model)
 
-    # ── Wrap with inline QA if enabled ─────────────────────────────
-    if settings.qa_judge:
-        from ..infrastructure.providers.judge import LlmJudge
-        from ..infrastructure.providers.qa_wrapper import InlineQaWrapper
-        from ..infrastructure.providers.registry import build_transport
-
-        # Google + QA without dedicated judge provider: warn and skip
-        if not is_llm and not settings.qa_judge_provider:
-            logger.warning(
-                "Inline QA: Google Translate selected but no judge provider configured. "
-                "QA requires an LLM provider — set a judge provider in Advanced settings."
-            )
-            if progress is not None:
-                progress.report_qa_warning(
-                    "",
-                    "QA skipped: set a judge provider for Google translation",
-                )
-        else:
-            judge_provider = settings.qa_judge_provider or settings.provider
-            judge_model = settings.qa_judge_model or resolved_model
-            try:
-                judge_transport = build_transport(
-                    judge_provider,
-                    judge_model,
-                    task="judge",
-                )
-                judge = LlmJudge(
-                    transport=judge_transport,
-                    source_display=source_display,
-                    target_display=target_display,
-                    glossary=glossary,
-                    chunk_size=settings.qa_chunk_size,
-                    max_tokens=1024,
-                    cache=sqlite_cache,
-                    target_lang=settings.target_mc_lang,
-                    judge_model=judge_model,
-                    judge_workers=settings.qa_judge_workers,
-                    progress=progress,
-                )
-
-                # ── Resolve corrector ──
-                corrector: TranslationProvider | None = raw_provider
-                if settings.qa_corrector_model:
-                    try:
-                        corrector = get_translator_service(
-                            provider=settings.provider,
-                            source_lang=source_lang,
-                            target_lang=target_lang,
-                            source_lang_display=source_display,
-                            target_lang_display=target_display,
-                            capitalize=True,
-                            max_retries=3,
-                            model=settings.qa_corrector_model,
-                            glossary=glossary,
-                            chunk_size=1,  # singleton for corrections
-                            max_concurrent_chunks=1,
-                        )
-                    except Exception as exc:
-                        logger.warning(
-                            "Inline QA: failed to build corrector with model {}, falling back to translator: {}",
-                            settings.qa_corrector_model,
-                            exc,
-                        )
-
-                raw_provider = InlineQaWrapper(
-                    inner=raw_provider,
-                    judge=judge,
-                    corrector=corrector,
-                    threshold=settings.qa_threshold,
-                    max_attempts=settings.qa_max_attempts,
-                    chunk_size=settings.qa_chunk_size,
-                    progress=progress,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Inline QA: failed to build judge ({}/{}), skipping inline QA: {}",
-                    judge_provider,
-                    judge_model,
-                    exc,
-                )
+    # ── Wrap with inline QA if enabled ─────────────────────────────────────
+    raw_provider = _maybe_wrap_inline_qa(
+        raw_provider=raw_provider,
+        settings=settings,
+        progress=progress,
+        is_llm=is_llm,
+        source_lang=source_lang,
+        target_lang=target_lang,
+        source_display=source_display,
+        target_display=target_display,
+        glossary=glossary,
+        sqlite_cache=sqlite_cache,
+        resolved_model=resolved_model,
+    )
 
     if settings.no_cache:
         provider: TranslationProvider = raw_provider
@@ -241,6 +176,112 @@ def build_context(
         provider=provider,
         workspace=workspace,
     )
+
+
+def _maybe_wrap_inline_qa(
+    *,
+    raw_provider: TranslationProvider,
+    settings: Settings,
+    progress: ProgressSink,
+    is_llm: bool,
+    source_lang: str,
+    target_lang: str,
+    source_display: str,
+    target_display: str,
+    glossary: dict[str, str],
+    sqlite_cache: Any,
+    resolved_model: str,
+) -> TranslationProvider:
+    """Optionally wrap *raw_provider* with InlineQaWrapper for LLM-based QA.
+
+    When QA is disabled or the provider is not an LLM and no dedicated
+    judge provider is configured, returns *raw_provider* unchanged.
+    """
+    from ..infrastructure.providers.factory import get_translator_service
+    from ..infrastructure.providers.judge import LlmJudge
+    from ..infrastructure.providers.qa_wrapper import InlineQaWrapper
+    from ..infrastructure.providers.registry import build_transport
+
+    if not settings.qa.enabled:
+        return raw_provider
+
+    # Google + QA without dedicated judge provider: warn and skip
+    if not is_llm and not settings.qa.provider:
+        logger.warning(
+            "Inline QA: Google Translate selected but no judge provider configured. "
+            "QA requires an LLM provider — set a judge provider in Advanced settings."
+        )
+        if progress is not None:
+            progress.report(
+                "qa_warning",
+                key="",
+                message="QA skipped: set a judge provider for Google translation",
+            )
+        return raw_provider
+
+    judge_provider = settings.qa.provider or settings.provider
+    judge_model = settings.qa.model or resolved_model
+    try:
+        judge_transport = build_transport(
+            judge_provider,
+            judge_model,
+            task="judge",
+        )
+        judge = LlmJudge(
+            transport=judge_transport,
+            source_display=source_display,
+            target_display=target_display,
+            glossary=glossary,
+            chunk_size=settings.qa.chunk_size,
+            max_tokens=1024,
+            cache=sqlite_cache,
+            target_lang=settings.target_mc_lang,
+            judge_model=judge_model,
+            judge_workers=settings.qa.judge_workers,
+            progress=progress,
+        )
+
+        # ── Resolve corrector ──
+        corrector: TranslationProvider | None = raw_provider
+        if settings.qa.corrector_model:
+            try:
+                corrector = get_translator_service(
+                    provider=settings.provider,
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    source_lang_display=source_display,
+                    target_lang_display=target_display,
+                    capitalize=True,
+                    max_retries=3,
+                    model=settings.qa.corrector_model,
+                    glossary=glossary,
+                    chunk_size=1,  # singleton for corrections
+                    max_concurrent_chunks=1,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Inline QA: failed to build corrector with model {}, falling back to translator: {}",
+                    settings.qa.corrector_model,
+                    exc,
+                )
+
+        return InlineQaWrapper(
+            inner=raw_provider,
+            judge=judge,
+            corrector=corrector,
+            threshold=settings.qa.threshold,
+            max_attempts=settings.qa.max_attempts,
+            chunk_size=settings.qa.chunk_size,
+            progress=progress,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Inline QA: failed to build judge ({}/{}), skipping inline QA: {}",
+            judge_provider,
+            judge_model,
+            exc,
+        )
+        return raw_provider
 
 
 # ── Sync pipeline runner ───────────────────────────────────────────
@@ -338,7 +379,7 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
 
             if ctx.settings.dry_run:
                 logger.info(f"Dry run — skipping write/repack for {mod_name}")
-            elif ctx.settings.output_mode == "resourcepack":
+            elif ctx.settings.paths.output_mode == "resourcepack":
                 # ── 6. Write targets ──
                 [processed] = await asyncio.to_thread(stage_write_targets, ctx, [processed])
                 resource_pack_mods.append(processed)
@@ -364,7 +405,7 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
             continue
 
     # ── Resource pack: build once at the end ──
-    if ctx.settings.output_mode == "resourcepack" and not ctx.settings.dry_run:
+    if ctx.settings.paths.output_mode == "resourcepack" and not ctx.settings.dry_run:
         if resource_pack_mods:
             ctx.progress.report("title", text="Building resource pack...")
             await asyncio.to_thread(stage_build_resourcepack, ctx, resource_pack_mods)

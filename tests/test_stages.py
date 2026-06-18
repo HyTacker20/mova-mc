@@ -20,7 +20,7 @@ def settings() -> Settings:
     s = Settings()
     s.provider = "test"
     s.max_workers = 2
-    s.translation_path = str(Path("/tmp/out"))
+    s.paths.translation_path = str(Path("/tmp/out"))
     s.debug = False
     return s
 
@@ -184,7 +184,7 @@ class TestTranslateStage:
         self, settings: Settings, progress: ProgressReporter, provider: MagicMock, tmp_path: Path
     ) -> None:
         settings.debug = True
-        settings.translation_path = str(tmp_path)
+        settings.paths.translation_path = str(tmp_path)
         ctx = _ctx(settings, progress, provider, tmp_path)
         mod = _make_mod()
         stage_translate(ctx, [mod])
@@ -200,7 +200,7 @@ class TestTranslateStage:
     ) -> None:
         """If the report file cannot be written, the stage does not crash."""
         settings.debug = True
-        settings.translation_path = "/nonexistent_dir_xyz/out"
+        settings.paths.translation_path = "/nonexistent_dir_xyz/out"
         ctx = _ctx(settings, progress, provider, tmp_path)
         mod = _make_mod()
         # Should not raise

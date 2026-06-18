@@ -87,7 +87,7 @@ def _run_translation(args) -> None:
     settings = Settings(cli_args=args, config_data=config_data)
     settings.debug = getattr(args, "debug", False)
 
-    scanner = ModScanner(settings.mods_path, source_lang=settings.source_mc_lang)
+    scanner = ModScanner(settings.paths.mods_path, source_lang=settings.source_mc_lang)
     reporter = ProgressReporter()
     scanner.reporter = reporter
 
@@ -136,11 +136,11 @@ def _run_translation(args) -> None:
 
 def _print_dry_run(settings: Settings, mods: list, selected_count: int) -> None:
     logger.info("--- DRY RUN ---")
-    logger.info(f"Mods path: {settings.mods_path}")
+    logger.info(f"Mods path: {settings.paths.mods_path}")
     logger.info(f"Source language: {settings.source_mc_lang}")
     logger.info(f"Target language: {settings.target_mc_lang}")
     logger.info(f"Translation provider: {settings.provider}")
-    logger.info(f"Output path: {settings.translation_path}")
+    logger.info(f"Output path: {settings.paths.translation_path}")
     logger.info(f"Workers: {settings.max_workers}")
     logger.info(f"Found {len(mods)} JAR(s): {selected_count} selected")
 

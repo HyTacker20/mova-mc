@@ -18,11 +18,11 @@ def stage_repack_jars(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
     """
     cancel_token.raise_if_set()
     mod_names = [m.name for m in mods if m.selected and m.lang_files]
-    output_path = Path(ctx.settings.effective_output_path())
+    output_path = Path(ctx.settings.paths.effective_output_path)
     convert_translated_mods(
         temp_path=ctx.workspace,
         translation_path=output_path,
-        mods_path=Path(ctx.settings.mods_path),
+        mods_path=Path(ctx.settings.paths.mods_path),
         target_lang=ctx.settings.target_mc_lang,
         source_lang=ctx.settings.source_mc_lang,
         mod_names=mod_names,

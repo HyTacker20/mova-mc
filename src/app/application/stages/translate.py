@@ -272,7 +272,7 @@ def _dump_translations(ctx: PipelineContext, mods: list[Mod]) -> None:
     Only called when debug mode is enabled. Saves to translation_path.
     """
     try:
-        out_dir = Path(ctx.settings.translation_path)
+        out_dir = Path(ctx.settings.paths.translation_path)
         out_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_path = out_dir / f"translation_report_{ctx.settings.target_mc_lang}_{ts}.txt"

@@ -100,7 +100,7 @@ class TestPipeline:
         settings = Settings()
         settings.provider = "google"
         settings.temp_path = str(tmp_path / "temp")
-        settings.translation_path = str(tmp_path / "out")
+        settings.paths.translation_path = str(tmp_path / "out")
 
         progress = MagicMock()
         ctx = build_context(settings, progress, cache_path=str(tmp_path / "cache.db"))
@@ -116,7 +116,7 @@ class TestPipeline:
 
         settings = Settings()
         settings.temp_path = str(tmp_path / "temp")
-        settings.translation_path = str(tmp_path / "out")
+        settings.paths.translation_path = str(tmp_path / "out")
         (tmp_path / "temp").mkdir()
 
         progress = MagicMock()

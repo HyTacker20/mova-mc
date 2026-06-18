@@ -34,7 +34,7 @@ class Settings:
         self.chunk_max_text_length: int = 200
         self.progress_batch_size: int = 10
 
-        # -- paths -------------------------------------------------------
+        # -- paths (public sub-config — use settings.paths.mods_path etc.) --
         self.paths = PathConfig()
 
         # -- temp workspace ----------------------------------------------
@@ -52,7 +52,7 @@ class Settings:
         self.exclude_mods: list[str] | None = None
         self.selected_mods: list[str] | None = None
 
-        # -- QA ----------------------------------------------------------
+        # -- QA (public sub-config — use settings.qa.enabled etc.) -------
         self.qa = QaConfig()
 
         # -- rate limiting -----------------------------------------------
@@ -88,100 +88,15 @@ class Settings:
     def temp_path(self, value: str) -> None:
         self._temp_path = value
 
-    # ── backward-compat path accessors ──────────────────────────────────
-
-    @property
-    def mods_path(self) -> str:
-        return self.paths.mods_path
-
-    @mods_path.setter
-    def mods_path(self, value: str) -> None:
-        self.paths.mods_path = value
-
-    @property
-    def translation_path(self) -> str:
-        return self.paths.translation_path
-
-    @translation_path.setter
-    def translation_path(self, value: str) -> None:
-        self.paths.translation_path = value
-
-    @property
-    def output_mode(self) -> str:
-        return self.paths.output_mode
-
-    @output_mode.setter
-    def output_mode(self, value: str) -> None:
-        self.paths.output_mode = value
+    # ── computed properties (not pass-throughs) ────────────────────────
 
     def effective_output_path(self) -> str:
+        """Directory where translated JARs should be written.
+
+        Delegates to ``paths.effective_output_path`` which combines
+        ``output_mode`` and ``mods_path``/``translation_path``.
+        """
         return self.paths.effective_output_path
-
-    # ── backward-compat QA accessors ────────────────────────────────────
-
-    @property
-    def qa_judge(self) -> bool:
-        return self.qa.enabled
-
-    @qa_judge.setter
-    def qa_judge(self, value: bool) -> None:
-        self.qa.enabled = value
-
-    @property
-    def qa_judge_provider(self) -> str | None:
-        return self.qa.provider
-
-    @qa_judge_provider.setter
-    def qa_judge_provider(self, value: str | None) -> None:
-        self.qa.provider = value
-
-    @property
-    def qa_judge_model(self) -> str | None:
-        return self.qa.model
-
-    @qa_judge_model.setter
-    def qa_judge_model(self, value: str | None) -> None:
-        self.qa.model = value
-
-    @property
-    def qa_corrector_model(self) -> str | None:
-        return self.qa.corrector_model
-
-    @qa_corrector_model.setter
-    def qa_corrector_model(self, value: str | None) -> None:
-        self.qa.corrector_model = value
-
-    @property
-    def qa_threshold(self) -> int:
-        return self.qa.threshold
-
-    @qa_threshold.setter
-    def qa_threshold(self, value: int) -> None:
-        self.qa.threshold = value
-
-    @property
-    def qa_max_attempts(self) -> int:
-        return self.qa.max_attempts
-
-    @qa_max_attempts.setter
-    def qa_max_attempts(self, value: int) -> None:
-        self.qa.max_attempts = value
-
-    @property
-    def qa_chunk_size(self) -> int:
-        return self.qa.chunk_size
-
-    @qa_chunk_size.setter
-    def qa_chunk_size(self, value: int) -> None:
-        self.qa.chunk_size = value
-
-    @property
-    def qa_judge_workers(self) -> int:
-        return self.qa.judge_workers
-
-    @qa_judge_workers.setter
-    def qa_judge_workers(self, value: int) -> None:
-        self.qa.judge_workers = value
 
     # ── config data ────────────────────────────────────────────────────
 

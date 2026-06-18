@@ -119,7 +119,7 @@ class TestConfigRoundTrip:
         from app.core.settings import Settings
 
         settings = Settings(config_data=loaded)
-        assert settings.qa_corrector_model == "gpt-4o-mini"
+        assert settings.qa.corrector_model == "gpt-4o-mini"
 
     def test_round_trip_ui_locale(self, config_dir: Path) -> None:
         """UI locale survives round-trip in [translation] section."""

@@ -16,5 +16,5 @@ def stage_unpack_jars(ctx: PipelineContext, mods: list[Mod]) -> list[Mod]:
     """
     cancel_token.raise_if_set()
     selected_names = [m.name for m in mods if m.selected]
-    unpack_mods(Path(ctx.settings.mods_path), ctx.workspace, selected_mods=selected_names)
+    unpack_mods(Path(ctx.settings.paths.mods_path), ctx.workspace, selected_mods=selected_names)
     return mods

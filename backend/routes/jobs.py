@@ -43,7 +43,7 @@ async def create_job(req: JobRequest) -> JobCreatedResponse:
     settings = Settings(config_data=req.to_settings_dict())
 
     try:
-        scanner = ModScanner(settings.mods_path, source_lang=settings.source_mc_lang)
+        scanner = ModScanner(settings.paths.mods_path, source_lang=settings.source_mc_lang)
         all_mods = scanner.discover_mods()
     except (FileNotFoundError, OSError) as exc:
         raise HTTPException(status_code=400, detail=f"Cannot scan mods: {exc}") from exc
