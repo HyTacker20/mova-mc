@@ -374,15 +374,11 @@ def _dump_translations(ctx: PipelineContext, mods: list[Mod]) -> None:
 
 def _consume_inline_qa_metadata(provider: object) -> dict[str, tuple[int | None, str | None, int]]:
     """Extract QA metadata from InlineQaWrapper (possibly wrapped by CachingProvider)."""
-    current = provider
-    while True:
-        consume = getattr(current, "consume_qa_metadata", None)
-        if consume is not None:
-            return consume()  # type: ignore[no-any-return]
-        inner = getattr(current, "_inner", None)
-        if inner is None:
-            break
-        current = inner
+    from ..provider_chain import resolve_provider_attr
+
+    consume = resolve_provider_attr(provider, "consume_qa_metadata")
+    if consume is not None:
+        return consume()  # type: ignore[no-any-return]
     return {}
 
 

@@ -435,20 +435,16 @@ def run_pipeline(ctx: PipelineContext, mods: list[Mod]) -> PipelineResult:
 
 def _collect_inline_qa_stats(provider: object, stats: OverallStats) -> None:
     """Walk the provider chain and collect QA stats from InlineQaWrapper."""
-    current = provider
-    while True:
-        if hasattr(current, "consume_run_stats"):
-            qa_stats = current.consume_run_stats()  # type: ignore[union-attr]
-            if isinstance(qa_stats, dict) and qa_stats.get("qa_judged", 0) > 0:
-                stats.qa_enabled = True
-                stats.qa_judged = qa_stats.get("qa_judged", 0)
-                stats.qa_flagged = qa_stats.get("qa_flagged", 0)
-                stats.qa_corrected = qa_stats.get("qa_corrected", 0)
-            return
-        inner = getattr(current, "_inner", None)
-        if inner is None:
-            break
-        current = inner
+    from .provider_chain import resolve_provider_attr
+
+    consume = resolve_provider_attr(provider, "consume_run_stats")
+    if consume is not None:
+        qa_stats = consume()
+        if isinstance(qa_stats, dict) and qa_stats.get("qa_judged", 0) > 0:
+            stats.qa_enabled = True
+            stats.qa_judged = qa_stats.get("qa_judged", 0)
+            stats.qa_flagged = qa_stats.get("qa_flagged", 0)
+            stats.qa_corrected = qa_stats.get("qa_corrected", 0)
 
 
 def _accumulate_stats(stats: OverallStats, mods: list[Mod]) -> None:
