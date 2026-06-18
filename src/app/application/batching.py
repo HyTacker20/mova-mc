@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, TypeVar
-
-K = TypeVar("K")
-V = TypeVar("V")
+from typing import Any
 
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*$", re.MULTILINE)
 

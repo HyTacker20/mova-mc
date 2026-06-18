@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 from loguru import logger
 
-from ...application.batching import chunk_list
+from ...application.batching import _CODE_FENCE_RE, _TRAILING_COMMA_RE, chunk_list
 from ...application.ports import ProgressSink
 from ...utils.cancellation import cancel_token
 from ...utils.retry_logic import global_rate_limiter
@@ -23,11 +22,6 @@ from .glossary import get_relevant_terms
 from .judge_prompts import JUDGE_PROMPT_VERSION, make_judge_prompt
 from .openai_like import LLMTransport
 from .reasoning_models import strip_thinking_artifacts
-
-# Regex to strip ```json fences
-_CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*$", re.MULTILINE)
-# Trailing comma before closing brace (common LLM mistake)
-_TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")
 
 
 class VerdictCache(Protocol):
