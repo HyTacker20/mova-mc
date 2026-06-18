@@ -86,7 +86,7 @@ def _register_builtins() -> None:
     providers shipped with mova-mc.
     """
 
-    # Google ------------------------------------------------------------
+    # Google (unique — not LLM-based) ------------------------------------
     @register_provider("google", label="Google Translate")
     def _build_google(**kwargs: Any) -> TranslationProvider:
         from .google import GoogleProvider
@@ -99,41 +99,28 @@ def _register_builtins() -> None:
             max_concurrent_chunks=kwargs.get("max_concurrent_chunks", 4),
         )
 
-    # OpenAI-like providers ----------------------------------------------
-    @register_provider("openai", label="OpenAI (GPT-4o-mini)")
-    def _build_openai(**kwargs: Any) -> TranslationProvider:
-        kwargs.pop("provider", None)
-        return _build_openai_like("openai", **kwargs)
+    # OpenAI-like providers (all use the same factory) --------------------
+    _LLM_PROVIDERS: list[tuple[str, str]] = [
+        ("openai", "OpenAI (GPT-4o-mini)"),
+        ("anthropic", "Anthropic Claude"),
+        ("gemini", "Google Gemini"),
+        ("ollama", "Ollama (Local)"),
+        ("litellm", "LiteLLM"),
+        ("openaicompatible", "OpenAI-Compatible"),
+        ("opencode", "OpenCode Go"),
+    ]
+    for _name, _label in _LLM_PROVIDERS:
+        register_provider(_name, label=_label)(_make_openai_like_factory(_name))
 
-    @register_provider("anthropic", label="Anthropic Claude")
-    def _build_anthropic(**kwargs: Any) -> TranslationProvider:
-        kwargs.pop("provider", None)
-        return _build_openai_like("anthropic", **kwargs)
 
-    @register_provider("gemini", label="Google Gemini")
-    def _build_gemini(**kwargs: Any) -> TranslationProvider:
-        kwargs.pop("provider", None)
-        return _build_openai_like("gemini", **kwargs)
+def _make_openai_like_factory(provider_name: str) -> Callable[..., TranslationProvider]:
+    """Return a factory that builds an OpenAILikeProvider for *provider_name*."""
 
-    @register_provider("ollama", label="Ollama (Local)")
-    def _build_ollama(**kwargs: Any) -> TranslationProvider:
+    def _build(**kwargs: Any) -> TranslationProvider:
         kwargs.pop("provider", None)
-        return _build_openai_like("ollama", **kwargs)
+        return _build_openai_like(provider_name, **kwargs)
 
-    @register_provider("litellm", label="LiteLLM")
-    def _build_litellm(**kwargs: Any) -> TranslationProvider:
-        kwargs.pop("provider", None)
-        return _build_openai_like("litellm", **kwargs)
-
-    @register_provider("openaicompatible", label="OpenAI-Compatible")
-    def _build_openaicompatible(**kwargs: Any) -> TranslationProvider:
-        kwargs.pop("provider", None)
-        return _build_openai_like("openaicompatible", **kwargs)
-
-    @register_provider("opencode", label="OpenCode Go")
-    def _build_opencode(**kwargs: Any) -> TranslationProvider:
-        kwargs.pop("provider", None)
-        return _build_openai_like("opencode", **kwargs)
+    return _build
 
 
 def build_transport(
