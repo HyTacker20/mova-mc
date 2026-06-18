@@ -90,15 +90,16 @@ class TestConfigRoundTrip:
         assert loaded.get("output_mode") == "replace"
 
     def test_qa_table_alias_keys(self) -> None:
-        """Web API alias keys (enabled/provider/model) parse via from_table_dict."""
+        """Web API alias keys (enabled/provider/model) parse via from_dict."""
         from app.core.qa_config import QaConfig
 
-        qa = QaConfig.from_table_dict(
+        qa = QaConfig.from_dict(
             {
                 "enabled": True,
                 "provider": "opencode",
                 "model": "deepseek-v4-flash",
-            }
+            },
+            flat=False,
         )
         assert qa.enabled is True
         assert qa.provider == "opencode"

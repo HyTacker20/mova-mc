@@ -135,9 +135,9 @@ class Settings:
         # QA config — prefer [qa] table, fall back to flat keys
         qa_table = config_data.get("qa", {})
         if isinstance(qa_table, dict) and qa_table:
-            self.qa = QaConfig.from_table_dict(qa_table)
+            self.qa = QaConfig.from_dict(qa_table, flat=False)
         else:
-            self.qa = QaConfig.from_flat_dict(config_data)
+            self.qa = QaConfig.from_dict(config_data)
 
         # Chunk / progress (kept flat — not enough fields for a sub-config yet)
         if "chunk_mode" in config_data:

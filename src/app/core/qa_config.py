@@ -11,15 +11,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-_MODEL_BLANK_VALUES: frozenset[str] = frozenset({""})
 
-
-def _coerce_model(raw: Any) -> str | None:
-    """Convert a raw config value to a model name or ``None``."""
+def _none_if_blank(raw: Any) -> str | None:
+    """Return None if *raw* is None or an empty string, else str(raw)."""
     if raw is None:
         return None
     s = str(raw)
-    return None if s in _MODEL_BLANK_VALUES else s
+    return s if s else None
 
 
 @dataclass
@@ -65,35 +63,33 @@ class QaConfig:
     # -- factories -------------------------------------------------------
 
     @classmethod
-    def from_flat_dict(cls, data: dict[str, Any]) -> QaConfig:
-        """Build from flat keys (backward-compatible with old translator.toml)."""
-        return cls(
-            enabled=bool(data.get("qa_judge", False)),
-            provider=data.get("qa_judge_provider"),
-            model=_coerce_model(data.get("qa_judge_model")),
-            corrector_model=data.get("qa_corrector_model"),
-            threshold=int(data.get("qa_threshold", 3)),
-            max_attempts=int(data.get("qa_max_attempts", 2)),
-            chunk_size=int(data.get("qa_chunk_size", 25)),
-            judge_workers=int(data.get("qa_judge_workers", 2)),
-        )
-
-    @classmethod
-    def from_table_dict(cls, table: dict[str, Any]) -> QaConfig:
-        """Build from a ``[qa]`` TOML table."""
-        enabled_raw = table.get("judge", table.get("enabled", False))
-        provider_raw = table.get("judge_provider", table.get("provider"))
-        model_raw = table.get("judge_model", table.get("model"))
-        return cls(
-            enabled=bool(enabled_raw),
-            provider=provider_raw,
-            model=_coerce_model(model_raw),
-            corrector_model=table.get("corrector_model"),
-            threshold=int(table.get("threshold", 3)),
-            max_attempts=int(table.get("max_attempts", 2)),
-            chunk_size=int(table.get("chunk_size", 25)),
-            judge_workers=int(table.get("judge_workers", 2)),
-        )
+    def from_dict(cls, data: dict[str, Any], *, flat: bool = True) -> QaConfig:
+        """Build from flat keys or a ``[qa]`` TOML table."""
+        if flat:
+            return cls(
+                enabled=bool(data.get("qa_judge", False)),
+                provider=data.get("qa_judge_provider"),
+                model=_none_if_blank(data.get("qa_judge_model")),
+                corrector_model=data.get("qa_corrector_model"),
+                threshold=int(data.get("qa_threshold", 3)),
+                max_attempts=int(data.get("qa_max_attempts", 2)),
+                chunk_size=int(data.get("qa_chunk_size", 25)),
+                judge_workers=int(data.get("qa_judge_workers", 2)),
+            )
+        else:
+            enabled_raw = data.get("judge", data.get("enabled", False))
+            provider_raw = data.get("judge_provider", data.get("provider"))
+            model_raw = data.get("judge_model", data.get("model"))
+            return cls(
+                enabled=bool(enabled_raw),
+                provider=provider_raw,
+                model=_none_if_blank(model_raw),
+                corrector_model=data.get("corrector_model"),
+                threshold=int(data.get("threshold", 3)),
+                max_attempts=int(data.get("max_attempts", 2)),
+                chunk_size=int(data.get("chunk_size", 25)),
+                judge_workers=int(data.get("judge_workers", 2)),
+            )
 
     # -- helpers ---------------------------------------------------------
 
