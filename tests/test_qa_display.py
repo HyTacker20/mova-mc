@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from app.domain.qa_display import (
     format_provider_model,
-    format_qa_correction_line,
     format_qa_key,
     format_text_change_preview,
     strip_mc_formatting,
@@ -56,36 +55,6 @@ class TestFormatProviderModel:
 
     def test_model_only_when_provider_empty(self) -> None:
         assert format_provider_model("", "ollama/translategemma:12b") == "ollama/translategemma:12b"
-
-
-class TestFormatQaCorrectionLine:
-    def test_judge_fix_at_attempt_zero(self) -> None:
-        line = format_qa_correction_line(
-            key="bbw.hover.fluidmode.stopat",
-            accepted=True,
-            attempt=0,
-            max_attempts=2,
-        )
-        assert line == "  ✓ stopat: judge fix applied"
-
-    def test_retranslate_attempt(self) -> None:
-        line = format_qa_correction_line(
-            key="item.test",
-            accepted=True,
-            attempt=1,
-            max_attempts=2,
-        )
-        assert line == "  ✓ test · attempt 1/2"
-
-    def test_rejected_with_reason(self) -> None:
-        line = format_qa_correction_line(
-            key="item.coffee.name",
-            accepted=False,
-            attempt=2,
-            max_attempts=3,
-            reason="unchanged",
-        )
-        assert line == "  ✗ coffee.name · attempt 2/3 — unchanged"
 
 
 class TestDisplayScore:

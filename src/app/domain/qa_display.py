@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import re
 
-from .models import TranslationResult
-
 _GENERIC_KEY_SUFFIXES = frozenset({"name", "text", "desc", "title", "tooltip", "label"})
 _MC_TAG_RE = re.compile(
     r"</?(?:item|imp|r|bold|italic|underlined|strikethrough|c|link)[^>]*>",
@@ -56,41 +54,3 @@ def format_provider_model(provider: str, model: str) -> str:
     if model.startswith(prefix):
         return model
     return f"{provider}/{model}"
-
-
-def format_qa_correction_line(
-    *,
-    key: str,
-    accepted: bool,
-    attempt: int,
-    max_attempts: int,
-    reason: str | None = None,
-) -> str:
-    """Plain-text line for a QA correction attempt."""
-    icon = "✓" if accepted else "✗"
-    label = format_qa_key(key)
-    if attempt == 0 and accepted:
-        return f"  {icon} {label}: judge fix applied"
-    if not accepted and reason:
-        return f"  {icon} {label} · attempt {attempt}/{max_attempts} — {reason}"
-    return f"  {icon} {label} · attempt {attempt}/{max_attempts}"
-
-
-def format_qa_rich_lines(result: TranslationResult) -> list[str]:
-    """Return Rich-markup lines for QA info; empty if no QA data."""
-    lines: list[str] = []
-
-    for warning in result.qa_warnings:
-        message = warning.get("message", str(warning))
-        lines.append(f"    [yellow]⚡ {message}[/]")
-
-    if result.qa_score is not None:
-        score_color = "green" if result.qa_score >= 4 else "yellow" if result.qa_score >= 2 else "red"
-        qa_info = f"[{score_color}]★ {result.qa_score}/5[/]"
-        if result.qa_issue:
-            qa_info += f" [dim]({result.qa_issue})[/]"
-        if result.qa_attempts:
-            qa_info += f" [dim]attempts={result.qa_attempts}[/]"
-        lines.append(f"    {qa_info}")
-
-    return lines

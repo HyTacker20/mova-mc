@@ -2,7 +2,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from app.logging_config import get_logger, setup_logging
+from app.logging_config import setup_logging
 
 
 class TestLoggingConfig:
@@ -13,10 +13,6 @@ class TestLoggingConfig:
         assert log_dir.exists()
         log_file.write_text("test", encoding="utf-8")
         assert log_file.exists()
-
-    def test_get_logger_returns_loguru_logger(self):
-        lg = get_logger()
-        assert lg is logger
 
     def test_setup_logging_clears_previous_handlers(self, tmp_path: Path):
         log_dir = str(tmp_path / "logs_clear")

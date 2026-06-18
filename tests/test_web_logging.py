@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from loguru import logger
 
-from app.logging_config import get_console_handler_id, is_logging_configured
+from app.logging_config import is_logging_configured
 from app.utils.progress import ProgressReporter
 from backend.app import create_app
 from backend.dev_progress_log import attach_dev_progress_logger
@@ -23,7 +23,6 @@ class TestWebLoggingStartup:
             client.get("/api/catalog/providers")
 
         assert is_logging_configured()
-        assert get_console_handler_id() is not None
 
 
 class TestDevProgressLogger:

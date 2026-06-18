@@ -1,12 +1,9 @@
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 from loguru import logger
 
 _logging_initialized = False
-_log_file_path: str = ""
-_console_handler_id: int | None = None
 
 
 def setup_logging(
@@ -26,14 +23,13 @@ def setup_logging(
             The rotating file sink is always registered so full details
             are captured to disk.
     """
-    global _logging_initialized, _console_handler_id, _log_file_path
+    global _logging_initialized
     if _logging_initialized:
         return
 
     logger.remove()
     log_file = Path(log_dir) / "translation.log"
     Path(log_dir).mkdir(parents=True, exist_ok=True)
-    _log_file_path = str(log_file.resolve())
 
     if json_format:
         logger.add(
@@ -58,11 +54,10 @@ def setup_logging(
             diagnose=True,
         )
 
-    _console_handler_id = None
     if console:
         # Level-first format matches uvicorn/stdlib (`INFO: …`) so IDE terminals
         # highlight log levels consistently alongside access-log lines.
-        _console_handler_id = logger.add(
+        logger.add(
             sys.stderr,
             level=console_level,
             format="{level}: {time:HH:mm:ss} | {message}",
@@ -74,27 +69,3 @@ def setup_logging(
 
 def is_logging_configured() -> bool:
     return _logging_initialized
-
-
-def get_console_handler_id() -> int | None:
-    return _console_handler_id
-
-
-def get_log_file_path() -> str:
-    """Return the absolute path to the rotating log file."""
-    return _log_file_path
-
-
-def get_logger():
-    return logger
-
-
-def add_callback_sink(
-    callback: Callable[[str], None],
-    level: str = "INFO",
-) -> int:
-    """Register a loguru sink that invokes *callback* for each log line.
-
-    Returns the sink ID for later removal via ``logger.remove(id)``.
-    """
-    return logger.add(callback, level=level, format="{message}")
