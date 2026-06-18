@@ -59,7 +59,7 @@ async def stage_translate_async(
             result.append(mod)
             continue
 
-        effective_source = getattr(mod, "_effective_source_lang", None)
+        effective_source = mod.effective_source_lang
         if effective_source:
             logger.info(f"Translating {mod.name} from fallback source {effective_source}")
 

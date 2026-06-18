@@ -173,9 +173,16 @@ class TestTranslateStage:
     def test_effective_source_lang_logging(
         self, settings: Settings, progress: ProgressReporter, provider: MagicMock, tmp_path: Path
     ) -> None:
-        """Mod with _effective_source_lang attribute logs it but still translates."""
+        """Mod with effective_source_lang attribute logs it but still translates."""
         mod = _make_mod()
-        object.__setattr__(mod, "_effective_source_lang", "en_GB")
+        # Use the explicit field instead of object.__setattr__
+        mod = Mod(
+            name=mod.name,
+            path=mod.path,
+            lang_files=mod.lang_files,
+            selected=mod.selected,
+            effective_source_lang="en_GB",
+        )
         ctx = _ctx(settings, progress, provider, tmp_path)
         result = stage_translate(ctx, [mod])
         assert len(result[0].lang_files[0].units) == 2

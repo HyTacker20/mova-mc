@@ -319,10 +319,10 @@ async def run_pipeline_async(ctx: PipelineContext, mods: list[Mod]) -> PipelineR
 
     # Pre-compute total entries for overall progress denominator.
     # Mods arrive from the scanner with lang_files=() — the actual units
-    # are discovered during parse.  Use _estimated_entries (attached by
-    # modinfo_to_domain_mod) as a close-enough denominator for the
-    # progress bars until the translate stage reports real totals.
-    total_entries = sum(getattr(m, "_estimated_entries", 0) for m in selected)
+    # are discovered during parse.  Use estimated_entries (from the scanner)
+    # as a close-enough denominator for the progress bars until the
+    # translate stage reports real totals.
+    total_entries = sum(m.estimated_entries for m in selected)
     cumulative_entries = 0
 
     for idx, mod in enumerate(selected):
