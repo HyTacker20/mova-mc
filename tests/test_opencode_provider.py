@@ -14,9 +14,9 @@ from app.infrastructure.providers.transports.anthropic_compat import (
 from app.infrastructure.providers.transports.opencode import (
     OPENCODE_ANTHROPIC_MODELS,
     normalize_opencode_model,
-    scale_opencode_max_tokens,
     uses_anthropic_endpoint,
 )
+from app.infrastructure.providers.reasoning_models import scale_max_tokens
 
 
 class TestNormalizeOpencodeModel:
@@ -48,13 +48,13 @@ class TestUsesAnthropicEndpoint:
 
 class TestScaleOpencodeMaxTokens:
     def test_deepseek_unchanged_when_thinking_disabled(self):
-        assert scale_opencode_max_tokens("deepseek-v4-pro", 1024) == 1024
+        assert scale_max_tokens("deepseek-v4-pro", 1024) == 1024
 
     def test_glm_bumped_for_reasoning(self):
-        assert scale_opencode_max_tokens("glm-5.1", 1024) == 8192
+        assert scale_max_tokens("glm-5.1", 1024) == 8192
 
     def test_fast_model_unchanged(self):
-        assert scale_opencode_max_tokens("mimo-v2.5", 1000) == 1000
+        assert scale_max_tokens("mimo-v2.5", 1000) == 1000
 
 
 class TestSplitAnthropicMessages:

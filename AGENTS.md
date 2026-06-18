@@ -55,9 +55,8 @@ src/app/
       reasoning_models.py      Centralized reasoning model policy + token scaling
       model_list.py            Live model list fetching per provider
       transports/
-        openai_sdk.py          OpenAI Python SDK transport
-        litellm_sdk.py         LiteLLM transport
         compat_sdk.py          OpenAI-compatible API transport
+        litellm_sdk.py         LiteLLM transport
         opencode.py            OpenCode Go transport (facade over compat/anthropic)
         anthropic_compat.py    Anthropic Messages API transport
       factory.py               get_translator_service() — provider instantiation

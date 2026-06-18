@@ -63,16 +63,6 @@ def uses_anthropic_endpoint(model: str) -> bool:
     return normalize_opencode_model(model).lower() in OPENCODE_ANTHROPIC_MODELS
 
 
-def scale_opencode_max_tokens(
-    model: str,
-    max_tokens: int,
-    *,
-    task: ReasoningTask = ReasoningTask.TRANSLATE,
-) -> int:
-    """Raise token budget for reasoning-capable models when thinking cannot be disabled."""
-    return scale_max_tokens(model, max_tokens, task=task)
-
-
 class OpenCodeTransport:
     """Facade that delegates to OpenAI or Anthropic transport based on model ID."""
 
@@ -109,9 +99,9 @@ class OpenCodeTransport:
             )
 
     def complete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> str:
-        scaled = scale_opencode_max_tokens(self._model, max_tokens, task=self._task)
+        scaled = scale_max_tokens(self._model, max_tokens, task=self._task)
         return self._inner.complete(messages, temperature, scaled)
 
     async def acomplete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int) -> str:
-        scaled = scale_opencode_max_tokens(self._model, max_tokens, task=self._task)
+        scaled = scale_max_tokens(self._model, max_tokens, task=self._task)
         return await self._inner.acomplete(messages, temperature, scaled)

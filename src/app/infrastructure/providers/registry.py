@@ -132,8 +132,7 @@ def build_transport(
     """Build and return a configured ``LLMTransport`` for the given *provider*.
 
     Resolves the model via :func:`resolve_model` and selects the appropriate
-    transport class (``OpenAICompatTransport`` / ``OpenAISDKTransport`` /
-    ``LitellmTransport``).
+    transport class (``OpenAICompatTransport`` / ``LitellmTransport``).
 
     This is a public helper so that judge/corrector utilities can reuse the
     same transport selection logic without building a full translator.
@@ -142,7 +141,6 @@ def build_transport(
     from .reasoning_models import ReasoningTask
     from .transports.compat_sdk import OpenAICompatTransport
     from .transports.litellm_sdk import LitellmTransport
-    from .transports.openai_sdk import OpenAISDKTransport
     from .transports.opencode import OpenCodeTransport
 
     resolved_model: str = resolve_model(provider, model)  # type: ignore[arg-type]
@@ -160,7 +158,12 @@ def build_transport(
         return OpenAICompatTransport(model=resolved_model, base_url=base_url, task=reasoning_task)
     if provider == "openai":
         try:
-            return OpenAISDKTransport(model=resolved_model, task=reasoning_task)
+            return OpenAICompatTransport(
+                model=resolved_model,
+                task=reasoning_task,
+                api_key_env=("OPENAI_API_KEY",),
+                missing_key_message="OPENAI_API_KEY environment variable not set.",
+            )
         except (ImportError, ValueError) as e:
             from loguru import logger
 

@@ -29,14 +29,3 @@ def resolve_provider_attr(provider: object, attr_name: str, *, default: Any = No
             return getattr(current, attr_name)
         current = getattr(current, "_inner", None)
     return default
-
-
-def call_provider_attr(provider: object, attr_name: str, *args: Any, **kwargs: Any) -> Any:
-    """Walk the chain and call *attr_name* if found, returning the result.
-
-    Returns None if the attribute is not found on any wrapper.
-    """
-    fn = resolve_provider_attr(provider, attr_name)
-    if fn is not None:
-        return fn(*args, **kwargs)
-    return None

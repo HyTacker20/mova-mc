@@ -1,7 +1,7 @@
 import os
 from unittest.mock import MagicMock, patch
 
-from app.core.provider_check import check_provider_available
+from app.infrastructure.providers.registry import check_provider_available
 
 
 class TestProviderCheck:

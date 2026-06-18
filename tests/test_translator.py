@@ -39,7 +39,7 @@ class TestTranslatorService:
     def test_translate_with_openai_error_raises(self):
         with (
             patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}),
-            patch("app.infrastructure.providers.transports.openai_sdk.OpenAISDKTransport.complete") as mock_complete,
+            patch("app.infrastructure.providers.transports.compat_sdk.OpenAICompatTransport.complete") as mock_complete,
         ):
             mock_complete.side_effect = Exception("API error")
             service = get_translator_service("openai", "en", "uk")
